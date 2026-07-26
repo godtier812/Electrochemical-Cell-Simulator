@@ -47,17 +47,18 @@ $\hat{b}$:
   { s: '\\omega', meaning: 'angular frequency of the perturbation', units: 'rad/s', typical: '1e-2 – 1e6' },
   { s: '\\hat{u}', meaning: 'complex amplitude of the state perturbation', units: 'mixed' },
   { s: '\\hat{b}', meaning: 'complex forcing vector (applied current or voltage)', units: 'mixed' },
-  { s: 'Z', meaning: 'area-specific impedance', units: 'Ω·m²', typical: '1e-4 – 1e-2' },
+  { s: 'Z', meaning: 'impedance', units: 'Ω', typical: '1 – 100' },
 ]} caption="Symbols in the frequency-domain EIS system" />
 
 ### One solve per frequency
 
 Each frequency costs one sparse complex factorisation of $i\omega M - J$ — a matrix with
 exactly the sparsity pattern of a single Newton step. Fifty log-spaced frequencies from
-millihertz to megahertz are fifty such solves, which is seconds of wall time on the
-discretisations Voltaire targets, not the hours a transient sweep spends waiting out
-low-frequency transients. There is no transient to converge, no Fourier fit, and no sampling
-error: the linear response is exact to first order in the perturbation amplitude.
+millihertz to hundreds of kilohertz are fifty such solves — designed to take seconds of wall
+time on the discretisations Voltaire targets once the Python solver ships, where a transient
+sweep spends hours waiting out low-frequency transients. There is no transient to converge,
+no Fourier fit, and no sampling error: the linear response is exact to first order in the
+perturbation amplitude.
 
 The deeper point is consistency. Because $J$ is the same matrix Newton used, the spectrum you
 compute is the small-signal response of exactly the nonlinear model you time-step — not of a

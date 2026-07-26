@@ -98,6 +98,21 @@ import DemoShell from '../DemoShell.astro';
       grid-template-columns: 1fr;
     }
   }
+
+  @media (max-width: 700px) {
+    .d4-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1.4fr 1fr 1fr 1fr;
+    }
+
+    .d4-grid .d4-nyquist {
+      grid-row: auto;
+    }
+
+    #demo-impedance .demo-stage {
+      aspect-ratio: 9/16 !important;
+    }
+  }
 </style>
 
 <script>

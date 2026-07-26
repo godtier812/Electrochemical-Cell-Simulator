@@ -116,9 +116,9 @@ interface MMSSources {
 }
 
 interface NewtonResult {
-  cPlus: Float64Array;
-  cMinus: Float64Array;
-  psi: Float64Array;
+  cPlus: Float64Array<ArrayBuffer>;
+  cMinus: Float64Array<ArrayBuffer>;
+  psi: Float64Array<ArrayBuffer>;
   converged: boolean;
   iterations: number;
   residualNorm: number;

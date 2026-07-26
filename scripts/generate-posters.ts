@@ -45,8 +45,8 @@ function runPF(
   seed: number,
   nuclei: number
 ): PFRun {
-  let a = seedState(nx, ny, nuclei, mulberry32(seed));
-  let b = new Float32Array(a.length);
+  let a: Float32Array = seedState(nx, ny, nuclei, mulberry32(seed));
+  let b: Float32Array = new Float32Array(a.length);
   const frames = new Map<number, Float32Array>();
   for (let f = 0; f < steps; f++) {
     cpuStep(a, b, nx, ny, P, f);
@@ -306,7 +306,6 @@ function stampText(
     re.push(z.re);
     im.push(-z.im);
   }
-  const drt = computeDRT(omega, Array.from(omega, (w) => impedance(w, p)), { nTau: 60, lambda: 1e-2 });
   const maxRe = Math.max(...re);
   writeFileSync(
     join(POSTERS, 'd4-impedance.svg'),

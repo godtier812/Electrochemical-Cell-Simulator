@@ -10,7 +10,7 @@
     "preview": "astro preview",
     "check": "astro check",
     "test": "vitest run",
-    "posters": "tsx scripts/generate-posters.ts && tsx scripts/generate-og.ts"
+    "posters": "tsx scripts/generate-posters.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.0.0",
@@ -24,6 +24,7 @@
     "remark-math": "^6.0.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "tsx": "^4.19.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"

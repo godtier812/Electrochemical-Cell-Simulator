@@ -22,22 +22,20 @@ delivered capacity.
 ```python
 import voltaire as vt
 
-cell = vt.Cell.from_preset("graphite-nmc")   # geometry, OCV curves, transport
-                                             # and kinetic parameters
-protocol = vt.protocols.Discharge(rate="1C", cutoff=3.0)  # V
+cell = vt.Cell.from_preset("graphite-nmc-1d")   # geometry, OCV curves, transport
+                                                # and kinetic parameters
 
-sim = vt.Simulation(cell, protocol=protocol)
-sol = sim.run()
+result = cell.discharge(c_rate=1.0, cutoff_voltage=3.0)   # V
 
-ax = sol.plot(x="capacity", y="voltage")
+ax = result.plot("voltage")                     # V against delivered capacity
 ax.figure.savefig("discharge_1c.png")
 ```
 
 The preset bundles a porous-electrode description of both electrodes: concentrated-solution
 [transport](/Electrochemical-Cell-Simulator/physics/transport/) in the electrolyte, solid
 diffusion in the particles, and Butler–Volmer
-[kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) at each interface. `run()`
-integrates the semi-discrete system implicitly, solving each step with the damped Newton
+[kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) at each interface.
+`discharge()` integrates the semi-discrete system implicitly, solving each step with the damped Newton
 method described on the [numerics page](/Electrochemical-Cell-Simulator/numerics/).
 
 Expect three regions in the curve. At the start, the voltage steps down from open circuit by
@@ -55,19 +53,19 @@ lets the solver resolve the diffuse double layer at all. This example sweeps the
 concentration and checks the screening length against theory.
 
 ```python
-import numpy as np
 import voltaire as vt
 
-fitted = {}
-for c0 in [10.0, 100.0, 1000.0]:          # mol/m³ = 0.01, 0.1, 1 M
-    cell = vt.Cell.symmetric(
-        electrolyte=vt.materials.binary_1_1(c0=c0),
-        gap=50e-9,                        # nm-scale gap: the domain is the double layer
-        transport="pnp",                  # Poisson–Nernst–Planck, no electroneutrality
-    )
-    sim = vt.Simulation(cell, protocol=vt.protocols.Hold(voltage=0.010))
-    sol = sim.solve_steady()
-    fitted[c0] = vt.analysis.debye_length(sol)  # exponential fit to phi(x) at the wall
+steady = {}
+for c0 in [10.0, 100.0, 1000.0]:               # mol/m³ = 0.01, 0.1, 1 M
+    cell = vt.Cell.from_config({
+        "preset": "li-symmetric",              # bundled symmetric cell as the base
+        "geometry": {"gap": 50e-9},            # nm-scale gap: the domain is the double layer
+        "electrolyte": {"c0": c0},             # bulk concentration of the 1:1 salt
+        "transport": {"model": "pnp"},         # Poisson–Nernst–Planck, no electroneutrality
+        "mesh": {"grading": "geometric", "min_debye_points": 10},
+    })
+    # A 10 mV hold, integrated to its steady state.
+    steady[c0] = cell.cycle("hold at 0.010 V for 1 s", n_cycles=1)
 ```
 
 The 10 mV hold keeps the electrode in the linear (Debye–Hückel) regime, where the potential
@@ -87,15 +85,22 @@ decays from the wall as a single exponential with decay constant $\lambda_D$:
 ### Checking the scaling
 
 ```python
+import numpy as np
+
 eps, R, T, F = 6.94e-10, 8.314, 298.15, 96485.0
-for c0, lam in fitted.items():
+for c0, result in steady.items():
+    result.plot("profiles")                    # phi(x): exponential decay at each wall
     lam_theory = np.sqrt(eps * R * T / (2 * F**2 * c0))
-    print(f"{c0/1000:.2f} M: fitted {lam*1e9:.3f} nm, analytic {lam_theory*1e9:.3f} nm")
+    print(f"{c0/1000:.2f} M: analytic Debye length {lam_theory*1e9:.3f} nm")
 ```
 
 In water at 298 K the analytic values are about 0.30 nm at 1 M and 0.96 nm at 0.1 M, and the
 sweep as a whole should reproduce the inverse-square-root scaling of the 0.304 nm rule of
-thumb. If the fitted lengths drift from the analytic ones at high concentration, the first
+thumb. Read the screening length off each potential profile as the distance over which
+$\varphi$ falls by a factor of $e$ from its wall value — the
+[double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) performs the
+same exponential fit automatically. If the lengths read off the profiles drift from the
+analytic ones at high concentration, the first
 suspect is the mesh: the grading near the electrode must place several cells inside one
 $\lambda_D$, which at 1 M means sub-ångström resolution at the wall. The
 Scharfetter–Gummel discretisation that keeps this stable is derived on the
@@ -118,19 +123,17 @@ assembled:
 ]} caption="Symbols in the frequency-domain EIS system" />
 
 ```python
-import numpy as np
 import voltaire as vt
 
-cell = vt.Cell.from_preset("graphite-nmc")
-sim = vt.Simulation(cell)
+cell = vt.Cell.from_preset("graphite-nmc-1d")
 
-ss = sim.solve_steady()                        # F(u*) = 0 by damped Newton
-freqs = np.logspace(-2, 5, 50)                 # 10 mHz – 100 kHz, log-spaced
-spec = vt.eis(sim, at=ss, frequencies=freqs)   # 50 solves of (iωM − J)û = b̂
+# Steady state by damped Newton, then 50 log-spaced solves of (iωM − J)û = b̂
+# between 10 mHz and 100 kHz.
+spec = cell.impedance(f_min=0.01, f_max=1e5, n=50)
 
-drt = vt.drt(spec, lam=1e-3, tau=np.logspace(-6, 2, 120))  # Tikhonov-NNLS
+drt = spec.drt(lambda_reg=1e-2)   # Tikhonov-NNLS inversion
 
-spec.plot_nyquist()   # equal axis scaling, −Im Z upward
+spec.plot("nyquist")              # equal axis scaling, −Im Z upward
 drt.plot()
 ```
 
@@ -142,37 +145,45 @@ over as the finite-length diffusion limit is reached. Where arcs overlap into a 
 depressed bump, the DRT separates them by timescale: charge-transfer peaks sit at short
 relaxation times, microseconds to milliseconds, while diffusion contributes peaks at
 milliseconds to seconds and beyond. Do not trust a peak at a single regularisation strength —
-sweep `lam` over a decade or two and keep only the peaks that stay put. The inversion, its
+sweep `lambda_reg` over a decade or two and keep only the peaks that stay put. The inversion, its
 failure modes, and the analytic Warburg checks are on the
 [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/).
 
 ## SEI ageing over 500 cycles
 
-Attach an SEI growth model to the negative electrode and cycle the cell, tracking film
-resistance and discharge capacity per cycle.
+Attach an SEI growth model to the negative electrode and cycle the cell, tracking
+discharge capacity cycle by cycle.
 
 ```python
+import numpy as np
 import voltaire as vt
 
-cell = vt.Cell.from_preset("graphite-nmc")
-cell.degradation = vt.models.SEI()             # solvent reduction at the graphite surface
+cell = vt.Cell.from_config({
+    "preset": "graphite-nmc-1d",               # bundled full cell as the base
+    "degradation": {"sei_model": "kinetic-diffusion",
+                    "sei_kappa": 5e-6},        # S/m — film conductivity, no default
+})
 
-protocol = vt.protocols.Cycle(
-    charge=vt.protocols.CCCV(rate="1C", v_max=4.2, i_cut="C/50"),
-    discharge=vt.protocols.Discharge(rate="1C", cutoff=3.0),
-    n=500,
+result = cell.cycle(
+    "1C charge to 4.2 V hold until C/50, rest 600 s, "
+    "1C discharge to 3.0 V, rest 600 s",
+    n_cycles=500,
 )
 
-sol = vt.Simulation(cell, protocol=protocol).run()
-
-trace = sol.per_cycle("discharge_capacity", "R_sei")
-trace.plot(y="discharge_capacity")
-trace.plot(y="R_sei")
+df = result.to_pandas()                        # scalar traces: t, V, I, T, capacity
+# Plain pandas from here: number the cycles at each switch into discharge
+# (positive current), then integrate current over each discharge step.
+df["cycle"] = ((df["I"] > 0) & (df["I"].shift(fill_value=0.0) <= 0)).cumsum()
+fade = (df[df["I"] > 0]
+        .groupby("cycle")
+        .apply(lambda step: np.trapezoid(step["I"], step["t"]) / 3600.0))  # Ah/m²
+fade.plot(xlabel="cycle number", ylabel="discharge capacity (Ah/m²)")
 ```
 
 The SEI reaction consumes cyclable lithium and thickens an insulating film, so capacity fades
-while $R_{\mathrm{SEI}}$ grows in proportion to the film thickness. The shape of both curves
-should show two regimes. Early on, the film is thin and the interfacial reaction is the
+while $R_{\mathrm{SEI}}$ grows in proportion to the film thickness — the film state itself
+stays on the `Result` as field arrays, alongside the scalar traces exported above. Both
+effects should show two regimes. Early on, the film is thin and the interfacial reaction is the
 bottleneck: growth per cycle is roughly constant and the fade looks linear. As the film
 thickens, solvent transport through it becomes limiting, growth slows in inverse proportion
 to thickness, and the fade flattens into the familiar square-root-of-time shape. If your
@@ -189,22 +200,21 @@ cathode porosity and thickness that maximise energy delivered at fixed power.
 ```python
 import voltaire as vt
 
-space = vt.design.Space(
-    porosity=(0.20, 0.50),
-    cathode_thickness=(40e-6, 120e-6),   # m
+cell = vt.Cell.from_preset("graphite-nmc-1d")
+
+study = vt.design.bayes_opt(
+    cell,
+    objective="energy_at_power",     # named scalar: energy delivered by a
+                                     # constant-power discharge at rated power
+    bounds={
+        "cathode.porosity":  (0.20, 0.50),
+        "cathode.thickness": (40e-6, 120e-6),   # m
+    },
+    n_iter=40,                       # simulation budget: full discharges
+    gradients=True,                  # dQ/dp by adjoint, from the shared Jacobian
 )
 
-study = vt.design.optimize(
-    objective=vt.design.EnergyAtPower(power=100.0),  # W
-    space=space,
-    cell=vt.Cell.from_preset("graphite-nmc"),
-    method="gp-ei",          # GP surrogate + expected improvement
-    gradients="adjoint",     # dQ/dp from the shared Jacobian
-    budget=40,               # full discharge simulations
-)
-
-print(study.best_params, study.best_value)
-study.plot_convergence()
+print(study.best_point, study.best_value)
 ```
 
 The objective has an interior optimum because the two parameters pull against each other: a

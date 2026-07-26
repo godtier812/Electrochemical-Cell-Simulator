@@ -76,7 +76,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
         latex={eqGC}
         caption="Gouy–Chapman: the exact Poisson–Boltzmann profile at a single charged wall, 1:1 electrolyte."
       />
-      <div class="vp-stage"><canvas id="vp-gc"></canvas></div>
+      <div class="vp-stage"><canvas id="vp-gc" role="img" aria-label="Potential profile across the double layer: the numerical PNP solution overlaying the analytic Gouy-Chapman curve"></canvas></div>
       <p class="vp-metric" id="vp-gc-err">computing…</p>
       <CodeBlock code={gcSnippet} lang="ts" label="reproduce (TypeScript, this site's solver)" />
     </section>
@@ -93,7 +93,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
         latex={eqCottrell}
         caption="Cottrell equation: diffusion-limited current after a potential step."
       />
-      <div class="vp-stage"><canvas id="vp-cottrell"></canvas></div>
+      <div class="vp-stage"><canvas id="vp-cottrell" role="img" aria-label="Current versus time on log axes: the simulated potential-step current tracking the analytic Cottrell decay"></canvas></div>
       <p class="vp-metric" id="vp-cottrell-err">computing…</p>
       <CodeBlock code={cottrellSnippet} lang="ts" label="reproduce" />
     </section>
@@ -107,7 +107,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
         design claim for the Scharfetter–Gummel scheme on smooth solutions; the observed order
         is measured below, live, on five meshes.
       </p>
-      <div class="vp-stage"><canvas id="vp-mms"></canvas></div>
+      <div class="vp-stage"><canvas id="vp-mms" role="img" aria-label="Convergence plot on log axes: L2 error falling with mesh spacing parallel to a slope-2 reference line"></canvas></div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -133,7 +133,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
         latex={eqWarburg}
         caption="Finite-length Warburg and its semi-infinite 45° limit."
       />
-      <div class="vp-stage vp-square"><canvas id="vp-warburg"></canvas></div>
+      <div class="vp-stage vp-square"><canvas id="vp-warburg" role="img" aria-label="Nyquist plot with equal axes: the finite-length Warburg locus approaching the 45-degree reference line"></canvas></div>
       <p class="vp-metric" id="vp-warburg-err">computing…</p>
       <CodeBlock code={warburgSnippet} lang="ts" label="reproduce" />
     </section>
@@ -145,7 +145,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
         and it must return one peak at τ = R<sub>ct</sub>C<sub>dl</sub> whose area integrates
         to R<sub>ct</sub>. This exercises the regularised least-squares machinery end to end.
       </p>
-      <div class="vp-stage"><canvas id="vp-drt"></canvas></div>
+      <div class="vp-stage"><canvas id="vp-drt" role="img" aria-label="Distribution of relaxation times: a single recovered peak aligned with the true RC time constant marker"></canvas></div>
       <p class="vp-metric" id="vp-drt-err">computing…</p>
       <CodeBlock code={drtSnippet} lang="ts" label="reproduce" />
     </section>

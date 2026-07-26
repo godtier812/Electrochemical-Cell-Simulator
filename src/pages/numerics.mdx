@@ -75,7 +75,7 @@ The in-development Python solver integrates this system with implicit methods bu
 
 ## Graded mesh
 
-The double layer needs $\lambda_D$-scale resolution and the bulk does not, so a uniform mesh is wasteful by three to four orders of magnitude. Using the corrected Debye length $\lambda_D = \sqrt{\varepsilon RT / (2F^2 c_0)}$ — about 0.30 nm at 1 M and 0.96 nm at 0.1 M in water at 298 K, or 0.304 nm divided by the square root of the molar ionic strength for a 1:1 electrolyte — resolving a 1 µm domain at double-layer resolution uniformly would take roughly $10^{4}$ nodes.
+The double layer needs $\lambda_D$-scale resolution and the bulk does not, so a uniform mesh is wasteful by roughly two orders of magnitude in node count. Using the corrected Debye length $\lambda_D = \sqrt{\varepsilon RT / (2F^2 c_0)}$ — about 0.30 nm at 1 M and 0.96 nm at 0.1 M in water at 298 K, or 0.304 nm divided by the square root of the molar ionic strength for a 1:1 electrolyte — resolving a 1 µm domain at double-layer resolution uniformly would take roughly $3 \times 10^{4}$ nodes.
 
 The meshing rule is: place at least 10 nodes inside one $\lambda_D$ of each electrode, then coarsen geometrically into the bulk with a growth ratio near 1.15. That covers the same 1 µm domain with a few hundred nodes. The Scharfetter–Gummel flux makes the coarse bulk cells nearly free of accuracy cost, because the scheme is exact for the local constant-flux problem regardless of cell size; the graded mesh spends points only where the exponential profiles actually live.
 
