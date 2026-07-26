@@ -1,0 +1,44 @@
+---
+import katex from 'katex';
+
+interface Props {
+  latex: string;
+  id?: string;
+  caption?: string;
+}
+
+const { latex, id, caption } = Astro.props;
+const html = katex.renderToString(latex, {
+  displayMode: true,
+  throwOnError: false,
+  strict: false,
+});
+---
+
+<figure class="equation" id={id}>
+  <div set:html={html} />
+  <div class="equation-meta">
+    {caption ? <figcaption>{caption}</figcaption> : <span></span>}
+    <button class="copy-btn" type="button" data-latex={latex} aria-label="Copy LaTeX source">
+      copy LaTeX
+    </button>
+  </div>
+</figure>
+
+<script>
+  document.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.copy-btn[data-latex]');
+    if (!btn) return;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.latex ?? '');
+      btn.dataset.copied = '';
+      btn.textContent = 'copied';
+      setTimeout(() => {
+        delete btn.dataset.copied;
+        btn.textContent = 'copy LaTeX';
+      }, 1500);
+    } catch {
+      btn.textContent = 'copy failed';
+    }
+  });
+</script>

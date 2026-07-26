@@ -1,13 +1,12 @@
 ---
 // Placeholder — replaced by the full landing page in Phase 7.
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE } from '../lib/site';
 ---
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Voltaire</title>
-  </head>
-  <body>
-    <h1>Voltaire</h1>
-  </body>
-</html>
+<BaseLayout title={SITE.name}>
+  <div class="page prose">
+    <h1>{SITE.name}</h1>
+    <p>{SITE.description}</p>
+  </div>
+</BaseLayout>

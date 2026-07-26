@@ -1,0 +1,144 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import { withBase } from '../lib/url';
+import { SITE, PHYSICS_PAGES, DOCS_PAGES } from '../lib/site';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  /** Direct use from .astro pages. */
+  title?: string;
+  description?: string;
+  nav?: 'physics' | 'docs';
+  section?: string;
+  headings?: Heading[];
+  /** Injected by Astro when used as an MDX layout. */
+  frontmatter?: {
+    title: string;
+    description?: string;
+    nav?: 'physics' | 'docs';
+    section?: string;
+    file?: string;
+  };
+}
+
+const fm = Astro.props.frontmatter;
+const title = fm?.title ?? Astro.props.title ?? SITE.name;
+const description = fm?.description ?? Astro.props.description;
+const navKind = fm?.nav ?? Astro.props.nav ?? 'physics';
+const section = fm?.section ?? Astro.props.section ?? (navKind === 'docs' ? '/docs/' : '/physics/');
+const headings = (Astro.props.headings ?? []).filter((h) => h.depth === 2 || h.depth === 3);
+
+const pages = navKind === 'docs' ? DOCS_PAGES : PHYSICS_PAGES;
+const current = Astro.url.pathname.replace(/\/$/, '');
+const index = pages.findIndex((p) => withBase(p.href).replace(/\/$/, '') === current);
+const prev = index > 0 ? pages[index - 1] : undefined;
+const next = index >= 0 && index < pages.length - 1 ? pages[index + 1] : undefined;
+
+const file = fm?.file ?? '';
+const repoPath = file.includes('/src/') ? `src/${file.split('/src/')[1]}` : undefined;
+---
+
+<BaseLayout title={title} description={description} section={section}>
+  <div class="docs-grid">
+    <nav class="side-nav" aria-label="Section">
+      <div class="group">
+        <span class="overline">{navKind === 'docs' ? 'Documentation' : 'Physics & numerics'}</span>
+        {
+          pages.map((p) => (
+            <a
+              href={withBase(p.href)}
+              aria-current={withBase(p.href).replace(/\/$/, '') === current ? 'page' : undefined}
+            >
+              {p.label}
+            </a>
+          ))
+        }
+      </div>
+    </nav>
+
+    <article class="prose docs-prose">
+      <slot />
+
+      <div class="prev-next">
+        {
+          prev ? (
+            <a href={withBase(prev.href)}>
+              <span class="dir">← Previous</span>
+              {prev.label}
+            </a>
+          ) : (
+            <span />
+          )
+        }
+        {
+          next ? (
+            <a href={withBase(next.href)} style="text-align:right">
+              <span class="dir">Next →</span>
+              {next.label}
+            </a>
+          ) : (
+            <span />
+          )
+        }
+      </div>
+      {
+        repoPath && (
+          <p>
+            <a class="edit-link" href={`${SITE.github}/edit/main/${repoPath}`} rel="noopener">
+              Edit this page on GitHub
+            </a>
+          </p>
+        )
+      }
+    </article>
+
+    {
+      headings.length > 1 && (
+        <nav class="toc-rail" aria-label="On this page">
+          <span class="overline">On this page</span>
+          {headings.map((h) => (
+            <a href={`#${h.slug}`} style={h.depth === 3 ? 'padding-left:1.5rem' : undefined}>
+              {h.text}
+            </a>
+          ))}
+        </nav>
+      )
+    }
+  </div>
+</BaseLayout>
+
+<script>
+  // Scroll-tracking table of contents.
+  const toc = document.querySelector('.toc-rail');
+  if (toc) {
+    const links = new Map<string, HTMLAnchorElement>();
+    toc.querySelectorAll<HTMLAnchorElement>('a[href^="#"]').forEach((a) => {
+      links.set(decodeURIComponent(a.hash.slice(1)), a);
+    });
+    const targets = [...links.keys()]
+      .map((id) => document.getElementById(id))
+      .filter((el): el is HTMLElement => !!el);
+    let active: HTMLAnchorElement | undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            const link = links.get(entry.target.id);
+            if (link && link !== active) {
+              active?.removeAttribute('data-active');
+              link.setAttribute('data-active', '');
+              active = link;
+            }
+          }
+        }
+      },
+      { rootMargin: '-15% 0px -70% 0px' }
+    );
+    targets.forEach((t) => io.observe(t));
+  }
+</script>

@@ -1,0 +1,20 @@
+---
+import { SITE } from '../lib/site';
+import { withBase } from '../lib/url';
+---
+
+<footer class="site-footer">
+  <div class="inner">
+    <div>
+      <div>{SITE.name} · {SITE.license} licence</div>
+      <div>© 2026 {SITE.author} · <a href={`mailto:${SITE.email}`}>{SITE.email}</a></div>
+    </div>
+    <nav aria-label="Footer">
+      <a href={SITE.github} rel="noopener">Repository</a>
+      <a href={`${SITE.github}/issues`} rel="noopener">Issues</a>
+      <a href={withBase('/cite/')}>Cite</a>
+      <a href={withBase('/roadmap/')}>Roadmap</a>
+      <a href={withBase('/gallery/')}>Gallery</a>
+    </nav>
+  </div>
+</footer>

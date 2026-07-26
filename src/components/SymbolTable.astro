@@ -1,0 +1,47 @@
+---
+import katex from 'katex';
+
+interface Row {
+  /** LaTeX for the symbol, e.g. "D_i". */
+  s: string;
+  meaning: string;
+  units: string;
+  typical?: string;
+}
+
+interface Props {
+  rows: Row[];
+  caption?: string;
+}
+
+const { rows, caption } = Astro.props;
+const hasTypical = rows.some((r) => r.typical);
+const render = (s: string) =>
+  katex.renderToString(s, { displayMode: false, throwOnError: false, strict: false });
+---
+
+<div class="table-wrap">
+  <table class="symbol-table">
+    {caption && <caption class="visually-hidden">{caption}</caption>}
+    <thead>
+      <tr>
+        <th scope="col">Symbol</th>
+        <th scope="col">Meaning</th>
+        <th scope="col">Units</th>
+        {hasTypical && <th scope="col">Typical value</th>}
+      </tr>
+    </thead>
+    <tbody>
+      {
+        rows.map((row) => (
+          <tr>
+            <td set:html={render(row.s)} />
+            <td>{row.meaning}</td>
+            <td class="num">{row.units}</td>
+            {hasTypical && <td class="num">{row.typical ?? '—'}</td>}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
