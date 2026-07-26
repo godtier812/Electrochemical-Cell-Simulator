@@ -1,0 +1,49 @@
+---
+/**
+ * A code block with a copy button. Highlighting comes from the surrounding
+ * markdown pipeline when used in MDX; this wrapper is for .astro pages where
+ * we pass pre-rendered code via the default slot.
+ */
+import { Code } from 'astro:components';
+import type { BundledLanguage } from 'shiki';
+
+interface Props {
+  code: string;
+  lang?: BundledLanguage | 'text';
+  label?: string;
+}
+
+const { code, lang = 'text', label } = Astro.props;
+---
+
+<div class="code-block">
+  {label && <span class="overline">{label}</span>}
+  <Code
+    code={code}
+    lang={lang as BundledLanguage}
+    themes={{ light: 'github-light', dark: 'github-dark-dimmed' }}
+    defaultColor={false}
+    class="astro-code"
+  />
+  <button class="copy-btn" type="button" data-code={code} aria-label={`Copy ${label ?? 'code'}`}>
+    copy
+  </button>
+</div>
+
+<script>
+  document.addEventListener('click', async (e) => {
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('.copy-btn[data-code]');
+    if (!btn) return;
+    try {
+      await navigator.clipboard.writeText(btn.dataset.code ?? '');
+      btn.dataset.copied = '';
+      btn.textContent = 'copied';
+      setTimeout(() => {
+        delete btn.dataset.copied;
+        btn.textContent = 'copy';
+      }, 1500);
+    } catch {
+      btn.textContent = 'copy failed';
+    }
+  });
+</script>

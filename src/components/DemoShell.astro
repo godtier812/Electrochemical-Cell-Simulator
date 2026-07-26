@@ -1,0 +1,45 @@
+---
+import { withBase } from '../lib/url';
+
+interface Props {
+  /** Demo identifier, used as element id and by the demo module. */
+  id: string;
+  title: string;
+  /** CSS aspect-ratio for the stage, e.g. "16/9". Reserves space, no CLS. */
+  aspect?: string;
+  /** Poster file under public/posters/, shown before hydration / without JS. */
+  poster: string;
+  /** Text alternative describing what the canvas shows. */
+  alt: string;
+  caption: string;
+  /** Render stage full width with the panel below instead of beside. */
+  stack?: boolean;
+}
+
+const { id, title, aspect = '16/9', poster, alt, caption, stack = false } = Astro.props;
+---
+
+<figure class="demo" id={id} data-demo={id}>
+  <h3 class="demo-title">{title}</h3>
+  <div class={stack ? 'demo-stack' : 'demo-grid'}>
+    <div class="demo-stage" style={`aspect-ratio: ${aspect}`}>
+      <img class="poster" src={withBase(`posters/${poster}`)} alt={alt} decoding="async" />
+      <div class="demo-msg" role="status"></div>
+    </div>
+    <slot name="panel" />
+  </div>
+  <figcaption class="demo-caption">
+    {caption}
+    <noscript> JavaScript is disabled, so a precomputed frame is shown instead of the live model.</noscript>
+  </figcaption>
+</figure>
+
+<style>
+  .demo-title {
+    margin-bottom: var(--s3);
+  }
+
+  .demo-stack > :global(.panel) {
+    margin-top: var(--s4);
+  }
+</style>

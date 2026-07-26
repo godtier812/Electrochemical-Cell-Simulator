@@ -1,0 +1,109 @@
+/*
+ * tokens.css — the single source of truth for colour, type and spacing.
+ * See DESIGN.md. Every other stylesheet derives from these custom properties;
+ * no raw hex values are allowed outside this file and src/lib/colormaps.ts.
+ */
+
+:root {
+  /* ---- primitive palette (DESIGN.md §1) ---- */
+  --paper: #f5f7f9;
+  --ink: #1a2129;
+  --carbon: #0e1116;
+  --carbon-raised: #151a21;
+  --viridis-purple: #440154; /* ramp origin */
+  --viridis-blue: #414487;
+  --viridis-teal: #2a788e;
+  --viridis-green: #22a884;
+  --viridis-lime: #7ad151;
+  --viridis-yellow: #fde725; /* ramp terminus */
+
+  /* the identity mark: a viridis ramp rule */
+  --ramp: linear-gradient(
+    90deg,
+    var(--viridis-purple),
+    var(--viridis-blue),
+    var(--viridis-teal),
+    var(--viridis-green),
+    var(--viridis-lime),
+    var(--viridis-yellow)
+  );
+
+  /* ---- type (DESIGN.md §2) ---- */
+  --font-display: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'STIX Two Text', 'Times New Roman', serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  /* 1.250 modular scale, body 17px */
+  --text-xs: 0.75rem;
+  --text-sm: 0.85rem;
+  --text-base: 1.0625rem; /* 17px */
+  --text-md: 1.25rem;
+  --text-lg: 1.5625rem;
+  --text-xl: 1.953rem;
+  --text-2xl: 2.441rem;
+  --text-3xl: 3.052rem;
+  --leading-body: 1.65;
+  --leading-tight: 1.15;
+
+  /* ---- spacing: 4px base ---- */
+  --s1: 0.25rem;
+  --s2: 0.5rem;
+  --s3: 0.75rem;
+  --s4: 1rem;
+  --s5: 1.5rem;
+  --s6: 2rem;
+  --s7: 3rem;
+  --s8: 4.5rem;
+
+  /* ---- layout ---- */
+  --measure: 70ch;
+  --page-max: 75rem; /* 1200px */
+  --radius: 4px;
+  --radius-panel: 6px;
+}
+
+/* ---- light theme (designed first, see DESIGN.md §5.1) ---- */
+html[data-theme='light'] {
+  color-scheme: light;
+  --bg: var(--paper);
+  --surface: #ffffff;
+  --surface-2: #e9edf1;
+  --fg: var(--ink);
+  --fg-muted: #46525e; /* 7.0:1 on paper */
+  --line: #cdd5dc;
+  --line-strong: #9aa7b3;
+  --accent: var(--viridis-teal); /* 4.6:1 on paper */
+  --accent-strong: #1e5f72;
+  --focus: var(--viridis-purple); /* ramp origin: visible end of the ramp on light */
+  --badge-shipped-fg: #14684f;
+  --badge-progress-fg: #1e5f72;
+  --badge-planned-fg: #46525e;
+  --badge-research-fg: var(--viridis-purple);
+  --plot-grid: #dde3e9;
+  --plot-axis: #46525e;
+  --kbd-bg: #e9edf1;
+  --hero-veil: rgba(245, 247, 249, 0);
+}
+
+/* ---- dark theme (designed, not inverted) ---- */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: var(--carbon);
+  --surface: var(--carbon-raised);
+  --surface-2: #1d242e;
+  --fg: #e4e9ef;
+  --fg-muted: #9aa7b4; /* 7.5:1 on carbon */
+  --line: #2a323d;
+  --line-strong: #47525f;
+  --accent: var(--viridis-green); /* 6.3:1 on carbon */
+  --accent-strong: #5ec962;
+  --focus: var(--viridis-yellow); /* ramp terminus: visible end of the ramp on dark */
+  --badge-shipped-fg: #4fd0a5;
+  --badge-progress-fg: #58b7cf;
+  --badge-planned-fg: #9aa7b4;
+  --badge-research-fg: #b58fd4;
+  --plot-grid: #232b35;
+  --plot-axis: #9aa7b4;
+  --kbd-bg: #1d242e;
+  --hero-veil: rgba(14, 17, 22, 0);
+}
