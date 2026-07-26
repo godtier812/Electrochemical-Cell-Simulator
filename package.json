@@ -1,0 +1,31 @@
+{
+  "name": "voltaire-site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Website for Voltaire, a multiphysics solver for electrochemical cells",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check",
+    "test": "vitest run",
+    "posters": "tsx scripts/generate-posters.ts && tsx scripts/generate-og.ts"
+  },
+  "dependencies": {
+    "@astrojs/mdx": "^4.0.0",
+    "@astrojs/sitemap": "^3.2.0",
+    "@fontsource/ibm-plex-mono": "^5.1.0",
+    "@fontsource/ibm-plex-sans-condensed": "^5.1.0",
+    "@fontsource/stix-two-text": "^5.1.0",
+    "astro": "^5.0.0",
+    "katex": "^0.16.11",
+    "rehype-katex": "^7.0.1",
+    "remark-math": "^6.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

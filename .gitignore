@@ -1,0 +1,14 @@
+# build
+node_modules/
+dist/
+.astro/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# editors / os
+.idea/
+.vscode/
+.DS_Store
