@@ -1,0 +1,174 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Impedance
+description: Frequency-domain EIS from the model Jacobian — one complex solve per frequency — and DRT inversion by Tikhonov-regularised non-negative least squares.
+nav: physics
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+Electrochemical impedance spectroscopy is usually simulated the way it is measured: apply a
+small sinusoidal current, time-step the full nonlinear model until the transient dies, fit the
+steady oscillation, move to the next frequency. At 10 mHz one point costs hundreds of seconds
+of simulated time, and a decent spectrum needs fifty points. Voltaire does none of that. The
+impedance of the discretised model is a property of its Jacobian, and the Jacobian is already
+in hand.
+
+## Impedance without time stepping
+
+### Linearise about steady state
+
+After spatial discretisation, every Voltaire model has the form
+
+<Equation id="eq-dae" latex="M\,\frac{d\mathbf{u}}{dt} = F(\mathbf{u})" caption="The semi-discrete model: a differential-algebraic system. Rows of M are zero where the equation is algebraic, such as the potential equation." />
+
+where $\mathbf{u}$ stacks every unknown — concentrations, potentials, surface coverages — and
+$M$ is the (possibly singular) mass matrix. A singular $M$ is not a problem here; the
+formalism below handles differential-algebraic systems as written.
+
+First solve the steady state $F(\mathbf{u}^*) = 0$ with damped Newton. Then perturb it with a
+small harmonic forcing $\hat{b}\,e^{i\omega t}$ — an applied current or voltage — and keep
+only terms linear in the perturbation. The ansatz
+$\mathbf{u} = \mathbf{u}^* + \hat{u}\,e^{i\omega t}$ turns the time derivative into a factor
+of $i\omega$ and $F$ into its Jacobian, leaving one complex linear system per frequency:
+
+<Equation id="eq-eis" latex="\left(i\omega M - J\right)\hat{u} = \hat{b}, \qquad J = \left.\frac{\partial F}{\partial \mathbf{u}}\right|_{\mathbf{u}^*}" caption="The frequency-domain EIS system. J is the same autodiff Jacobian that damped Newton uses to find the steady state." />
+
+The impedance follows by reading the voltage and current phasors out of $\hat{u}$ and
+$\hat{b}$:
+
+<Equation id="eq-z" latex="Z(\omega) = \frac{\hat{V}(\omega)}{\hat{I}(\omega)}" caption="Impedance as the ratio of voltage to current phasors at the perturbation frequency." />
+
+<SymbolTable rows={[
+  { s: '\\mathbf{u}', meaning: 'state vector: concentrations, potentials, coverages', units: 'mixed', typical: '1e3 – 1e6 unknowns' },
+  { s: 'M', meaning: 'mass matrix; zero rows on algebraic equations', units: 'problem-dependent' },
+  { s: 'J', meaning: 'Jacobian of the residual, from automatic differentiation', units: 'problem-dependent' },
+  { s: '\\omega', meaning: 'angular frequency of the perturbation', units: 'rad/s', typical: '1e-2 – 1e6' },
+  { s: '\\hat{u}', meaning: 'complex amplitude of the state perturbation', units: 'mixed' },
+  { s: '\\hat{b}', meaning: 'complex forcing vector (applied current or voltage)', units: 'mixed' },
+  { s: 'Z', meaning: 'area-specific impedance', units: 'Ω·m²', typical: '1e-4 – 1e-2' },
+]} caption="Symbols in the frequency-domain EIS system" />
+
+### One solve per frequency
+
+Each frequency costs one sparse complex factorisation of $i\omega M - J$ — a matrix with
+exactly the sparsity pattern of a single Newton step. Fifty log-spaced frequencies from
+millihertz to megahertz are fifty such solves, which is seconds of wall time on the
+discretisations Voltaire targets, not the hours a transient sweep spends waiting out
+low-frequency transients. There is no transient to converge, no Fourier fit, and no sampling
+error: the linear response is exact to first order in the perturbation amplitude.
+
+The deeper point is consistency. Because $J$ is the same matrix Newton used, the spectrum you
+compute is the small-signal response of exactly the nonlinear model you time-step — not of a
+hand-fitted equivalent circuit that may or may not correspond to the physics. This is one arm
+of the architecture described on the [numerics page](/Electrochemical-Cell-Simulator/numerics/):
+one autodiff Jacobian consumed three ways — damped Newton for steady states, $(i\omega M - J)$
+for impedance, and the adjoint system $J^{\mathsf{T}}\lambda = -\partial Q/\partial \mathbf{u}$
+for design sensitivities. Implement the residual once, differentiate it once, and all three
+consumers stay in agreement by construction.
+
+<StatusBadge status="in-progress" label="Python solver" /> The Jacobian-based EIS path belongs
+to the Python solver, which is in development. The DRT inversion below runs in the browser
+today.
+
+## Distribution of relaxation times
+
+A spectrum is a curve; the question is what processes are in it. The distribution of
+relaxation times (DRT) represents the impedance as a superposition of first-order relaxations:
+
+<Equation id="eq-drt" latex="Z(\omega) = R_{\infty} + \int_0^{\infty} \frac{\gamma(\tau)}{1 + i\omega\tau}\, d\tau" caption="DRT representation: the spectrum as a weighted continuum of RC-like relaxations. Peaks in γ(τ) mark distinct physical processes." />
+
+Each timescale $\tau$ contributes an RC-like arc, and the weight function $\gamma(\tau)$ says
+how much resistance relaxes at that timescale. Processes that overlap into a single depressed
+arc on the Nyquist plot separate cleanly in $\gamma(\tau)$ because they live at different
+timescales: charge transfer at microseconds to milliseconds, diffusion through surface films
+at milliseconds to seconds, solid-state diffusion at seconds and beyond.
+
+### The inversion is ill-posed
+
+Recovering $\gamma(\tau)$ from measured $Z(\omega)$ is a Fredholm integral equation of the
+first kind — the classic ill-posed problem, where noise at the level of the last digit can
+produce arbitrarily large swings in the solution. Voltaire discretises $\tau$ on a log grid,
+stacks the real and imaginary parts of the kernel into a matrix $A$, and solves a
+Tikhonov-regularised non-negative least-squares problem:
+
+<Equation id="eq-nnls" latex="\hat{\gamma} = \operatorname*{arg\,min}_{\gamma \ge 0}\; \lVert A\gamma - z \rVert_2^2 + \lambda^2 \lVert L\gamma \rVert_2^2" caption="Tikhonov-NNLS inversion: fit the spectrum, penalise roughness, forbid negative resistance." />
+
+The non-negativity constraint encodes that relaxing resistances are positive; the smoothing
+operator $L$ (a discrete derivative on the log-τ grid) penalises oscillatory solutions.
+
+<SymbolTable rows={[
+  { s: 'R_{\\infty}', meaning: 'high-frequency (instantaneous) resistance', units: 'Ω', typical: '1 – 100' },
+  { s: '\\gamma(\\tau)', meaning: 'distribution of relaxation times', units: 'Ω/s' },
+  { s: '\\tau', meaning: 'relaxation timescale', units: 's', typical: '1e-6 – 1e3' },
+  { s: '\\lambda', meaning: 'Tikhonov regularisation strength', units: '—', typical: '1e-4 – 1e-1' },
+  { s: 'L', meaning: 'discrete smoothing (derivative) operator on the log-τ grid', units: '—' },
+]} caption="Symbols in the DRT inversion" />
+
+### Choosing the regularisation strength
+
+There is no neutral choice of $\lambda$, and it is dishonest to pretend otherwise. Too small,
+and the inversion amplifies measurement noise into spurious sharp spikes that look like — but
+are not — physical processes. Too large, and genuinely distinct peaks merge into one broad
+hump, so you under-count the processes in the cell. Non-negativity suppresses the ringing
+that plagues unconstrained Tikhonov inversion, but it cannot rescue a bad $\lambda$. The
+[browser demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) puts $\lambda$ on a
+slider precisely so you can watch both failure modes happen: drag it down until spikes
+appear, drag it up until peaks fuse, and settle where the recovered peaks are stable over a
+range of $\lambda$. That stability check, not any single magic value, is the defensible
+practice.
+
+## Analytic checks
+
+Diffusion impedances have exact closed forms, which makes them sharp tests for both the
+frequency-domain solver and the DRT pipeline.
+
+### Semi-infinite Warburg
+
+Diffusion into an unbounded medium gives
+
+<Equation id="eq-warburg" latex="Z_W(\omega) = \frac{\sigma_W\,(1 - i)}{\sqrt{\omega}}" caption="Semi-infinite Warburg impedance: equal real and negative-imaginary parts at every frequency." />
+
+Real and imaginary magnitudes are equal at every frequency, so the Nyquist trace is a straight
+line at exactly 45° — a geometric fingerprint that any correct solver must reproduce and any
+axis-scaling bug immediately destroys.
+
+### Finite-length Warburg
+
+When diffusion happens across a layer of finite thickness $L$, the impedance is
+
+<Equation id="eq-fl-warburg" latex="Z_W(\omega) = R_d\,\frac{\tanh\sqrt{i\omega L^2 / D}}{\sqrt{i\omega L^2 / D}}" caption="Finite-length Warburg: 45° behaviour at high frequency, rolling over to the resistive limit R_d as ω → 0." />
+
+At high frequency the diffusion front never feels the far boundary and the expression reduces
+to the 45° semi-infinite line; below the characteristic frequency $\omega \sim D/L^2$ the
+$\tanh$ saturates and the impedance bends over toward the purely resistive limit $R_d$. The
+crossover frequency pins down $D/L^2$ directly from the spectrum.
+
+<SymbolTable rows={[
+  { s: '\\sigma_W', meaning: 'Warburg coefficient', units: 'Ω/√s' },
+  { s: 'R_d', meaning: 'low-frequency diffusion resistance', units: 'Ω' },
+  { s: 'L', meaning: 'diffusion layer thickness', units: 'm', typical: '1e-7 – 1e-5' },
+  { s: 'D', meaning: 'diffusion coefficient in the layer', units: 'm²/s', typical: '1e-14 – 1e-10' },
+]} caption="Symbols in the Warburg impedances" />
+
+## Reading a Nyquist plot
+
+Throughout the site, Nyquist plots follow the electrochemists' convention: $-\mathrm{Im}\,Z$
+on the vertical axis against $\mathrm{Re}\,Z$ on the horizontal, with equal scaling on both
+axes. Capacitive processes have negative imaginary impedance, so plotting the negation puts
+the familiar arcs above the axis. Equal axis scaling is not cosmetic: a semicircle is only a
+semicircle, and a Warburg line is only at 45°, when one ohm spans the same distance in both
+directions. Unequal scaling silently distorts exactly the geometric features the plot exists
+to show.
+
+## Try it in the browser
+
+<StatusBadge status="shipped" label="browser demo" /> The
+[impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) runs the
+Tikhonov-NNLS DRT inversion in TypeScript, in your browser. Build a spectrum from known
+relaxations, add noise, and invert it: the $\lambda$ slider shows the spike and merge failure
+modes live, and the Nyquist panel keeps the equal-axis convention so the Warburg checks above
+read at true 45°. Details of the shared-Jacobian architecture are on the
+[numerics page](/Electrochemical-Cell-Simulator/numerics/), and analytic comparisons are
+collected under [validation](/Electrochemical-Cell-Simulator/validation/).

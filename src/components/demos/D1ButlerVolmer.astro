@@ -1,0 +1,57 @@
+---
+import DemoShell from '../DemoShell.astro';
+---
+
+<DemoShell
+  id="demo-butler-volmer"
+  title="D1 · Butler–Volmer explorer"
+  poster="d1-butler-volmer.svg"
+  alt="Plot of current density against overpotential from the Butler–Volmer equation, with the linear response region marked around zero overpotential"
+  aspect="16/10"
+  caption="Interfacial current density j(η) from the Butler–Volmer equation, computed live. The dashed curves are the linearised response and, in Tafel view, the two Tafel asymptotes with slope 2.303RT/αF. Model assumptions: single-step reaction, no mass-transport limitation, film-free interface."
+>
+  <fieldset class="panel" slot="panel" disabled>
+    <legend>kinetics</legend>
+    <div class="control-row">
+      <label for="d1-j0">j₀ / A cm⁻²</label>
+      <input type="range" id="d1-j0" min="0" max="100" step="1" value="50" />
+      <output class="readout" id="d1-j0-out" for="d1-j0">1.00e-3</output>
+    </div>
+    <div class="control-row">
+      <label for="d1-aa">α_a</label>
+      <input type="range" id="d1-aa" min="10" max="90" step="1" value="50" />
+      <output class="readout" id="d1-aa-out" for="d1-aa">0.50</output>
+    </div>
+    <div class="control-row">
+      <label for="d1-ac">α_c</label>
+      <input type="range" id="d1-ac" min="10" max="90" step="1" value="50" />
+      <output class="readout" id="d1-ac-out" for="d1-ac">0.50</output>
+    </div>
+    <div class="control-row">
+      <label for="d1-T">T / K</label>
+      <input type="range" id="d1-T" min="250" max="350" step="1" value="298" />
+      <output class="readout" id="d1-T-out" for="d1-T">298 K</output>
+    </div>
+    <div class="switch-row">
+      <label><input type="checkbox" id="d1-lock" checked /> lock α_a + α_c = 1</label>
+    </div>
+    <div class="switch-row" role="radiogroup" aria-label="Plot mode">
+      <label><input type="radio" name="d1-mode" value="linear" checked /> j vs η</label>
+      <label><input type="radio" name="d1-mode" value="tafel" /> Tafel log|j|</label>
+      <button class="copy-btn" type="button" id="d1-reset">reset</button>
+    </div>
+    <div class="panel-readouts">
+      <span>b_a <output id="d1-slope-a">—</output></span>
+      <span>b_c <output id="d1-slope-c">—</output></span>
+      <span>linear region <output id="d1-linear">—</output></span>
+    </div>
+  </fieldset>
+</DemoShell>
+
+<script>
+  import { initWhenVisible } from './runtime';
+  initWhenVisible('demo-butler-volmer', async (shell) => {
+    const { init } = await import('./d1-butler-volmer');
+    init(shell);
+  });
+</script>

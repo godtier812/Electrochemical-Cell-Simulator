@@ -1,0 +1,65 @@
+---
+import DemoShell from '../DemoShell.astro';
+---
+
+<DemoShell
+  id="demo-dendrite"
+  title="D3 · Phase-field dendrite"
+  poster="d3-dendrite.png"
+  alt="Metal dendrites in yellow and green growing upward from a flat electrode into purple electrolyte, computed by the phase-field model"
+  aspect="16/9"
+  stack={true}
+  caption="Electrochemically driven Allen–Cahn phase field with Kobayashi anisotropy, running as a WebGL2 fragment shader on ping-pong float textures (CPU fallback at reduced resolution). ξ = 1 is metal, ξ = 0 electrolyte; the concentration field co-evolves and throttles growth where the electrolyte depletes. Units are nondimensional lattice units; the morphology sequence mossy → needle → dendritic tracks the L_σ/L_η ratio. Cathodic overpotential is negative — more negative grows faster."
+>
+  <fieldset class="panel" slot="panel" disabled>
+    <legend>deposition cell</legend>
+    <div class="d4-controls">
+      <div class="control-row">
+        <label for="d3-eta">overpotential aη</label>
+        <input type="range" id="d3-eta" min="20" max="80" step="1" value="60" />
+        <output class="readout" id="d3-eta-out" for="d3-eta">−6.0</output>
+      </div>
+      <div class="control-row">
+        <label for="d3-delta">anisotropy δ</label>
+        <input type="range" id="d3-delta" min="0" max="100" step="1" value="85" />
+        <output class="readout" id="d3-delta-out" for="d3-delta">0.05</output>
+      </div>
+      <div class="control-row">
+        <label for="d3-morph">morphology L_σ/L_η</label>
+        <input type="range" id="d3-morph" min="0" max="100" step="1" value="75" />
+        <output class="readout" id="d3-morph-out" for="d3-morph">dendritic</output>
+      </div>
+      <div class="control-row">
+        <label for="d3-T">temperature / K</label>
+        <input type="range" id="d3-T" min="250" max="350" step="1" value="298" />
+        <output class="readout" id="d3-T-out" for="d3-T">298 K</output>
+      </div>
+      <div class="control-row">
+        <label for="d3-nuc">nucleation sites</label>
+        <input type="range" id="d3-nuc" min="1" max="8" step="1" value="3" />
+        <output class="readout" id="d3-nuc-out" for="d3-nuc">3</output>
+      </div>
+    </div>
+    <div class="switch-row" role="radiogroup" aria-label="Anisotropy mode">
+      <label><input type="radio" name="d3-omega" value="4" checked /> ω = 4</label>
+      <label><input type="radio" name="d3-omega" value="6" /> ω = 6</label>
+      <label><input type="checkbox" id="d3-showc" /> concentration overlay</label>
+      <button class="copy-btn" type="button" id="d3-pause" aria-pressed="false">pause</button>
+      <button class="copy-btn" type="button" id="d3-reset">seed / reset</button>
+    </div>
+    <div class="panel-readouts">
+      <span>solid fraction <output id="d3-solid">—</output></span>
+      <span>interface / width <output id="d3-rough">—</output></span>
+      <span>rate <output id="d3-rate">—</output></span>
+      <span>backend <output id="d3-backend">—</output></span>
+    </div>
+  </fieldset>
+</DemoShell>
+
+<script>
+  import { initWhenVisible } from './runtime';
+  initWhenVisible('demo-dendrite', async (shell) => {
+    const { init } = await import('./d3-dendrite');
+    init(shell);
+  });
+</script>

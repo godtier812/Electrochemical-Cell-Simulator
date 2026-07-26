@@ -1,0 +1,43 @@
+---
+layout: ../layouts/BaseLayout.astro
+title: Cite
+description: How to cite Voltaire, the licence it ships under, and the prior work its formulations and figures depend on.
+---
+
+# Cite
+
+If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos/), or its write-ups contributed to your work, cite the software. One honest caveat first: the Python solver package is in development and not yet released. What exists today is this site and its in-browser demos, which implement the numerics in TypeScript. The citation below points at the repository, which contains both.
+
+## BibTeX
+
+```bibtex
+@software{repaka_voltaire_2026,
+  author  = {Repaka, Ashrith},
+  title   = {Voltaire: a multiphysics simulator for electrochemical cells},
+  year    = {2026},
+  url     = {https://github.com/godtier812/Electrochemical-Cell-Simulator},
+  license = {MIT}
+}
+```
+
+A `CITATION.cff` file ships in the repository root, so GitHub's "Cite this repository" button produces the same entry in BibTeX or APA form without any copying from this page.
+
+Because the project is under active development, results can change between commits. If reproducibility matters for your use, record the commit hash you ran against alongside the citation.
+
+## Licence
+
+Voltaire is released under the MIT licence: you may use, copy, modify, and redistribute the code, commercially or otherwise, as long as the copyright and licence notice stay with it. The full text is in `LICENSE` at the repository root.
+
+## Acknowledgements
+
+Voltaire owes three debts worth naming.
+
+**Colormaps.** Every figure on this site draws its colour from perceptually uniform colormap data released into the public domain (CC0): viridis, plasma, and inferno by Stéfan van der Walt and Nathaniel Smith, and cividis by Jamie Nuñez, Christopher Anderton, and Ryan Renslow. The lookup tables are compiled into the site and are the only source of colour in the demos.
+
+**The electrochemistry canon.** The model formulations on the [physics pages](/Electrochemical-Cell-Simulator/physics/) follow two standard references: Newman and Thomas-Alyea, *Electrochemical Systems*, for transport, porous-electrode theory, and concentrated-solution corrections; and Bard and Faulkner, *Electrochemical Methods*, for interfacial kinetics and impedance. Where this site states an equation, the intent is to match these texts, not to improve on them.
+
+**PyBaMM.** The planned cross-validation reference for the porous-electrode (P2D) model. That comparison has not yet been run; its status is tracked honestly on the [validation page](/Electrochemical-Cell-Simulator/validation/).
+
+## Contact
+
+Questions, corrections, or a use of Voltaire you would like mentioned: [repaka.ashrith@gmail.com](mailto:repaka.ashrith@gmail.com).

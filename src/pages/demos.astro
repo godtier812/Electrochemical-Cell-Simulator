@@ -1,0 +1,55 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import D1ButlerVolmer from '../components/demos/D1ButlerVolmer.astro';
+import D2DoubleLayer from '../components/demos/D2DoubleLayer.astro';
+import D3Dendrite from '../components/demos/D3Dendrite.astro';
+import D4Impedance from '../components/demos/D4Impedance.astro';
+import D5Microstructure from '../components/demos/D5Microstructure.astro';
+import { withBase } from '../lib/url';
+---
+
+<BaseLayout
+  title="Demos"
+  description="Five interactive demos computing the real numerics in your browser: Butler–Volmer kinetics, the PNP double layer, phase-field dendrites, impedance with live DRT inversion, and microstructure tortuosity."
+  section="/demos/"
+>
+  <div class="page">
+    <article class="prose">
+      <span class="overline">Live</span>
+      <h1>Demos</h1>
+      <p>
+        Five models, all computed client-side while you drag the sliders — a Newton solver, a
+        regularised least-squares inversion, a conjugate-gradient Laplace solve, and a WebGL2
+        phase-field, in TypeScript. No server is involved. Every demo states its model and its
+        assumptions in the caption, and every control carries units. If JavaScript is off,
+        each demo shows a frame precomputed by the same code at build time.
+      </p>
+      <p>
+        The physics behind each demo is written up in the
+        <a href={withBase('/physics/')}>physics section</a>, and the checks against analytic
+        solutions live on the <a href={withBase('/validation/')}>validation page</a>.
+      </p>
+    </article>
+
+    <div class="demo-list">
+      <D1ButlerVolmer />
+      <D2DoubleLayer />
+      <D3Dendrite />
+      <D4Impedance />
+      <D5Microstructure />
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .demo-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s7);
+    margin-top: var(--s6);
+  }
+
+  .demo-list > :global(.demo) {
+    scroll-margin-top: 5rem;
+  }
+</style>

@@ -1,0 +1,80 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Install
+description: How to get Voltaire — the browser demos that run today, and the from-source install route for the Python package in development.
+nav: docs
+---
+import StatusBadge from '../../components/StatusBadge.astro';
+
+## Status
+
+<StatusBadge status="in-progress" label="Python package" /> <StatusBadge status="planned" label="voltaire-echem on PyPI" />
+
+The Voltaire Python package is in development and is not on PyPI. There is nothing to `pip install` today, and any package you find under a similar name is not this project. The planned distribution name is `voltaire-echem`; when it ships, this page becomes a one-line install.
+
+What is real and running right now is this site and its demos. The demos are not videos or mock-ups: they implement the solver's numerical methods in TypeScript and run them in your browser.
+
+## Run the numerics today, nothing to install
+
+The [demos page](/Electrochemical-Cell-Simulator/demos/) executes the same methods the Python solver is built around:
+
+- [Butler–Volmer kinetics](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer) — interfacial current against overpotential, with the Tafel limits.
+- [Double layer](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) — Poisson–Nernst–Planck solved with Scharfetter–Gummel fluxes and damped Newton iteration.
+- [Impedance](/Electrochemical-Cell-Simulator/demos/#demo-impedance) — distribution of relaxation times by Tikhonov-regularised NNLS.
+- [Microstructure](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) — random sequential adsorption packing and tortuosity from a Laplace solve.
+- [Dendrite growth](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) — explicit phase-field electrodeposition.
+
+If you are deciding whether the methods hold up before the package exists, start there, then read the [validation page](/Electrochemical-Cell-Simulator/validation/) for what has been checked against analytic results — and what has not been run yet.
+
+## Install from source
+
+<StatusBadge status="in-progress" label="repository not yet public" />
+
+When the repository is public, the supported route is an editable install into a fresh virtual environment.
+
+### Requirements
+
+- Python 3.11 or newer
+- git
+
+### Steps
+
+```bash
+git clone https://github.com/godtier812/Electrochemical-Cell-Simulator
+cd Electrochemical-Cell-Simulator
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+The editable flag (`-e`) makes edits to the source take effect without reinstalling, which matters while the API is still moving. On Windows, activate with `.venv\Scripts\activate` instead of the `source` line.
+
+### Dependencies
+
+The core install pulls in three packages:
+
+- `numpy` — arrays and linear algebra
+- `scipy` — sparse matrices and solvers
+- `matplotlib` — the `.plot()` methods on results
+
+### Optional: JAX
+
+JAX is optional. It is what makes the architecture's central object — the Jacobian $J = \partial R / \partial u$ of the full residual — come from automatic differentiation rather than hand-written derivatives, and it backs the ML layer. The same Jacobian is consumed three ways: damped Newton time stepping, frequency-domain impedance via $(i\omega M - J)\hat{u} = \hat{b}$, and adjoint design sensitivities via $J^{\top}\lambda = -\partial Q / \partial u$. Without JAX the core solver still installs and runs on NumPy and SciPy.
+
+```bash
+pip install jax
+```
+
+That installs the CPU build; for GPU builds, follow the install matrix in the JAX documentation, since the right wheel depends on your hardware.
+
+## PyPI release
+
+<StatusBadge status="planned" label="pip install voltaire-echem" />
+
+The planned release command is `pip install voltaire-echem`. It does not work yet. Progress toward the release is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/) and in the [repository](https://github.com/godtier812/Electrochemical-Cell-Simulator).
+
+## Licence and contact
+
+Voltaire is MIT-licensed. Questions and bug reports: repaka.ashrith@gmail.com, or open an issue on GitHub once the repository is public.
+
+Next: the [quickstart](/Electrochemical-Cell-Simulator/docs/quickstart/) shows the API the package is being built to.

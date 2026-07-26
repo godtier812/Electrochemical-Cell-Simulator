@@ -1,0 +1,123 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Physics
+description: A map of the physics Voltaire models — transport, kinetics, degradation, dendrites, thermal behaviour, impedance — and how the pieces couple.
+nav: physics
+---
+
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+# Physics
+
+Voltaire treats an electrochemical cell as one coupled nonlinear system, not a chain of separate solvers. Every model below discretises to a residual $R(u) = 0$ on the same state vector, and one autodiff Jacobian $J = \partial R / \partial u$ is consumed three ways: damped Newton for time stepping, the frequency-domain impedance solve $(i\omega M - J)\hat{u} = \hat{b}$, and adjoint sensitivities $J^\top \lambda = -\partial Q / \partial u$ for design. The status labels are literal. Shipped means the numerics run today, in TypeScript, in this site's [browser demos](/Electrochemical-Cell-Simulator/demos/); the Python solver package is in development and not yet released. Each section links to a sub-page with the derivation, discretisation, and validation.
+
+## Transport
+
+<StatusBadge status="shipped" label="browser demo" />
+
+Ion motion in the electrolyte starts from the dilute-solution Nernst–Planck flux: diffusion down concentration gradients, electromigration in the electric field, convection with any bulk flow. Coupled to Poisson's equation for the potential it becomes the PNP system, which resolves the electric double layer at an electrode surface — a structure only $\lambda_D \approx 0.30$ nm thick at 1 M (0.96 nm at 0.1 M) in water at 298 K. For concentrated battery electrolytes the sub-page develops Stefan–Maxwell concentrated-solution theory, where ion–ion friction replaces the independent-species picture. The [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) solves full PNP with Scharfetter–Gummel fluxes and damped Newton. Details on the [transport page](/Electrochemical-Cell-Simulator/physics/transport/).
+
+<Equation id="eq-np" latex="J_i = -D_i \nabla c_i - \frac{z_i F}{RT} D_i c_i \nabla \phi + c_i \mathbf{v}" caption="Nernst–Planck flux: diffusion, electromigration, convection. The conservation law for every ionic species." />
+
+## Microstructure
+
+<StatusBadge status="shipped" label="browser demo" />
+
+Porous electrodes are not homogeneous slabs, and the transport equations above need effective properties that reflect real geometry. Voltaire generates particle packings by random sequential adsorption, then computes tortuosity by solving Laplace's equation across the actual structure instead of assuming a Bruggeman exponent. The result feeds directly into the homogenised transport model: porosity dilutes the available volume, tortuosity lengthens every diffusion path. The [microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) runs the full generate-then-solve pipeline in the browser, so you can watch the fitted tortuosity depart from the Bruggeman prediction as packing density rises.
+
+<Equation id="eq-deff" latex="D_{\mathrm{eff}} = \frac{\varepsilon}{\tau} D" caption="Effective diffusivity in a porous electrode. Voltaire computes the tortuosity from a Laplace solve on the generated microstructure." />
+
+## Kinetics
+
+<StatusBadge status="shipped" label="browser demo" />
+
+Butler–Volmer kinetics set the current density at every electrode–electrolyte interface as a function of overpotential: an anodic branch and a cathodic branch, each exponential in $\eta$, with the exchange current density $j_0$ fixing the scale of both. It is the boundary condition that ties the solid to the solution — transport delivers the surface concentration and potential difference, Butler–Volmer returns the reaction flux. At large overpotential either branch alone survives, giving the Tafel line used to read kinetic parameters off experiments. The [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer) plots both branches live. Derivation and limits on the [kinetics page](/Electrochemical-Cell-Simulator/physics/kinetics/).
+
+<Equation id="eq-bv" latex="j = j_0 \left[ \exp\!\left( \frac{\alpha_a F \eta}{RT} \right) - \exp\!\left( -\frac{\alpha_c F \eta}{RT} \right) \right]" caption="Butler–Volmer: net interfacial current density as the difference of anodic and cathodic partial reactions." />
+
+## Degradation
+
+<StatusBadge status="in-progress" label="solver, in progress" />
+
+Capacity fade has mechanisms, and Voltaire models them rather than fitting an empirical decay curve. The first is SEI growth: a parasitic side reaction consumes lithium and thickens a resistive film on the negative electrode, with the growth rate set by the parasitic current density. As the film thickens it throttles its own reactant supply, which is why SEI-dominated fade slows over time. The second is chemo-mechanics: intercalation swells particles, the resulting stress drives fracture and fresh surface exposure. Both belong to the Python solver under development and have no browser demo. Models and status on the [degradation page](/Electrochemical-Cell-Simulator/physics/degradation/).
+
+<Equation id="eq-sei" latex="\frac{d\delta}{dt} = \frac{j_{\mathrm{SEI}} \, M_{\mathrm{SEI}}}{n F \rho_{\mathrm{SEI}}}" caption="SEI film growth: parasitic current converts to film thickness through the film's molar volume." />
+
+## Dendrites
+
+<StatusBadge status="shipped" label="browser demo" />
+
+Metal electrodes fail by growing dendrites, and sharp-interface methods struggle once the growth front branches. Voltaire uses a phase field: an order parameter $\xi$ varies smoothly from metal to electrolyte, and the interface is wherever it crosses one half. The field relaxes the total free energy — bulk double-well, gradient (interfacial) energy, and an electrochemical driving force — so tip splitting and side branching emerge without any explicit interface tracking. The [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) integrates an explicit phase-field model live; it is also the animation on the landing page. Full model on the [dendrites page](/Electrochemical-Cell-Simulator/physics/dendrites/).
+
+<Equation id="eq-ac" latex="\frac{\partial \xi}{\partial t} = -L \, \frac{\delta \mathcal{F}}{\delta \xi}" caption="Allen–Cahn gradient flow: the order parameter descends the free-energy functional at a rate set by the kinetic coefficient L." />
+
+## Thermal
+
+<StatusBadge status="in-progress" label="solver, in progress" />
+
+Cells heat themselves. The energy balance collects three sources: irreversible heat from reaction overpotential, reversible entropic heat proportional to the temperature derivative of the open-circuit potential, and ohmic (Joule) heat from current through finite conductivity. The entropic term can change sign with state of charge, which is why some cells briefly cool on charge. Temperature is not a passive output — it feeds back into every rate parameter, as described under coupling below. The thermal model is part of the solver in development; there is no browser demo. Formulation on the [thermal page](/Electrochemical-Cell-Simulator/physics/thermal/).
+
+<Equation id="eq-heat" latex="\rho c_p \frac{\partial T}{\partial t} = \nabla \cdot (k \nabla T) + j \left( \eta + T \frac{\partial U}{\partial T} \right) + \sigma_{\mathrm{eff}} \, |\nabla \phi|^2" caption="Energy balance: conduction plus irreversible, reversible, and ohmic heat sources." />
+
+## Impedance
+
+<StatusBadge status="shipped" label="browser demo" />
+
+Electrochemical impedance spectroscopy is where the shared-Jacobian architecture pays off directly. Linearise the residual about a working point and each frequency costs one complex linear solve — no time stepping, no waiting for transients to decay, and the Jacobian is the same autodiff object Newton already uses. From a measured or simulated spectrum, the distribution of relaxation times (DRT) separates overlapping processes by their time constants; Voltaire computes it with Tikhonov-regularised non-negative least squares. Both run in the [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance). Method and regularisation choices on the [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/).
+
+<Equation id="eq-eis" latex="(i \omega M - J)\, \hat{u} = \hat{b}" caption="Frequency-domain EIS: one linear solve per frequency, reusing the Newton Jacobian J." />
+
+## How the pieces couple
+
+The sections above are one system wearing six names. Transport and kinetics meet at every interface: Butler–Volmer consumes the surface concentration and potential jump that transport delivers, and returns the reaction flux that becomes transport's boundary condition. Heat feeds back through Arrhenius dependence — diffusivities, exchange current densities, and conductivities all shift with temperature, while their associated heat sources drive the energy balance, closing the loop. Mechanics feeds back through stress-driven diffusion: a hydrostatic stress gradient adds a flux term $-(D c \, \Omega / RT) \nabla \sigma_h$, and the stress itself arises from concentration misfit. Because everything lives in one residual, these couplings are entries in the same Jacobian rather than operator-split hand-offs between codes — the [numerics page](/Electrochemical-Cell-Simulator/numerics/) shows how that Jacobian is built and reused.
+
+<Equation id="eq-arrhenius" latex="p(T) = p_{\mathrm{ref}} \, \exp\!\left[ \frac{E_a}{R} \left( \frac{1}{T_{\mathrm{ref}}} - \frac{1}{T} \right) \right]" caption="Arrhenius scaling applied to each temperature-sensitive parameter: diffusivities, exchange current densities, conductivities." />
+
+## Further out
+
+<StatusBadge status="planned" /> **Gas evolution.** Electrolyser models need oxygen and hydrogen evolution, bubble nucleation, and two-phase transport in the gas channels. Nothing is implemented yet; this section exists so the scope is honest, not aspirational.
+
+<StatusBadge status="research" /> **ML surrogates.** Trained fast surrogates for parameter sweeps and control, using solver output as training data and adjoint gradients where they help. Exploratory — no results to report.
+
+Progress on both is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/), and everything that is shipped is checked against analytic solutions on the [validation page](/Electrochemical-Cell-Simulator/validation/).
+
+## Notation
+
+Symbols shared across the headline equations above. Sub-pages carry fuller tables with the symbols specific to each model.
+
+<SymbolTable rows={[
+  { s: 'J_i', meaning: 'molar flux of species i', units: 'mol m⁻² s⁻¹' },
+  { s: 'D_i,\\ D', meaning: 'diffusion coefficient', units: 'm² s⁻¹', typical: '1e-10 – 1e-9' },
+  { s: 'c_i,\\ c', meaning: 'species concentration', units: 'mol m⁻³', typical: '100 – 1500' },
+  { s: 'z_i', meaning: 'charge number of species i', units: '—', typical: '±1, ±2' },
+  { s: '\\mathbf{v}', meaning: 'bulk convection velocity', units: 'm s⁻¹' },
+  { s: 'F', meaning: 'Faraday constant', units: 'C mol⁻¹', typical: '96485' },
+  { s: 'R', meaning: 'gas constant', units: 'J mol⁻¹ K⁻¹', typical: '8.314' },
+  { s: 'T', meaning: 'temperature', units: 'K', typical: '298' },
+  { s: '\\phi', meaning: 'electric potential', units: 'V' },
+  { s: 'j', meaning: 'interfacial current density', units: 'A m⁻²' },
+  { s: 'j_0', meaning: 'exchange current density', units: 'A m⁻²', typical: '0.1 – 10' },
+  { s: '\\alpha_a,\\ \\alpha_c', meaning: 'anodic / cathodic transfer coefficients', units: '—', typical: '0.5' },
+  { s: '\\eta', meaning: 'overpotential', units: 'V' },
+  { s: '\\varepsilon', meaning: 'porosity', units: '—', typical: '0.3 – 0.5' },
+  { s: '\\tau', meaning: 'tortuosity (from Laplace solve)', units: '—', typical: '1.5 – 4' },
+  { s: '\\delta', meaning: 'SEI film thickness', units: 'm' },
+  { s: 'j_{\\mathrm{SEI}}', meaning: 'parasitic side-reaction current density', units: 'A m⁻²' },
+  { s: 'M_{\\mathrm{SEI}},\\ \\rho_{\\mathrm{SEI}}', meaning: 'SEI molar mass and density', units: 'kg mol⁻¹, kg m⁻³' },
+  { s: 'n', meaning: 'electrons transferred per reaction', units: '—' },
+  { s: '\\xi', meaning: 'phase-field order parameter', units: '—', typical: '0 – 1' },
+  { s: 'L', meaning: 'phase-field kinetic coefficient', units: 'm³ J⁻¹ s⁻¹' },
+  { s: '\\mathcal{F}', meaning: 'free-energy functional', units: 'J' },
+  { s: '\\rho c_p', meaning: 'volumetric heat capacity', units: 'J m⁻³ K⁻¹' },
+  { s: 'k', meaning: 'thermal conductivity', units: 'W m⁻¹ K⁻¹' },
+  { s: 'U', meaning: 'open-circuit potential', units: 'V' },
+  { s: '\\sigma_{\\mathrm{eff}}', meaning: 'effective electric conductivity', units: 'S m⁻¹' },
+  { s: '\\omega', meaning: 'angular frequency', units: 'rad s⁻¹' },
+  { s: 'M,\\ J', meaning: 'mass matrix and residual Jacobian (distinct from the flux J_i)', units: '—' },
+  { s: '\\hat{u},\\ \\hat{b}', meaning: 'complex state and forcing amplitudes', units: 'state units' },
+  { s: 'E_a', meaning: 'activation energy', units: 'J mol⁻¹', typical: '2e4 – 6e4' },
+  { s: '\\Omega', meaning: 'partial molar volume', units: 'm³ mol⁻¹' },
+  { s: '\\sigma_h', meaning: 'hydrostatic stress', units: 'Pa' },
+]} caption="Symbols used in the headline equations on this page." />

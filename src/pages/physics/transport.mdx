@@ -1,0 +1,138 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Transport
+description: How Voltaire models ion transport — Nernst–Planck, concentrated solution theory, and Poisson–Nernst–Planck with Scharfetter–Gummel fluxes.
+nav: physics
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+## What these equations model
+
+Everything a cell does electrically passes through the electrolyte. Ions carry the current between the electrodes, and the way they move sets the ohmic drop, the concentration polarisation that grows during a fast charge, the limiting current beyond which the anion concentration hits zero at one electrode, and the structure of the charged double layer at each interface. This page covers the three transport models Voltaire uses, from dilute theory up to the resolved double layer, and the discretisation that keeps them stable.
+
+## Nernst–Planck flux
+
+<StatusBadge status="shipped" label="browser demo" />
+
+In dilute solution theory each ionic species moves independently through a neutral solvent. Its molar flux has three parts: diffusion down the concentration gradient, electromigration in the electric field, and advection with any bulk solvent flow.
+
+<Equation id="eq-np" latex="J_i = -D_i \nabla C_i - \frac{z_i F}{RT} D_i C_i \nabla \phi + C_i u" caption="Nernst–Planck flux: diffusion, electromigration, convection." />
+
+The migration term uses the Nernst–Einstein relation, so a single coefficient $D_i$ controls both diffusion and drift. Mass conservation for each species, $\partial C_i / \partial t = -\nabla \cdot J_i$, closes the system once the potential $\phi$ is supplied by one of the charge equations below. In a sealed cell the convection term is usually negligible and $u$ is set to zero; it matters in flow batteries and stirred electrolysers.
+
+<SymbolTable rows={[
+  { s: 'J_i', meaning: 'molar flux of species i', units: 'mol/(m²·s)' },
+  { s: 'D_i', meaning: 'diffusion coefficient of species i', units: 'm²/s', typical: '1e-10 – 1e-9' },
+  { s: 'C_i', meaning: 'concentration of species i', units: 'mol/m³', typical: '100 – 2000' },
+  { s: 'z_i', meaning: 'charge number of species i', units: '–', typical: '±1, ±2' },
+  { s: 'F', meaning: 'Faraday constant', units: 'C/mol', typical: '96485' },
+  { s: 'R', meaning: 'gas constant', units: 'J/(mol·K)', typical: '8.314' },
+  { s: 'T', meaning: 'temperature', units: 'K', typical: '298' },
+  { s: '\\phi', meaning: 'electrostatic potential', units: 'V' },
+  { s: 'u', meaning: 'solvent velocity', units: 'm/s', typical: '0 in sealed cells' },
+]} caption="Symbols in the Nernst–Planck flux." />
+
+## Concentrated solution theory
+
+<StatusBadge status="in-progress" label="Python solver" />
+
+Dilute theory assumes each ion interacts only with the solvent. At battery concentrations that assumption is quantitatively wrong. At 1 M the mean centre-to-centre ion spacing is about 1.2 nm while the Debye screening length is 0.30 nm, so every ion sits inside its neighbours' screening clouds. Cation–anion friction is no longer negligible, the activity coefficient $f_\pm$ departs far from unity, and the transference number $t_+^0$ becomes a function of concentration. A dilute model fitted at one concentration mispredicts the concentration overpotential everywhere else.
+
+### Stefan–Maxwell friction form
+
+Concentrated solution theory replaces independent fluxes with a force balance: the thermodynamic driving force on species $i$ is balanced by pairwise friction against every other species, with one binary interaction diffusivity $\mathcal{D}_{ij}$ per pair.
+
+<Equation id="eq-sm" latex="c_i \nabla \mu_i = RT \sum_{j \neq i} \frac{c_i c_j}{c_T \mathcal{D}_{ij}} \left( v_j - v_i \right)" caption="Stefan–Maxwell force balance: chemical-potential gradient against pairwise interspecies friction." />
+
+### Newman form for a binary electrolyte
+
+For a binary 1:1 electrolyte (one salt, one solvent — the lithium-ion case), the Stefan–Maxwell system collapses to two equations in the salt concentration $c$ and the electrolyte potential. Salt conservation, with fluxes referenced to the solvent velocity and convection neglected, reads
+
+<Equation id="eq-newman-salt" latex="\frac{\partial c}{\partial t} = \nabla \cdot \left( D(c) \, \nabla c \right) - \frac{\mathbf{i} \cdot \nabla t_+^0}{F}" caption="Salt conservation in Newman form; the last term is nonzero only where the transference number varies with concentration." />
+
+and the current density obeys a modified Ohm's law in which a concentration gradient drives current even at uniform potential:
+
+<Equation id="eq-newman-current" latex="\mathbf{i} = -\kappa \nabla \phi_2 + \frac{2 \kappa R T}{F} \left( 1 - t_+^0 \right) \left( 1 + \frac{\partial \ln f_\pm}{\partial \ln c} \right) \nabla \ln c" caption="MacInnes equation: ohmic conduction plus the concentration-driven diffusion potential." />
+
+The thermodynamic factor $(1 + \partial \ln f_\pm / \partial \ln c)$ corrects the driving force from concentration to activity, and $t_+^0(c)$ enters both equations as a measured, concentration-dependent property rather than a constant. These two functions plus $D(c)$ and $\kappa(c)$ are exactly the four properties a full cell model needs from electrolyte characterisation. This module is part of the Python solver, which is in development and not yet publicly released; the browser demos implement the dilute and PNP models below.
+
+<SymbolTable rows={[
+  { s: '\\mu_i', meaning: 'chemical potential of species i', units: 'J/mol' },
+  { s: 'c_T', meaning: 'total molar concentration, all species', units: 'mol/m³' },
+  { s: '\\mathcal{D}_{ij}', meaning: 'Stefan–Maxwell binary diffusivity for pair i, j', units: 'm²/s' },
+  { s: 'v_i', meaning: 'species velocity', units: 'm/s' },
+  { s: 'c', meaning: 'salt concentration', units: 'mol/m³', typical: '1000 (1 M)' },
+  { s: 'D(c)', meaning: 'measured salt diffusion coefficient', units: 'm²/s', typical: '1e-10 – 5e-10' },
+  { s: 't_+^0', meaning: 'cation transference number (solvent reference)', units: '–', typical: '0.2 – 0.4' },
+  { s: 'f_\\pm', meaning: 'mean molar activity coefficient', units: '–' },
+  { s: '\\kappa', meaning: 'ionic conductivity', units: 'S/m', typical: '0.1 – 1.5' },
+  { s: '\\mathbf{i}', meaning: 'current density in the electrolyte', units: 'A/m²' },
+  { s: '\\phi_2', meaning: 'electrolyte-phase potential', units: 'V' },
+]} caption="Symbols in the concentrated-solution equations." />
+
+## Poisson–Nernst–Planck and the double layer
+
+<StatusBadge status="shipped" label="browser demo" />
+
+Within a nanometre of an electrode the electrolyte is not neutral: a diffuse cloud of net charge screens the electrode potential. Resolving it requires coupling the Nernst–Planck fluxes to the Poisson equation for the potential.
+
+<Equation id="eq-poisson" latex="\nabla \cdot \left( \varepsilon \nabla \phi \right) = -F \sum_i z_i C_i" caption="Poisson equation: space charge from the local ion imbalance sources the electric field." />
+
+At cell scale this resolution is unaffordable and unnecessary — the net charge lives in films a fraction of a nanometre thick. Voltaire therefore exposes a toggle: for bulk-scale runs the Poisson equation is replaced by the algebraic electroneutrality constraint
+
+<Equation id="eq-electroneutral" latex="\sum_i z_i C_i = 0" caption="Global electroneutrality: the zero-Debye-length limit of the Poisson equation, used for bulk-scale runs." />
+
+which is the singular limit of Poisson as the Debye length goes to zero. The potential then becomes a Lagrange multiplier enforcing zero net charge rather than a field with its own elliptic equation.
+
+### The Debye length sets the mesh
+
+The screening length that decides which regime you are in is
+
+<Equation id="eq-debye" latex="\lambda_D = \sqrt{\frac{\varepsilon R T}{2 F^2 c_0}}" caption="Debye length of a 1:1 electrolyte: the thickness of the diffuse charge layer." />
+
+In water at 298 K this gives $\lambda_D \approx 0.30$ nm at 1 M and $\approx 0.96$ nm at 0.1 M — the rule of thumb is 0.304 nm divided by the square root of the ionic strength in mol/L. Any mesh that resolves the double layer must place multiple points inside this distance while the domain itself may be micrometres long: four to five decades of scale separation in one grid. Assembled in SI units, that spread puts the PNP Jacobian's condition number near 1e15, at the edge of double precision. Voltaire therefore nondimensionalises before assembly — potential by the thermal voltage $RT/F$ (25.7 mV at 298 K), concentrations by $c_0$, and length by $\lambda_D$ near interfaces — which brings all residuals to order one.
+
+<SymbolTable rows={[
+  { s: '\\varepsilon', meaning: 'permittivity of the solvent', units: 'F/m', typical: '6.9e-10 (water)' },
+  { s: 'c_0', meaning: 'bulk salt concentration', units: 'mol/m³', typical: '100 – 1000' },
+  { s: '\\lambda_D', meaning: 'Debye length', units: 'm', typical: '0.3e-9 – 1e-9' },
+]} caption="Symbols in the Poisson equation and Debye length." />
+
+## Numerical treatment
+
+### Scharfetter–Gummel flux
+
+A central-difference discretisation of the drift–diffusion flux develops node-to-node oscillations once the cell Péclet number — the potential drop across one cell in thermal-voltage units — exceeds about 2. Inside a double layer that number is routinely much larger. Voltaire uses the Scharfetter–Gummel exponentially fitted flux, which integrates the one-dimensional flux equation exactly between adjacent nodes under the assumption of constant flux and field on the interval. For one species with charge number $z$, on nodes indexed $i$ with spacing $h$:
+
+<Equation id="eq-sg" latex="J_{i+1/2} = \frac{D}{h} \left[ B(-\Delta\hat{\phi}) \, C_{i+1} - B(\Delta\hat{\phi}) \, C_i \right], \qquad B(x) = \frac{x}{e^x - 1}" caption="Scharfetter–Gummel flux with the Bernoulli function B; exact for the constant-coefficient two-point problem." />
+
+Here $\Delta\hat{\phi} = z F (\phi_{i+1} - \phi_i) / RT$ is the dimensionless potential step across the cell. When it vanishes, $B(0) = 1$ and the scheme reduces to the standard diffusion stencil; when it is large the scheme upwinds automatically. Concentrations stay positive and monotone at any potential drop, with no tuning parameter.
+
+<SymbolTable rows={[
+  { s: 'J_{i+1/2}', meaning: 'flux through the face between nodes i and i+1', units: 'mol/(m²·s)' },
+  { s: 'h', meaning: 'node spacing', units: 'm' },
+  { s: '\\Delta\\hat{\\phi}', meaning: 'potential step across the cell, in thermal-voltage units', units: '–' },
+  { s: 'B(x)', meaning: 'Bernoulli function', units: '–' },
+]} caption="Symbols in the Scharfetter–Gummel flux." />
+
+### Fully coupled damped Newton
+
+The obvious iteration — solve Poisson with concentrations frozen, then Nernst–Planck with the potential frozen, repeat — is a Gauss–Seidel split, and it diverges once the applied potential exceeds a few thermal voltages, because the Boltzmann-like response of concentration to potential makes the cross-coupling exponentially strong. Voltaire instead assembles one residual $R(u)$ over all unknowns and solves the coupled system with damped Newton:
+
+<Equation id="eq-newton" latex="\frac{\partial R}{\partial u} \, \delta u = -R(u), \qquad u \leftarrow u + \alpha \, \delta u" caption="Damped Newton update; the step length α is cut back until the residual norm decreases." />
+
+The Jacobian $\partial R / \partial u$ is the same object the rest of the platform is built on: frequency-domain impedance solves $(i\omega M - J)\hat{u} = \hat{b}$ with it, and adjoint sensitivities solve the transposed system. One correct Jacobian, three uses.
+
+### Mesh grading
+
+The grid is graded geometrically toward each electrode so that at least 10 points fall within one Debye length, relaxing to coarse cells in the neutral bulk. Combined with the nondimensionalisation above, this keeps the Newton iteration convergent from a zero-field initial guess at double-layer potentials of many thermal voltages.
+
+## Validation
+
+Two checks are live today. The equilibrium PNP solution for a 1:1 electrolyte against a charged plane is the Gouy–Chapman profile, known in closed form; the double-layer demo below overlays the computed and analytic profiles as you move the sliders. Second, the method of manufactured solutions confirms second-order spatial convergence of the Scharfetter–Gummel scheme; the convergence plot runs live on the [validation page](/Electrochemical-Cell-Simulator/validation/). A comparison of the concentrated-solution module against PyBaMM's P2D implementation is planned but has not yet run.
+
+## Try it in the browser
+
+The [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) solves the full PNP system with the Scharfetter–Gummel flux and damped Newton, in TypeScript, in your browser — the same numerics described on this page, not an animation of them. Adjust $c_0$ and watch $\lambda_D$ move; the readout reports it in nanometres. The source is on [GitHub](https://github.com/godtier812/Electrochemical-Cell-Simulator).

@@ -1,0 +1,348 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: API reference
+description: The target public Python API of Voltaire — Cell, Result, ImpedanceSpectrum, Microstructure, and the surrogates, design, and uq modules — documented at design stage.
+nav: docs
+---
+
+import StatusBadge from '../../components/StatusBadge.astro';
+
+# API reference
+
+<StatusBadge status="in-progress" label="design-stage interface" />
+
+The Python package is in development and not yet released. Nothing on this page is
+installable today. What follows is the target public interface — the surface the solver is
+being built behind — published now so it can be criticised before it hardens. Where a
+method's numerics already exist, they run in TypeScript in this site's
+[browser demos](/Electrochemical-Cell-Simulator/demos/), and each entry links to the physics
+page that defines its maths. Anything outside the physics documented on this site is not in
+the API.
+
+## Conventions
+
+The package imports as:
+
+```python
+import voltaire as vt
+```
+
+Units are SI throughout, and every argument's unit appears in the docstring line printed
+under each signature below. The one deliberate exception is C-rate, quoted in 1/h because
+that is how everyone specifies protocols. Arrays in and out are NumPy arrays; tabular export
+goes through pandas and plotting through matplotlib, neither of which is needed to run a
+simulation, only to look at one.
+
+Every simulating method funnels into one residual $R(u) = 0$ and one autodiff Jacobian
+$J = \partial R/\partial u$, consumed three ways: damped Newton for steady states and
+implicit time steps, the frequency-domain impedance solve
+$(i\omega M - J)\hat{u} = \hat{b}$, and the adjoint system
+$J^{\mathsf{T}}\lambda = -\partial Q/\partial u$ for sensitivities. The
+[numerics page](/Electrochemical-Cell-Simulator/numerics/) defines all three. No method
+below has private numerics.
+
+## Core classes
+
+### vt.Cell
+
+A `Cell` holds the geometry, materials, mesh and assembled residual for one simulated cell.
+Construction goes through a preset or a config file — there is no constructor with thirty
+keyword arguments.
+
+```python
+Cell.from_preset(name: str) -> Cell
+    """name: preset identifier, e.g. "li-symmetric" or "graphite-nmc"."""
+```
+
+Classmethod. Returns a fully parameterised cell from the preset library that will ship with
+the package. A preset is nothing more than a bundled config file: `from_preset` and
+`from_config` produce identical objects, so a preset is always a valid starting point for
+editing.
+
+```python
+Cell.from_config(path: str | Path) -> Cell
+    """path: config file; schema documented on the configuration page."""
+```
+
+Classmethod. Loads a config file, validates units and parameter ranges at load time rather
+than at solve time, and builds the mesh — graded near interfaces so the double layer is
+resolved where the config asks for it, as described on the
+[numerics page](/Electrochemical-Cell-Simulator/numerics/). The schema is documented on the
+[configuration page](/Electrochemical-Cell-Simulator/docs/configuration/).
+
+```python
+Cell.discharge(rate: float, cutoff_voltage: float,
+               t_max: float | None = None) -> Result
+    """rate: C-rate, 1/h; cutoff_voltage: V; t_max: s (None: run to cutoff)."""
+```
+
+Galvanostatic discharge. Integrates the coupled differential-algebraic system with the
+implicit methods on the numerics page; every implicit step is one damped-Newton solve of
+$R(u) = 0$. Which physics runs is set by the config:
+[transport](/Electrochemical-Cell-Simulator/physics/transport/) in the electrolyte,
+[Butler–Volmer kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) at every
+interface, and optionally the
+[thermal](/Electrochemical-Cell-Simulator/physics/thermal/) energy balance and the
+[degradation](/Electrochemical-Cell-Simulator/physics/degradation/) mechanisms. The run
+stops at the cutoff voltage or at `t_max`, whichever comes first.
+
+```python
+Cell.charge(rate: float, cutoff_voltage: float,
+            cv_hold: bool = False, cutoff_current: float | None = None) -> Result
+    """rate: C-rate, 1/h; cutoff_voltage: V; cutoff_current: A/m² (ends the CV phase)."""
+```
+
+Constant-current charge, optionally followed by a constant-voltage hold (CC–CV). The CV
+phase swaps the current-controlled boundary condition for a potential-controlled one; the
+residual and Jacobian machinery are unchanged, which is the point of keeping the control
+mode out of the physics.
+
+```python
+Cell.cycle(protocol: str, n_cycles: int) -> Result
+    """protocol: step programme, e.g. "1C discharge to 3.0 V, rest 600 s,
+       C/2 charge to 4.2 V hold until C/20"; n_cycles: dimensionless."""
+```
+
+Repeats a step programme. Degradation state — SEI film thickness and exposed particle
+surface, as defined on the
+[degradation page](/Electrochemical-Cell-Simulator/physics/degradation/) — lives in the
+state vector $u$ and carries across cycle boundaries, so capacity fade accumulates
+mechanistically rather than by an empirical per-cycle decrement.
+
+```python
+Cell.impedance(frequencies: np.ndarray, amplitude: float = 0.005) -> ImpedanceSpectrum
+    """frequencies: Hz; amplitude: V (stored as metadata; the linearised solve
+       is amplitude-independent)."""
+```
+
+Finds the steady state with damped Newton, then solves
+$(i\omega M - J)\hat{u} = \hat{b}$ once per frequency — one sparse complex factorisation
+each, no time stepping, no transient to wait out. The response is exact to first order in
+the perturbation, so `amplitude` never enters the solve; it is recorded on the spectrum for
+comparison against measurements taken at a stated amplitude. The formulation is derived on
+the [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/).
+
+```python
+Cell.sensitivities(objective: str, parameters: Sequence[str]) -> dict[str, float]
+    """objective: named scalar, e.g. "discharge_capacity"; parameters: config
+       paths, e.g. "cathode.porosity". Returned values: objective units per
+       parameter units."""
+```
+
+Derivatives of one scalar objective with respect to many parameters by the adjoint method:
+solve $J^{\mathsf{T}}\lambda = -\partial Q/\partial u$ once, then read off every $dQ/dp$ —
+one extra linear solve total, independent of how many parameters are requested. The
+derivation is in the
+[adjoint section of the numerics page](/Electrochemical-Cell-Simulator/numerics/#adjoint-sensitivities).
+
+### vt.Result
+
+Returned by `discharge`, `charge` and `cycle`. Holds the full state trajectory on the
+solver mesh plus derived scalar traces: voltage, current, temperature, capacity.
+
+```python
+Result.plot(kind: str = "voltage", **kwargs) -> matplotlib.axes.Axes
+    """kind: "voltage" (V vs capacity), "profiles" (c and φ vs x at sampled
+       times), "temperature" (T vs t)."""
+```
+
+Convenience plots through matplotlib, returning the axes so figures remain editable. Each
+kind plots a quantity only if the corresponding physics ran: asking for `"temperature"`
+after an isothermal run raises an error instead of silently drawing a flat line.
+
+```python
+Result.to_pandas() -> pandas.DataFrame
+    """columns: t (s), V (V), I (A/m²), T (K), capacity (Ah/m²) — scalar traces only."""
+```
+
+Scalar traces as a tidy frame, one row per accepted time step. Field variables —
+concentration, potential, degradation state on the mesh — stay on the `Result` as arrays:
+flattening every field into a dataframe multiplies file size for no analytical gain.
+
+```python
+Result.save(path: str | Path) -> None
+    """path: output file, HDF5."""
+```
+
+Writes the trajectory, the mesh, and the fully resolved config that produced the run into
+one file. A saved result is meant to be re-runnable evidence, not orphaned curves.
+
+### vt.ImpedanceSpectrum
+
+Returned by `Cell.impedance`, or constructed directly from measured data as
+`vt.ImpedanceSpectrum(f, Z)` with `f` in Hz and complex `Z` in Ω·m², so the DRT inversion
+below applies to experimental spectra as well as simulated ones.
+
+```python
+ImpedanceSpectrum.plot(kind: str = "nyquist") -> matplotlib.axes.Axes
+    """kind: "nyquist" (−Im Z vs Re Z, equal axes) or "bode" (|Z| and phase vs log f)."""
+```
+
+The Nyquist plot is forced to equal axis scaling because semicircular arcs read as arcs
+only at equal scale; the Bode form shows magnitude and phase against log frequency, which
+is where high-frequency features that the Nyquist plot compresses become visible.
+
+```python
+ImpedanceSpectrum.drt(lambda_reg: float = 1e-3) -> tuple[np.ndarray, np.ndarray]
+    """lambda_reg: Tikhonov regularisation weight, dimensionless.
+       Returns (tau: s, gamma: Ω·m²) on a logarithmic tau grid."""
+```
+
+Distribution of relaxation times by Tikhonov-regularised non-negative least squares —
+exactly the formulation on the
+[impedance page](/Electrochemical-Cell-Simulator/physics/impedance/#distribution-of-relaxation-times).
+`lambda_reg` trades peak resolution against noise amplification and has no universally
+correct value; sweep it and watch which peaks persist. This algorithm is implemented and
+running today, in TypeScript, in the
+[impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance).
+
+### vt.Microstructure
+
+Generates two-dimensional porous-electrode geometries and measures their effective
+transport properties. Both halves of the pipeline run in the browser today in the
+[microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure).
+
+```python
+Microstructure.generate_rsa(porosity: float, particle_radius: float | tuple[float, float],
+                            size: tuple[float, float], seed: int | None = None) -> Microstructure
+    """porosity: target void fraction, dimensionless; particle_radius: m
+       (scalar, or (min, max) for polydisperse); size: domain (Lx, Ly), m;
+       seed: RNG seed, dimensionless."""
+```
+
+Classmethod. Random sequential adsorption: candidate particles are placed one at a time and
+rejected on overlap until the target solid fraction is reached or the packing jams. RSA
+jams well below dense packing, so low porosities can be unreachable at a given radius; when
+that happens the method raises with the porosity actually achieved rather than silently
+returning a different geometry. The role of the generated structure in the homogenised
+model is described in the
+[microstructure section of the physics overview](/Electrochemical-Cell-Simulator/physics/#microstructure).
+
+```python
+Microstructure.tortuosity() -> float
+    """returns tau, dimensionless."""
+```
+
+Solves Laplace's equation across the pore phase with a unit potential drop and reads the
+tortuosity from the flux deficit relative to unobstructed transport — the geometry is
+measured, not summarised by an assumed Bruggeman exponent. The
+[microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) shows the
+fitted tortuosity departing from the Bruggeman prediction as packing density rises.
+
+```python
+Microstructure.effective_transport(D: float, sigma: float | None = None) -> dict[str, float]
+    """D: bulk electrolyte diffusivity, m²/s; sigma: bulk ionic conductivity, S/m.
+       Returns keys "porosity", "tortuosity", "D_eff", "sigma_eff"."""
+```
+
+Applies $D_{\mathrm{eff}} = (\varepsilon/\tau)\,D$, and the same scaling to the
+conductivity if one is given. The returned values are the effective properties the
+homogenised [transport model](/Electrochemical-Cell-Simulator/physics/transport/) consumes
+in place of bulk ones.
+
+## Modules
+
+### vt.surrogates
+
+<StatusBadge status="research" /> Exploratory. There are no trained models and no error
+numbers to report, and this section is scoped accordingly: it records the interface the
+experiments are being run behind, nothing more.
+
+```python
+surrogates.train_pinn(cell: Cell, inputs: Sequence[str], outputs: Sequence[str],
+                      n_collocation: int = 10000) -> Surrogate
+    """inputs, outputs: named quantities; n_collocation: residual sample
+       points, dimensionless."""
+```
+
+Trains a physics-informed network penalised by the same residual $R(u)$ the solver
+assembles. The only reason to attempt PINNs here is that the residual and its autodiff
+machinery already exist, so the training loss is consistent with the
+[solver's own equations](/Electrochemical-Cell-Simulator/numerics/) by construction instead
+of by re-implementation.
+
+```python
+surrogates.train_deeponet(cell: Cell, protocols: Sequence[str], n_train: int = 256) -> Surrogate
+    """protocols: step programmes in Cell.cycle syntax; n_train: solver runs
+       used as training data, dimensionless."""
+```
+
+Operator learning: maps an input current programme to the voltage response, trained on
+solver output. The intended use is protocol screening at a per-query cost far below a full
+simulation — a claim that becomes checkable only once error against held-out solver runs is
+measured, which it has not been.
+
+```python
+surrogates.export_onnx(model: Surrogate, path: str | Path) -> None
+    """path: output .onnx file."""
+```
+
+Exports a trained surrogate to ONNX for inference outside Python. Nothing exists to export
+today; the signature is here so deployment is designed in rather than bolted on.
+
+### vt.design
+
+The gradient half of this module rides the solver's adjoint machinery and is in development
+with it; the optimisation loop on top is planned and unstarted.
+
+```python
+design.adjoint_gradients(cell: Cell, objective: str, parameters: Sequence[str]) -> dict[str, float]
+    """same contract and units as Cell.sensitivities."""
+```
+
+The functional form of `Cell.sensitivities`, for calling inside optimisation loops: one
+adjoint solve $J^{\mathsf{T}}\lambda = -\partial Q/\partial u$ per objective, with cost
+independent of the number of design parameters. Maths on the
+[numerics page](/Electrochemical-Cell-Simulator/numerics/#adjoint-sensitivities).
+
+```python
+design.bayes_opt(cell: Cell, objective: str, bounds: dict[str, tuple[float, float]],
+                 n_iter: int = 40, gradients: bool = True) -> DesignResult
+    """bounds: parameter path -> (lo, hi) in the parameter's own units;
+       n_iter: simulation budget, dimensionless."""
+```
+
+Planned. Gaussian-process Bayesian optimisation over config parameters, where each
+acquisition step costs one full simulation; with `gradients=True` the adjoint derivatives
+above inform the surrogate model of the objective. Returns the best point found, the full
+evaluation history, and the fitted model, so a stopped run is inspectable rather than lost.
+
+### vt.uq
+
+<StatusBadge status="planned" /> Planned. Nothing in this module is implemented; the
+signatures fix the intended scope so it can be argued about now.
+
+```python
+uq.sobol(cell: Cell, quantity: str, parameters: dict[str, tuple[float, float]],
+         n: int = 1024) -> dict[str, tuple[float, float]]
+    """quantity: named scalar; parameters: path -> (lo, hi) uniform range in
+       the parameter's own units; n: base sample size, dimensionless.
+       Returns path -> (first-order index, total index)."""
+```
+
+Variance-based global sensitivity by Saltelli sampling: for each parameter, the first-order
+Sobol index (variance explained alone) and the total index (including interactions). The
+cost is $n(d+2)$ full simulations for $d$ parameters — exactly the price that motivates the
+surrogate work above and the spectral method below.
+
+```python
+uq.polynomial_chaos(cell: Cell, quantity: str, parameters: dict[str, tuple[float, float]],
+                    order: int = 3) -> PCExpansion
+    """order: polynomial degree, dimensionless."""
+```
+
+Builds a spectral expansion of the quantity of interest in polynomials orthogonal to the
+input distributions. Once fitted, mean, variance and Sobol indices follow from the
+coefficients analytically, with no further sampling — at the cost of a coefficient count
+that grows quickly with dimension and order, which is why the default order is low and the
+parameter list should be short.
+
+## Interface stability
+
+Nothing on this page is frozen. Signatures, defaults and return types may all change before
+the first release, and the cheapest time to change them is now — objections and better
+ideas go to [GitHub](https://github.com/godtier812/Electrochemical-Cell-Simulator). Two
+things will not change: every argument keeps a documented unit, and every numerical claim
+made for this API stays within what the
+[browser demos](/Electrochemical-Cell-Simulator/demos/) or analytic solutions on the
+[validation page](/Electrochemical-Cell-Simulator/validation/) can back.

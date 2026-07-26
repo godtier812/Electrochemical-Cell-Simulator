@@ -1,0 +1,120 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Degradation
+description: SEI growth, loss of lithium inventory, and stress-coupled diffusion — how Voltaire models capacity fade as one coupled system.
+nav: physics
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+<StatusBadge status="in-progress" label="solver, in progress" />
+
+A battery model that stops at [transport](/Electrochemical-Cell-Simulator/physics/transport/) and kinetics predicts a cell that lives forever. The interesting question is why real cells do not, and the answer is not one mechanism but a loop: a parasitic film that consumes lithium, mechanical stress that the lithium itself generates, and fracture that feeds the film new surface to grow on. This page specifies the two submodels — SEI growth and chemo-mechanics — and the coupling between them. This physics is part of the solver design; there is no browser demo for it yet, and none of it should be read as validated. The [roadmap](/Electrochemical-Cell-Simulator/roadmap/) tracks its status.
+
+## SEI growth
+
+Carbonate solvents are electrochemically reduced at potentials below roughly 0.8 V versus Li/Li⁺. A graphite anode spends its working life near 0.1 V, so the reduction is always thermodynamically favourable. The products precipitate on the particle surface as the solid electrolyte interphase (SEI): electronically insulating enough to throttle further reduction, ionically conducting enough to pass the main intercalation current. The film never fully passivates — it only grows more slowly.
+
+### From parasitic current to film thickness
+
+The side reaction is irreversible, so only the cathodic branch of its kinetics survives and the rate law is Tafel-type. The film's own ohmic drop feeds back into the driving overpotential:
+
+<Equation id="eq-sei-tafel" latex="i_\mathrm{SEI} = -\,i_{0,\mathrm{SEI}} \exp\!\left(-\frac{\alpha_c F\, \eta_\mathrm{SEI}}{RT}\right), \qquad \eta_\mathrm{SEI} = \phi_s - \phi_e - U_\mathrm{SEI} - i_\mathrm{tot}\, R_\mathrm{SEI}" caption="Parasitic solvent-reduction current at the anode surface. Irreversible, so only the cathodic Tafel branch appears; the film resistance already reduces the driving force." />
+
+Faraday's law converts that current into film growth, assuming the product precipitates where it forms:
+
+<Equation id="eq-sei-growth" latex="\frac{\mathrm{d}\delta_\mathrm{SEI}}{\mathrm{d}t} = \frac{|i_\mathrm{SEI}|\, M_\mathrm{SEI}}{n F \rho_\mathrm{SEI}}" caption="Film thickening rate: parasitic charge, converted to moles of product, converted to volume per unit area." />
+
+### Two growth regimes
+
+On a fresh surface the film is thin and the reaction runs as fast as its kinetics allow: $|i_\mathrm{SEI}|$ is roughly constant, so $\delta_\mathrm{SEI} \propto t$. As the film thickens, solvent molecules must diffuse through it to reach the reacting interface, and the transport limit $n F D_\mathrm{sol} c_\mathrm{sol} / \delta_\mathrm{SEI}$ takes over. The two resistances act in series:
+
+<Equation id="eq-sei-mixed" latex="\frac{1}{|i_\mathrm{SEI}|} = \frac{1}{|i_\mathrm{kin}|} + \frac{\delta_\mathrm{SEI}}{n F D_\mathrm{sol} c_\mathrm{sol}}" caption="Mixed control: interfacial kinetics and solvent diffusion through the existing film in series. The second term grows with the film and eventually dominates." />
+
+In the diffusion-limited regime the growth rate scales as $1/\delta_\mathrm{SEI}$, which integrates to $\delta_\mathrm{SEI} \propto \sqrt{t}$. That square root is the signature of a self-passivating film, and it is why calendar fade decelerates: most of the lithium a stored cell will ever lose to SEI, it loses early.
+
+### Film resistance and feedback
+
+The film adds an area-specific ohmic resistance in series with the intercalation reaction:
+
+<Equation id="eq-rsei" latex="R_\mathrm{SEI} = \frac{\delta_\mathrm{SEI}}{\kappa_\mathrm{SEI}}" caption="Area-specific resistance of the film; it enters the main Butler–Volmer overpotential as an ohmic drop." />
+
+This is the power-fade channel: even before any capacity is lost, a thicker film raises the overpotential needed to pass the same current. In the frequency domain it appears as an additional relaxation in the impedance spectrum — exactly the kind of overlapping arc that DRT deconvolution separates. The [DRT demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) shows that machinery on synthetic spectra today.
+
+### Loss of lithium inventory
+
+Every electron consumed by the side reaction converts one lithium ion into immobile carbonate salt. The capacity-fade channel is therefore just the cumulative parasitic charge over the anode surface:
+
+<Equation id="eq-lli" latex="Q_\mathrm{loss}(t) = \int_0^t \int_{A_\mathrm{an}} |i_\mathrm{SEI}| \; \mathrm{d}A \, \mathrm{d}t'" caption="Loss of lithium inventory (LLI): parasitic charge integrated over the anode surface and over time. Dividing by nominal capacity gives the fade fraction." />
+
+Qualitatively, the shapes this produces are: decelerating, $\sqrt{t}$-like fade in storage; and in cycling, a calendar term plus a per-cycle contribution that is close to linear in cycle number while the film is young. SEI alone does not produce a knee — the sudden acceleration seen in aged cells needs the mechanical loop below, or mechanisms (lithium plating, pore clogging) outside this page's scope. We do not publish fade curves for this model because it has not been run; see the [validation page](/Electrochemical-Cell-Simulator/validation/) for what is actually checked today.
+
+<SymbolTable rows={[
+  { s: '\\delta_\\mathrm{SEI}', meaning: 'SEI film thickness', units: 'm', typical: '1e-9 – 1e-7' },
+  { s: 'i_\\mathrm{SEI}', meaning: 'parasitic current density', units: 'A/m²' },
+  { s: 'i_{0,\\mathrm{SEI}}', meaning: 'exchange current density of the side reaction', units: 'A/m²' },
+  { s: '\\alpha_c', meaning: 'cathodic transfer coefficient of the side reaction', units: '—', typical: '0.5' },
+  { s: 'U_\\mathrm{SEI}', meaning: 'equilibrium potential of solvent reduction', units: 'V vs Li/Li⁺', typical: '0.4 – 0.8' },
+  { s: 'i_\\mathrm{tot}', meaning: 'total interfacial current density', units: 'A/m²' },
+  { s: 'n', meaning: 'electrons per solvent molecule reduced', units: '—', typical: '2' },
+  { s: 'M_\\mathrm{SEI}', meaning: 'molar mass of the SEI product', units: 'kg/mol', typical: '0.162' },
+  { s: '\\rho_\\mathrm{SEI}', meaning: 'density of the SEI product', units: 'kg/m³', typical: '1690' },
+  { s: '\\kappa_\\mathrm{SEI}', meaning: 'ionic conductivity of the film', units: 'S/m', typical: '1e-6 – 1e-5' },
+  { s: 'D_\\mathrm{sol}', meaning: 'solvent diffusivity through the film', units: 'm²/s', typical: '1e-22 – 1e-18' },
+  { s: 'c_\\mathrm{sol}', meaning: 'solvent concentration in the electrolyte', units: 'mol/m³', typical: '4540' },
+  { s: 'R_\\mathrm{SEI}', meaning: 'area-specific film resistance', units: 'Ω·m²', typical: '1e-4 – 1e-2' },
+]} caption="Symbols in the SEI growth model." />
+
+## Chemo-mechanics
+
+Inserting lithium dilates the host lattice. If concentration were uniform the particle would swell freely and remain stress-free; it is the concentration *gradients* during charge and discharge that make neighbouring material elements want different sizes, and the incompatibility is resolved by stress.
+
+### Swelling as thermal expansion's twin
+
+The constitutive law is small-strain Hooke plus an isotropic swelling eigenstrain, in exact analogy with thermal expansion — $\Omega (c - c_0)/3$ plays the role of $\alpha \Delta T$:
+
+<Equation id="eq-swelling" latex="\varepsilon_{ij} = \frac{1}{E}\left[(1+\nu)\,\sigma_{ij} - \nu\,\sigma_{kk}\,\delta_{ij}\right] + \frac{\Omega\,(c - c_0)}{3}\,\delta_{ij}" caption="Strain from stress (Hooke's law) plus concentration-induced swelling. Here δᵢⱼ is the Kronecker delta, not a film thickness." />
+
+$\Omega$ is the partial molar volume of lithium in the host — the slope of lattice volume against lithium content. It is the single number that separates a benign chemistry from a destructive one: graphite swells about 10 percent over its full lithiation range, silicon by roughly 300 percent.
+
+### Stress-driven diffusion
+
+The coupling runs both ways. Lithium in a stressed solid carries an extra chemical-potential term $-\Omega \sigma_h$, and its gradient adds a drift term to the flux:
+
+<Equation id="eq-stress-flux" latex="\mathbf{J} = -D\left(\nabla c - \frac{\Omega\, c}{RT}\,\nabla \sigma_h\right), \qquad \sigma_h = \frac{\sigma_{kk}}{3}" caption="Stress-coupled flux: hydrostatic stress gradients bias lithium toward regions of tension." />
+
+The sign convention reads directly: lithium drifts toward tensile (positive) hydrostatic stress, where the lattice is being stretched open. During insertion the lithium-rich surface tries to expand against the core, putting the surface in compression and the core in tension — so the stress term pushes lithium inward, ahead of ordinary diffusion, flattening the gradient and partially relaxing its own cause. During extraction every sign flips and the surface goes into tension, which is the dangerous half-cycle. The term is not a small correction for high-$\Omega$ hosts: with $\Omega \approx 9\times10^{-6}$ m³/mol and $\sigma_h$ of order 1 GPa, $\Omega \sigma_h \approx 9$ kJ/mol against $RT \approx 2.5$ kJ/mol at 298 K.
+
+<SymbolTable rows={[
+  { s: '\\varepsilon_{ij}', meaning: 'total strain tensor', units: '—' },
+  { s: '\\sigma_{ij}', meaning: 'Cauchy stress tensor', units: 'Pa' },
+  { s: '\\sigma_h', meaning: 'hydrostatic stress, trace of stress over three', units: 'Pa', typical: 'up to ±1e9' },
+  { s: 'E', meaning: "Young's modulus of the host", units: 'Pa', typical: '1e10 – 1.6e11' },
+  { s: '\\nu', meaning: "Poisson's ratio", units: '—', typical: '0.2 – 0.3' },
+  { s: '\\Omega', meaning: 'partial molar volume of lithium in the host', units: 'm³/mol', typical: '3e-6 – 9e-6' },
+  { s: 'c,\\; c_0', meaning: 'lithium concentration and stress-free reference', units: 'mol/m³', typical: '1e4 – 3e5' },
+  { s: 'D', meaning: 'solid-phase lithium diffusivity', units: 'm²/s', typical: '1e-16 – 1e-13' },
+  { s: '\\delta_{ij}', meaning: 'Kronecker delta', units: '—' },
+]} caption="Symbols in the chemo-mechanical model." />
+
+## The fracture–SEI loop
+
+Each submodel above is well behaved on its own: SEI growth decelerates, and stress in an intact particle is cyclic and bounded. Silicon anodes fade anyway, and the mechanism is the coupling.
+
+Delithiation puts the particle surface in tension. When a surface flaw's energy release rate exceeds the material's fracture toughness, the particle cracks. Crack faces are bare host material sitting at anode potential — and bare surface at 0.1 V in carbonate electrolyte grows SEI immediately, in the kinetics-limited regime, because on that surface $\delta_\mathrm{SEI}$ has been reset to zero. The loop closes:
+
+1. Swelling gradients generate tensile surface stress on delithiation.
+2. Fracture exposes fresh, film-free surface area.
+3. Fresh surface nucleates new SEI at the fast, kinetics-limited rate.
+4. That SEI consumes lithium inventory and thickens the resistive film, raising overpotentials — and the next cycle cracks further.
+
+This is why silicon-anode capacity fade does not follow the decelerating $\sqrt{t}$ law of a passivating film. The parasitic charge per cycle is set by the fresh area created that cycle rather than by transport through an ever-thicker film, so fade stays near-linear in cycle number, or accelerates as fragmentation compounds — the knee. It is also why the submodels cannot be validated independently and bolted together afterwards: the observable, capacity versus cycle number, is a property of the loop, not of any single mechanism.
+
+## Where this sits in the solver
+
+Degradation state joins the same unknown vector $u$ as everything else: film thickness per anode surface node, the particle displacement field, and exposed surface area. All residuals live in one $R(u)$, so the autodiff Jacobian $J = \partial R / \partial u$ picks up the coupling blocks — kinetics with respect to $\delta_\mathrm{SEI}$ through $R_\mathrm{SEI}$, flux with respect to $\sigma_h$ — without hand-derived derivatives. The same Jacobian then serves the frequency-domain EIS solve, where an aged film shifts the spectrum, and the adjoint system $J^{\mathsf{T}} \lambda = -\partial Q / \partial u$, where $Q$ can be capacity at cycle $N$ and the design variables particle radius or electrode porosity. Sensitivity of fade to design, from one linear solve, is the payoff of keeping degradation inside the Jacobian instead of bolting it on as a post-processing rule.
+
+## Status
+
+Everything on this page is model specification, not shipped code. The equations are fixed; the discretisation and the coupled solves are in progress in the solver package, which is not yet publicly released. No browser demo implements this physics, and no fade predictions exist to show. The [roadmap](/Electrochemical-Cell-Simulator/roadmap/) lists where degradation sits in the build order, and the [validation page](/Electrochemical-Cell-Simulator/validation/) records what has actually been checked. Questions and corrections: [repaka.ashrith@gmail.com](mailto:repaka.ashrith@gmail.com) or the [GitHub repository](https://github.com/godtier812/Electrochemical-Cell-Simulator).
