@@ -1,0 +1,157 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Configuration
+description: Design specification for the Voltaire solver's configuration file — transport, mesh, Newton, timestepping, thermal, degradation, impedance, and ML options with types, defaults, and units.
+nav: docs
+---
+import StatusBadge from '../../components/StatusBadge.astro';
+
+<StatusBadge status="in-progress" label="design specification" />
+
+This page is the design specification for the options accepted by the in-development Python solver. The package is not yet publicly released, and defaults may change before release. What is fixed is the scope: every option below maps to physics documented on this site — [transport](/Electrochemical-Cell-Simulator/physics/transport/), [kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/), [thermal](/Electrochemical-Cell-Simulator/physics/thermal/), [degradation](/Electrochemical-Cell-Simulator/physics/degradation/), [impedance](/Electrochemical-Cell-Simulator/physics/impedance/) — and to the numerics described on the [numerics page](/Electrochemical-Cell-Simulator/numerics/). There are no options for features the solver does not model.
+
+## Format
+
+Configuration is a single TOML file. Options are grouped into tables whose names head the sections below. Every option has a declared type; values are SI unless the units column says otherwise; dimensionless entries show an em dash. An option with no default is required whenever its section is active, and the loader rejects keys it does not recognise rather than ignoring them silently.
+
+## Example file
+
+A complete file with every default written out. The only value you must supply yourself in this example is `sei_kappa`, which has no default.
+
+```toml
+[transport]
+model = "concentrated"        # dilute | concentrated | pnp
+electroneutrality = true
+bruggeman_exponent = 1.5
+
+[mesh]
+n_points = 200
+grading = "geometric"         # geometric | uniform
+min_debye_points = 10
+
+[newton]
+max_iter = 50
+tol = 1e-10
+damping = "line-search"       # line-search | trust-region
+positivity = "multiplicative"
+
+[timestepping]
+scheme = "ida"                # ida | kvaerno5
+rtol = 1e-6
+atol = 1e-9
+dae = true
+
+[thermal]
+enabled = false
+arrhenius_t_ref = 298.15      # K
+
+[degradation]
+sei_model = "kinetic-diffusion"
+sei_kappa = 5e-6              # S/m — no default; typical 1e-6 to 1e-5
+
+[impedance]
+f_min = 1e-2                  # Hz
+f_max = 1e5                   # Hz
+n_frequencies = 50
+drt_lambda = 1e-2
+drt_n_tau = 60
+
+[ml]
+surrogate = "none"            # pinn | deeponet | none
+training = "latin-hypercube"
+onnx_export = true
+```
+
+## `[transport]`
+
+Selects one of the three transport theories on the [transport page](/Electrochemical-Cell-Simulator/physics/transport/) and how charge is closed.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `model` | enum | `concentrated` | — | Transport theory: `dilute` (independent Nernst–Planck fluxes), `concentrated` (Newman form of Stefan–Maxwell theory), or `pnp` (resolved Poisson–Nernst–Planck double layer). |
+| `electroneutrality` | bool | `true` | — | Close the potential with the algebraic constraint of zero net charge instead of Poisson's equation. Ignored under `model = "pnp"`, which exists precisely to resolve space charge. |
+| `bruggeman_exponent` | float | `1.5` | — | Exponent $b$ in the effective-property correction $D_\mathrm{eff} = \varepsilon^{b} D$ for porous electrodes, used when no computed tortuosity is supplied. |
+
+The Bruggeman correction is the analytic fallback. When a microstructure is available, the RSA-packing and Laplace-tortuosity pipeline shown in the [microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) replaces the exponent with a tortuosity computed from geometry — the demo shows where $\varepsilon^{1.5}$ misleads as packing density rises.
+
+## `[mesh]`
+
+Controls the 1-D grid the residuals are assembled on.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `n_points` | int | `200` | — | Number of grid points across the cell. |
+| `grading` | enum | `geometric` | — | `geometric` clusters points toward the electrode interfaces; `uniform` spaces them evenly. |
+| `min_debye_points` | int | `10` | — | Minimum grid points per Debye length $\lambda_D$ at each interface when `model = "pnp"`; the graded mesh refines until this is met. |
+
+Geometric grading is not an optimisation, it is what makes the PNP model affordable: $\lambda_D = \sqrt{\varepsilon R T / (2 F^2 c_0)}$ — with $\varepsilon$ the solvent permittivity here, not porosity — is about 0.30 nm at 1 M and 0.96 nm at 0.1 M in water at 298 K, while a cell is tens of micrometres across. A uniform mesh resolving the double layer at those scales would need on the order of a million points; a geometric one meets `min_debye_points` with a few hundred. The dilute and concentrated models do not resolve $\lambda_D$, so `min_debye_points` is inert there.
+
+## `[newton]`
+
+Controls the damped Newton solve $J\,\delta u = -R$ described on the [numerics page](/Electrochemical-Cell-Simulator/numerics/), used for steady states, consistent initialisation, and every implicit time step.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `max_iter` | int | `50` | — | Maximum Newton iterations per nonlinear solve before the solve is declared failed (and, inside a time step, the step is retried smaller). |
+| `tol` | float | `1e-10` | — | Convergence tolerance on the residual norm of the nondimensionalised system. |
+| `damping` | enum | `line-search` | — | Globalisation strategy: backtracking line search on the residual norm, or a trust-region bound on the step length. |
+| `positivity` | enum | `multiplicative` | — | Update rule for concentrations. The multiplicative update scales concentrations by a positive factor so they can approach zero but never cross it; one negative concentration would poison the next residual evaluation. |
+
+## `[timestepping]`
+
+Controls the implicit integrator for transient runs. With electroneutrality active the system is a semi-explicit index-1 DAE: the charge constraint contributes an algebraic equation with no time derivative, so the integrator must be DAE-aware.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `scheme` | enum | `ida` | — | Integrator family: `ida` (variable-order BDF in the style of SUNDIALS IDA) or `kvaerno5` (fifth-order, stiffly accurate ESDIRK). |
+| `rtol` | float | `1e-6` | — | Relative tolerance for the adaptive step-size controller. |
+| `atol` | float | `1e-9` | — | Absolute tolerance, applied per unknown in nondimensional variables. |
+| `dae` | bool | `true` | — | Treat the system as an index-1 DAE and solve consistent initial conditions with one Newton solve at $t = 0$. Required whenever `electroneutrality = true`; setting it to `false` in that case is a configuration error, not a fallback. |
+
+Both schemes reduce each step to the damped Newton solve configured above, reusing the same Jacobian machinery — this is the single-Jacobian spine the whole solver is built on.
+
+## `[thermal]`
+
+Couples the energy balance of the [thermal page](/Electrochemical-Cell-Simulator/physics/thermal/) to transport and kinetics.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `enabled` | bool | `false` | — | Solve the energy balance alongside transport and kinetics. When `false` the run is isothermal at the initial temperature. |
+| `arrhenius_t_ref` | float | `298.15` | K | Reference temperature $T_\mathrm{ref}$ in the Arrhenius correction applied to the diffusion coefficients, ionic conductivity, and exchange current density. |
+
+## `[degradation]`
+
+Configures the SEI growth model of the [degradation page](/Electrochemical-Cell-Simulator/physics/degradation/).
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `sei_model` | enum | `kinetic-diffusion` | — | SEI growth law with mixed control: reduction kinetics at the film surface in series with solvent diffusion through the film. Currently the only choice. |
+| `sei_kappa` | float | none — required | S/m | Ionic conductivity $\kappa_\mathrm{SEI}$ of the film. Sets the film's area-specific resistance $R_\mathrm{SEI} = \delta_\mathrm{SEI} / \kappa_\mathrm{SEI}$, which enters the Butler–Volmer overpotential as an ohmic drop. Typical 1e-6 to 1e-5. |
+
+This model has not been run against fade data; see the [validation page](/Electrochemical-Cell-Simulator/validation/) for what is actually checked today.
+
+## `[impedance]`
+
+Controls the frequency-domain EIS solve $(i\omega M - J)\hat{u} = \hat{b}$ — one linear solve per frequency, reusing the time-domain Jacobian — and the DRT inversion applied to the resulting spectrum.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `f_min` | float | `1e-2` | Hz | Lowest frequency in the sweep. |
+| `f_max` | float | `1e5` | Hz | Highest frequency in the sweep. |
+| `n_frequencies` | int | `50` | — | Number of logarithmically spaced frequencies between `f_min` and `f_max`. |
+| `drt_lambda` | float | `1e-2` | — | Tikhonov regularisation weight in the DRT inversion. Larger values smooth the recovered $\gamma(\tau)$; smaller values sharpen peaks at the cost of noise amplification. |
+| `drt_n_tau` | int | `60` | — | Number of logarithmically spaced relaxation-time nodes in the DRT basis. |
+
+The DRT defaults (`drt_lambda = 1e-2`, `drt_n_tau = 60`) are the values used by the Tikhonov-NNLS inversion running in the [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance), which sweeps the same 1e-2 to 1e5 Hz range in the browser.
+
+## `[ml]`
+
+<StatusBadge status="research" />
+
+Surrogate training is exploratory — no results to report yet. The options exist so the interface is designed rather than bolted on, and they do nothing unless a surrogate is selected.
+
+| Option | Type | Default | Units | Meaning |
+| --- | --- | --- | --- | --- |
+| `surrogate` | enum | `none` | — | Surrogate architecture to train from solver output: `pinn` (physics-informed network), `deeponet` (operator network), or `none`. |
+| `training` | enum | `latin-hypercube` | — | Sampling design used to place solver runs in parameter space when generating training data. Currently the only choice. |
+| `onnx_export` | bool | `true` | — | Export the trained surrogate to ONNX after training, so it can run outside the Python environment. |

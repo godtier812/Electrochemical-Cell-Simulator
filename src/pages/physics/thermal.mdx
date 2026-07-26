@@ -1,0 +1,177 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Thermal
+description: How Voltaire solves the energy equation together with transport and kinetics, and why Arrhenius feedback makes thermal runaway representable.
+nav: physics
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+<StatusBadge status="in-progress" label="solver, in progress" />
+
+An isothermal cell model is a convenient fiction. Every rate coefficient in the
+[transport](/Electrochemical-Cell-Simulator/physics/transport/) and
+[kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) equations depends on
+temperature, and every ampere the cell passes deposits heat that moves that temperature.
+Voltaire treats the energy balance as one more conservation law in the same system —
+solved simultaneously with concentration and potential, not applied as a correction
+afterwards.
+
+## The energy equation
+
+The temperature field obeys a heat equation with conduction and three volumetric source
+terms, one for each distinct way an operating cell generates (or absorbs) heat:
+
+<Equation
+  id="eq-energy"
+  latex="\rho c_p \frac{\partial T}{\partial t} = \nabla \cdot \left( k \nabla T \right) + q_{\mathrm{ohm}} + q_{\mathrm{rxn}} + q_{\mathrm{rev}}"
+  caption="Energy balance: thermal inertia, conduction, and the ohmic, irreversible, and reversible heat sources."
+/>
+
+The left side is the rate of change of stored thermal energy; the conduction term
+redistributes heat down temperature gradients and carries it to the cooled boundary. What
+remains is the source budget, split below.
+
+<SymbolTable
+  caption="Symbols in the energy equation and its source terms"
+  rows={[
+    { s: 'T', meaning: 'temperature', units: 'K', typical: '250 – 330 in normal operation' },
+    { s: '\\rho', meaning: 'mass density of the local material', units: 'kg/m³', typical: '1e3 – 3e3' },
+    { s: 'c_p', meaning: 'specific heat capacity', units: 'J/(kg·K)', typical: '700 – 1100' },
+    { s: 'k', meaning: 'thermal conductivity', units: 'W/(m·K)', typical: '0.2 – 3' },
+    { s: 'q_{\\mathrm{ohm}},\\ q_{\\mathrm{rxn}},\\ q_{\\mathrm{rev}}', meaning: 'ohmic, irreversible reaction, and reversible heat sources per unit volume', units: 'W/m³' },
+    { s: 'I', meaning: 'current through the resistive path', units: 'A' },
+    { s: 'R', meaning: 'ohmic resistance of that path (electrolyte, solid phases, contacts)', units: 'Ω' },
+    { s: 'j', meaning: 'interfacial current density; positive on discharge by convention', units: 'A/m²', typical: '0.1 – 100' },
+    { s: '\\eta', meaning: 'surface overpotential driving the reaction', units: 'V', typical: '0.01 – 0.3' },
+    { s: '\\partial E^{0} / \\partial T', meaning: 'entropic coefficient of the cell reaction', units: 'V/K', typical: 'order 1e-4, either sign' },
+  ]}
+/>
+
+## Heat sources
+
+### Ohmic heat
+
+<Equation
+  id="eq-q-ohm"
+  latex="q_{\mathrm{ohm}} = I^{2} R"
+  caption="Joule heating: current forced through ohmic resistance."
+/>
+
+This is Joule's law: the dissipation from driving current through the resistive parts of
+the cell — electrolyte, solid conductors, and contacts — written in its familiar lumped
+form; in the distributed model the same dissipation is evaluated per unit volume from the
+local current and the local effective resistance. It is always positive and scales with
+the square of the current, which is why it dominates the heat budget at high rates.
+
+### Irreversible reaction heat
+
+<Equation
+  id="eq-q-rxn"
+  latex="q_{\mathrm{rxn}} = j \, \eta"
+  caption="Irreversible reaction heat: interfacial current times the overpotential that drives it."
+/>
+
+Pushing charge across the interface at a finite rate costs an overpotential $\eta$, and
+the product $j\eta$ is the power that cost dissipates. Because
+[Butler–Volmer kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) gives $j$
+and $\eta$ the same sign — you can see the odd symmetry directly in the
+[Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer) — this
+term is dissipative in both charge and discharge.
+
+### Reversible entropic heat
+
+<Equation
+  id="eq-q-rev"
+  latex="q_{\mathrm{rev}} = j \, T \, \frac{\partial E^{0}}{\partial T}"
+  caption="Reversible heat: the entropy change of the cell reaction, proportional to current."
+/>
+
+The cell reaction changes the entropy of the electrodes, and that entropy change is
+exchanged with the surroundings as heat at rate $jT(\partial E^{0}/\partial T)$. Unlike
+the other two sources this one is not a loss, and it changes sign between charge and
+discharge: $j$ reverses while the entropic coefficient does not, so a reaction that heats
+the cell on discharge cools it on charge. It is also the only source that is linear in
+current — the ohmic and irreversible terms both scale roughly as $j^2$ near equilibrium —
+so at low rates the entropic term decays slowest and can set the sign of the net heat
+flow.
+
+## Temperature feedback
+
+Heat generation would be a one-way street if the coefficients were constants. They are
+not. The diffusion coefficients, the ionic conductivity, and the exchange current density
+all follow Arrhenius laws:
+
+<Equation
+  id="eq-arrhenius"
+  latex="X(T) = X_{\mathrm{ref}} \, \exp\!\left[ \frac{E_{a,X}}{R} \left( \frac{1}{T_{\mathrm{ref}}} - \frac{1}{T} \right) \right], \qquad X \in \{ D_i,\ \kappa,\ j_0 \}"
+  caption="Arrhenius temperature correction applied to each transport and kinetic coefficient."
+/>
+
+Each coefficient carries its own activation energy, so a temperature rise speeds up
+diffusion, conduction, and interfacial kinetics by different factors. In this equation
+$R$ is the molar gas constant, not the resistance of the ohmic term above.
+
+<SymbolTable
+  caption="Symbols in the Arrhenius law"
+  rows={[
+    { s: 'X_{\\mathrm{ref}}', meaning: 'coefficient value at the reference temperature', units: 'units of X' },
+    { s: 'E_{a,X}', meaning: 'activation energy of coefficient X', units: 'J/mol', typical: '2e4 – 6e4' },
+    { s: 'T_{\\mathrm{ref}}', meaning: 'reference temperature', units: 'K', typical: '298.15' },
+    { s: 'R', meaning: 'molar gas constant', units: 'J/(mol·K)', typical: '8.314' },
+  ]}
+/>
+
+This closes a loop. Current makes heat; heat raises $T$; a higher $T$ raises $D_i$,
+$\kappa$, and $j_0$; faster transport and kinetics let more current flow at the same
+voltage; more current makes more heat. Whether that loop settles or diverges is decided
+by the competition between the source terms and heat removal — conduction through the
+stack and cooling at the cell surface. When removal wins, the cell finds a steady
+operating temperature. When generation wins, the loop runs away: this is the essential
+mechanism of thermal runaway, and a model can only represent it if the temperature
+dependence feeds back into the same equations that generate the heat. A model that
+computes temperature from a frozen electrochemical solution cannot run away, whatever
+the cell does.
+
+We do not show simulated runaway curves on this page. The thermal block has not yet
+produced validated results, and a dramatic plot without a validation trail would be
+decoration. See [validation](/Electrochemical-Cell-Simulator/validation/) for what has
+and has not been checked.
+
+## One residual, one Jacobian
+
+The coupling strategy is deliberately boring: temperature is appended to the unknown
+vector, and the energy balance is appended to the residual. With
+$u = (C_1, \ldots, C_N, \phi, T)$ the solver assembles a single residual $R(u)$ and
+differentiates it once:
+
+<Equation
+  id="eq-jacobian-blocks"
+  latex="J = \frac{\partial R}{\partial u} = \begin{pmatrix} \partial_C R_C & \partial_\phi R_C & \partial_T R_C \\ \partial_C R_\phi & \partial_\phi R_\phi & \partial_T R_\phi \\ \partial_C R_T & \partial_\phi R_T & \partial_T R_T \end{pmatrix}"
+  caption="Block structure of the Jacobian once temperature joins the unknown vector."
+/>
+
+The last column holds the Arrhenius feedback — how the transport and kinetics residuals
+move when $T$ moves — and the last row holds the heat sources, which depend on
+concentration through $j$ and on potential through $\eta$ and the ohmic dissipation.
+None of these cross-terms is derived by hand: the Jacobian comes from automatic
+differentiation of the assembled residual, so adding the thermal block means writing its
+residual and nothing else. Damped Newton then solves the fully coupled system, which
+matters here because the runaway loop is exactly the kind of stiff feedback that a
+segregated scheme — solve electrochemistry, then update temperature, then repeat — lags
+by a timestep and can misjudge.
+
+The same augmented Jacobian is what the rest of the architecture consumes: the
+frequency-domain impedance solve $(i\omega M - J)\hat{u} = \hat{b}$ and the adjoint
+sensitivity solve $J^{\mathsf{T}}\lambda = -\partial Q / \partial u$ apply to the
+enlarged blocks unchanged, so thermal effects will enter impedance spectra and design
+sensitivities through the same machinery once the block lands.
+
+## Status
+
+The energy equation and its Arrhenius coupling are being implemented in the Python
+solver, which is in development and not yet publicly released. None of the browser demos
+solves the coupled energy equation. Thermal validation — analytic conduction benchmarks
+and a comparison against PyBaMM's thermal P2D model — has not yet been run. Progress is
+tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/).

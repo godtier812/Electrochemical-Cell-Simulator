@@ -1,0 +1,67 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Quickstart
+description: The target Python API for Voltaire — a ten-line discharge simulation and a two-line impedance spectrum, with what each line does.
+nav: docs
+---
+import StatusBadge from '../../components/StatusBadge.astro';
+
+## Before you read
+
+<StatusBadge status="in-progress" label="target API" />
+
+This is the interface the package is being built to; it may shift before release. Nothing on this page is installable today — see [install](/Electrochemical-Cell-Simulator/docs/) for status. It is here so you can judge the shape of the API early and object to it while objecting is cheap.
+
+## A first discharge
+
+Ten lines, including comments and blanks:
+
+```python
+import voltaire as vt
+
+# A parameterised 1-D full cell: graphite | separator | NMC.
+cell = vt.Cell.from_preset("graphite-nmc-1d")
+
+# Constant-current discharge at 1C for one hour of simulated time.
+result = cell.discharge(c_rate=1.0, t_end="1h")
+
+# Voltage against discharged capacity.
+result.plot("voltage")
+```
+
+### What each line does
+
+`import voltaire as vt` loads the package. Everything user-facing hangs off the top level; `vt.Cell` is the object you will spend most of your time with.
+
+`vt.Cell.from_preset("graphite-nmc-1d")` builds a one-dimensional cell sandwich — porous graphite negative electrode, separator, porous NMC positive electrode — with a built-in parameter set: geometry, transport and kinetic parameters, and open-circuit potential curves for both electrodes. Presets are starting points, not fixed configurations; individual parameters can be overridden before running.
+
+`cell.discharge(c_rate=1.0, t_end="1h")` runs a galvanostatic discharge. `c_rate=1.0` sets the current to drain the nominal capacity in one hour, and `t_end="1h"` sets the simulated duration, so this is nominally a full discharge. Internally, each implicit time step is one damped Newton solve of the full nonlinear residual, using the autodiff Jacobian $J = \partial R / \partial u$ — the same matrix the impedance and sensitivity machinery reuse below.
+
+`result.plot("voltage")` opens a matplotlib figure of cell voltage against discharged capacity. Expect the shape every battery engineer knows: the curve starts near the full-charge open-circuit voltage, drops immediately by the ohmic and kinetic overpotential the 1C current forces, follows a slowly declining plateau whose shape is set by the two electrodes' open-circuit potential curves, and bends down steeply near the end as the graphite empties and transport limits bite. For this chemistry the curve lives roughly in the 4.2 V to 3.0 V window. No numbers are quoted here because none have been produced by a released solver yet.
+
+## An impedance spectrum
+
+With the same cell object at its current operating point:
+
+```python
+spec = cell.impedance(f_min=0.01, f_max=1e5, n=50)
+spec.plot("nyquist")
+```
+
+### What each line does
+
+`cell.impedance(f_min=0.01, f_max=1e5, n=50)` linearises the cell about its present state and solves the frequency-domain system $(i\omega M - J)\hat{u} = \hat{b}$ at 50 logarithmically spaced frequencies from 10 mHz to 100 kHz. There is no time stepping and no simulated sinusoidal forcing: one sparse complex linear solve per frequency, reusing the Jacobian $J$ the Newton solver already assembled. That reuse is the reason impedance is a two-line afterthought here rather than a separate campaign of long time-domain runs.
+
+`spec.plot("nyquist")` draws the standard Nyquist plot, negative imaginary impedance against real impedance. Expect the canonical geometry: a high-frequency intercept on the real axis set by the ohmic resistance of electrolyte and contacts, a depressed arc produced by charge-transfer resistance in parallel with double-layer capacitance at the interfaces, and a Warburg tail rising at roughly 45 degrees at low frequency, where diffusion takes over from kinetics.
+
+The physics behind each feature of that arc is on the [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/); the kinetic and transport models the time-domain solve integrates are on the [kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) and [transport](/Electrochemical-Cell-Simulator/physics/transport/) pages.
+
+## Try the same numerics now
+
+You do not have to wait for the package to poke at the methods. The [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) fits a distribution of relaxation times to spectra in your browser, and the [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer) is the kinetic law the discharge solve calls at every interface, live under sliders. Both run the actual numerics in TypeScript.
+
+## Caveats
+
+- Function names, argument names, and defaults may change before release; presets may be renamed.
+- No output of this API has been benchmarked against other solvers yet. In particular, the comparison against a PyBaMM P2D reference has not yet been run — see [validation](/Electrochemical-Cell-Simulator/validation/) for the current state of checking.
+- When behaviour on this page and behaviour of the released package differ, trust the package and report the page: repaka.ashrith@gmail.com.

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" font-family="'IBM Plex Mono', monospace" font-size="10">
+<line x1="52.0" y1="26" x2="52.0" y2="362" stroke="#8a949e33"/>
+<text x="52.0" y="376" fill="#8a949e" text-anchor="middle">0</text>
+<line x1="189.3" y1="26" x2="189.3" y2="362" stroke="#8a949e33"/>
+<text x="189.3" y="376" fill="#8a949e" text-anchor="middle">20</text>
+<line x1="326.5" y1="26" x2="326.5" y2="362" stroke="#8a949e33"/>
+<text x="326.5" y="376" fill="#8a949e" text-anchor="middle">40</text>
+<line x1="463.8" y1="26" x2="463.8" y2="362" stroke="#8a949e33"/>
+<text x="463.8" y="376" fill="#8a949e" text-anchor="middle">60</text>
+<line x1="601.0" y1="26" x2="601.0" y2="362" stroke="#8a949e33"/>
+<text x="601.0" y="376" fill="#8a949e" text-anchor="middle">80</text>
+<line x1="52" y1="362.0" x2="628" y2="362.0" stroke="#8a949e33"/>
+<text x="47" y="365.0" fill="#8a949e" text-anchor="end">0</text>
+<line x1="52" y1="293.8" x2="628" y2="293.8" stroke="#8a949e33"/>
+<text x="47" y="296.8" fill="#8a949e" text-anchor="end">10</text>
+<line x1="52" y1="225.6" x2="628" y2="225.6" stroke="#8a949e33"/>
+<text x="47" y="228.6" fill="#8a949e" text-anchor="end">20</text>
+<line x1="52" y1="157.3" x2="628" y2="157.3" stroke="#8a949e33"/>
+<text x="47" y="160.3" fill="#8a949e" text-anchor="end">30</text>
+<line x1="52" y1="89.1" x2="628" y2="89.1" stroke="#8a949e33"/>
+<text x="47" y="92.1" fill="#8a949e" text-anchor="end">40</text>
+<rect x="52" y="26" width="576" height="336" fill="none" stroke="#8a949e"/>
+<path d="M600.6,353.2 L600.3,350.9 L599.9,348.1 L599.3,344.5 L598.2,340.0 L596.6,334.4 L594.1,327.7 L590.3,319.7 L584.5,310.4 L576.2,300.3 L564.6,290.1 L549.5,281.1 L531.5,274.8 L512.0,272.3 L492.9,273.9 L476.0,278.6 L462.1,284.9 L451.3,291.3 L442.9,296.5 L436.1,300.1 L429.9,301.7 L423.6,301.5 L416.5,299.8 L408.1,297.0 L398.1,293.8 L386.3,291.0 L372.9,289.4 L358.8,289.9 L345.0,292.7 L332.8,297.4 L322.6,303.1 L314.8,308.7 L308.8,313.7 L304.2,317.4 L300.6,319.6 L297.4,320.2 L294.3,319.1 L290.9,316.3 L286.6,311.9 L281.0,305.7 L273.3,298.3 L262.8,290.2 L249.1,282.4 L232.2,276.4 L213.0,273.8 L193.2,275.4 L174.7,280.9 L159.2,289.4 L147.1,299.4 L138.2,309.4 L132.1,318.7 L128.0,326.9 L125.3,333.7 L123.6,339.4 L122.5,344.0 L121.8,347.7 L121.4,350.6 L121.1,353.0 L120.9,354.9 L120.8,356.3 L120.7,357.5 L120.7,358.4 L120.7,359.2 L120.7,359.8 L120.6,360.2 L120.6,360.6 L120.6,360.9 L120.6,361.1 L120.6,361.3 L120.6,361.5" fill="none" stroke="rgb(37, 132, 142)" stroke-width="2.5"/>
+<text x="340" y="394" fill="#8a949e" text-anchor="middle">Z' / ohm cm2</text>
+<text transform="translate(12 194) rotate(-90)" fill="#8a949e" text-anchor="middle">-Z'' / ohm cm2</text>
+<text x="52" y="16" fill="#8a949e" font-size="11" letter-spacing="1">NYQUIST  R + SEI + (RCT||CDL) + WARBURG   (aged cell, equal aspect)</text>
+</svg>

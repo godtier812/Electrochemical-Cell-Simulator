@@ -1,0 +1,126 @@
+---
+layout: ../layouts/DocsLayout.astro
+title: Numerics
+description: How Voltaire turns the PNP equations into linear algebra — nondimensionalisation, Scharfetter–Gummel fluxes, damped Newton, index-1 DAE integration, and one Jacobian reused for impedance and adjoints.
+nav: physics
+---
+import Equation from '../components/Equation.astro';
+import SymbolTable from '../components/SymbolTable.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import JacobianDiagram from '../components/JacobianDiagram.astro';
+
+This page describes how the equations on the physics pages become linear algebra. Every choice here is boring on purpose: each one exists because the obvious alternative fails on this problem, and the failure mode is named. The same discretisation runs today, in TypeScript, in the [browser demos](/Electrochemical-Cell-Simulator/demos/).
+
+## Nondimensionalise first
+
+Assemble the Poisson–Nernst–Planck system in SI units and the matrix mixes volts (order $10^{-1}$), concentrations in mol/m³ (order $10^{3}$), lengths in metres (order $10^{-9}$ near the interface) and a permittivity of order $10^{-10}$. The resulting Jacobian has entries spanning roughly fifteen decades and condition numbers near $10^{15}$ — at the edge of what double precision (about sixteen significant decimal digits) can represent, so Newton corrections are mostly rounding noise and the iteration stalls.
+
+The fix costs three lines. Scale potential by the thermal voltage, $\psi = F\phi/RT$ (25.7 mV at 298 K); concentration by the bulk value, $\tilde{c}_i = C_i/c_0$; length by the domain, $\tilde{x} = x/L$. For a 1:1 electrolyte the Poisson equation collapses to a form with a single remaining parameter, and this is the equation the assembler actually discretises:
+
+<Equation id="eq-scaled-poisson" latex="\left(\frac{\lambda_D}{L}\right)^{2} \tilde{\nabla}^{2}\psi = -\tfrac{1}{2}\left(\tilde{c}_{+} - \tilde{c}_{-}\right), \qquad \lambda_D = \sqrt{\frac{\varepsilon R T}{2 F^{2} c_0}}" caption="Dimensionless Poisson equation for a 1:1 electrolyte. The Debye ratio is the only parameter left." />
+
+The stiffness that survives scaling is physical, not unit-borne: $\lambda_D/L$ is small because double layers really are thin, and the mesh (below) resolves that directly.
+
+<SymbolTable rows={[
+  { s: '\\phi', meaning: 'electrostatic potential', units: 'V', typical: '±1' },
+  { s: '\\psi = F\\phi/RT', meaning: 'potential in thermal units', units: '—', typical: '±40' },
+  { s: 'c_0', meaning: 'bulk electrolyte concentration', units: 'mol/m³', typical: '100 – 1000' },
+  { s: 'L', meaning: 'domain length (scaling length)', units: 'm', typical: '1e-7 – 1e-4' },
+  { s: '\\lambda_D', meaning: 'Debye screening length', units: 'm', typical: '3e-10 – 1e-9' },
+  { s: '\\varepsilon', meaning: 'solvent permittivity', units: 'F/m', typical: '6.9e-10 (water)' },
+]} caption="Symbols in the nondimensionalisation." />
+
+## Scharfetter–Gummel flux
+
+The scaled Nernst–Planck flux is discretised on cell faces with the exponentially fitted scheme of Scharfetter and Gummel (1969), originally built for semiconductor device simulation — the same drift–diffusion structure:
+
+<Equation id="eq-sg" latex="J_{i+1/2} = \frac{D}{h}\Big[\, B(-\Delta\psi)\, C_{i+1} - B(\Delta\psi)\, C_i \,\Big], \qquad B(x) = \frac{x}{e^{x} - 1}" caption="Scharfetter–Gummel face flux with the Bernoulli weighting function." />
+
+Here $\Delta\psi = z\,(\psi_{i+1} - \psi_i)$ is the potential drop across the cell in thermal units, signed by the species charge. Between two nodes the scheme solves the local two-point problem — constant flux, linear potential — exactly; the Bernoulli weights are that exact solution, which is why the method tolerates coarse cells in the bulk without losing the profile shape.
+
+Two properties matter in practice. First, monotonicity: both weights are positive for any $\Delta\psi$, so the discrete solution obeys a maximum principle and cannot oscillate. Central differencing of the migration term loses positivity once the cell Péclet number — here just $|\Delta\psi|$ per cell — exceeds about 2, and the double layer routinely produces cell drops of several thermal units on any affordable mesh. Second, consistency: as $\Delta\psi \to 0$ the expansion $B(x) \approx 1 - x/2$ recovers plain central differencing, so nothing is given up where the field is weak. The implementation evaluates $B$ by its Taylor series for small arguments to avoid the 0/0 at $x = 0$.
+
+<SymbolTable rows={[
+  { s: 'J_{i+1/2}', meaning: 'molar flux through the face between nodes i and i+1', units: 'mol m⁻² s⁻¹' },
+  { s: 'D', meaning: 'diffusion coefficient of the species', units: 'm²/s', typical: '1e-10 – 1e-9' },
+  { s: 'h', meaning: 'local mesh spacing', units: 'm', typical: '1e-11 – 1e-7' },
+  { s: 'C_i', meaning: 'concentration at node i', units: 'mol/m³' },
+  { s: '\\Delta\\psi', meaning: 'signed potential drop across the cell, thermal units', units: '—', typical: '0 – 5' },
+  { s: 'B(x)', meaning: 'Bernoulli weighting function', units: '—' },
+]} caption="Symbols in the Scharfetter–Gummel flux." />
+
+## Fully coupled damped Newton
+
+The unknowns $[C_+, C_-, \phi]$ are stacked into one vector and solved simultaneously. In one dimension the Jacobian is block-tridiagonal with 3×3 blocks, assembled analytically, and each Newton iteration is one banded solve:
+
+<Equation id="eq-newton" latex="J(u_k)\, \delta u = -R(u_k), \qquad u_{k+1} = u_k + t\, \delta u, \quad t \in (0, 1]" caption="Damped Newton update. The step length t comes from a line search on the residual norm." />
+
+The tempting alternative — Gauss–Seidel alternation, solving Poisson with concentrations frozen, then Nernst–Planck with the potential frozen — converges at low bias and diverges at high applied potential. The space charge responds exponentially to the potential through the Boltzmann factor, so above a few thermal volts each half-solve overshoots the other's assumption and the fixed-point map stops contracting. No relaxation factor rescues it reliably; the coupling belongs inside one Jacobian.
+
+### Positivity across the double layer
+
+At an applied potential of 12 thermal units (about 0.31 V), the counter-ion concentration at the wall is amplified by $e^{12} \approx 1.6 \times 10^{5}$ while the co-ion is depleted by the same factor. An additive step $C + t\,\delta C$ can drive the depleted concentrations negative even with damping, and one negative concentration poisons the next residual evaluation. The browser solver therefore updates concentrations multiplicatively:
+
+<Equation id="eq-mult" latex="C_j \,\leftarrow\, C_j \exp\!\left(\frac{t\, \delta C_j}{C_j}\right)" caption="Positivity-preserving concentration update, applied componentwise." />
+
+Expanding the exponential shows this agrees with the additive Newton step to first order in $t\,\delta C_j / C_j$, so quadratic convergence near the solution is untouched — but the iterate stays strictly positive for any step length, across the full $e^{12}$ dynamic range of the double layer. The potential, which has no sign constraint, keeps the ordinary additive update.
+
+## DAE, not ODE
+
+<StatusBadge status="in-progress" label="python solver" />
+
+Away from interfaces, at scales well above $\lambda_D$, the Poisson equation is replaced by electroneutrality. That deletes the time derivative associated with the potential: $\phi$ is no longer evolved, it is constrained. The semi-discretised system has the form $M\dot{u} = f(u)$ with a singular mass matrix $M$ — an index-1 differential-algebraic system, not an ODE. Explicit time steppers cannot integrate it at all, because nothing advances the algebraic variables; the constraint must be solved implicitly at every step.
+
+The in-development Python solver integrates this system with implicit methods built for index-1 DAEs — BDF in the style of SUNDIALS IDA, and ESDIRK schemes in the style of Kvaerno — both of which reduce each time step to exactly the kind of damped Newton solve described above, reusing the same Jacobian machinery. Consistent initialisation (finding algebraic variables that satisfy the constraint at $t = 0$) is itself one Newton solve. The browser demos sidestep time integration where they can: the double-layer demo solves steady states directly, and the dendrite demo uses an explicit phase-field update, which is a plain ODE system.
+
+## Graded mesh
+
+The double layer needs $\lambda_D$-scale resolution and the bulk does not, so a uniform mesh is wasteful by three to four orders of magnitude. Using the corrected Debye length $\lambda_D = \sqrt{\varepsilon RT / (2F^2 c_0)}$ — about 0.30 nm at 1 M and 0.96 nm at 0.1 M in water at 298 K, or 0.304 nm divided by the square root of the molar ionic strength for a 1:1 electrolyte — resolving a 1 µm domain at double-layer resolution uniformly would take roughly $10^{4}$ nodes.
+
+The meshing rule is: place at least 10 nodes inside one $\lambda_D$ of each electrode, then coarsen geometrically into the bulk with a growth ratio near 1.15. That covers the same 1 µm domain with a few hundred nodes. The Scharfetter–Gummel flux makes the coarse bulk cells nearly free of accuracy cost, because the scheme is exact for the local constant-flux problem regardless of cell size; the graded mesh spends points only where the exponential profiles actually live.
+
+## One Jacobian, three consumers
+
+Voltaire's architecture is one decision applied three times. The solver defines a single discretised residual $R(u, p)$ — states $u$, parameters $p$ — and differentiates it once to get $J = \partial R / \partial u$ (by automatic differentiation in the Python package; the browser solver assembles the same block structure analytically). Everything downstream is a consumer of that one matrix.
+
+<JacobianDiagram />
+
+The first consumer is the damped Newton solve above: $J\,\delta u = -R$ for steady states and for each implicit time step.
+
+### Impedance without time stepping
+
+The second consumer is frequency-domain EIS. Linearise about a solved steady state, assume a small harmonic perturbation $\hat{u}\, e^{i\omega t}$, and the time-domain system becomes one complex linear solve per frequency:
+
+<Equation id="eq-eis" latex="(\, i\omega M - J \,)\, \hat{u} = \hat{b}" caption="Frequency-domain impedance solve, linearised about the operating point." />
+
+The impedance at any frequency comes from one banded complex solve — no time stepping through five decades of frequency, no waiting for transients to die, no Fourier post-processing. The matrix in brackets is the same $J$ shifted by the mass matrix.
+
+### Adjoint sensitivities
+
+The third consumer is design. For a scalar objective $Q(u, p)$ — a cell resistance, an accessible capacity — one solve with the transposed Jacobian gives the sensitivity of $Q$ to every parameter at once:
+
+<Equation id="eq-adjoint" latex="J^{\mathsf{T}} \lambda = -\frac{\partial Q}{\partial u}, \qquad \frac{dQ}{dp} = \frac{\partial Q}{\partial p} + \lambda^{\mathsf{T}} \frac{\partial R}{\partial p}" caption="Adjoint equation and the resulting total derivative of the objective." />
+
+Finite differencing $dQ/dp$ costs one full nonlinear solve per parameter. The adjoint costs one extra linear solve total, independent of how many parameters there are — thousands of sensitivities (every porosity value, every kinetic constant, every mesh-cell conductivity) for the price of one transposed backsolve. This is the piece that makes gradient-based cell design tractable, and it exists only because the residual and its Jacobian were built once, cleanly, at the centre.
+
+<SymbolTable rows={[
+  { s: 'u', meaning: 'stacked state vector (concentrations, potential)', units: 'mixed (scaled)' },
+  { s: 'p', meaning: 'parameter vector (kinetics, transport, geometry)', units: 'mixed' },
+  { s: 'R(u,p)', meaning: 'discretised residual', units: 'mixed (scaled)' },
+  { s: 'J', meaning: 'Jacobian ∂R/∂u', units: '—' },
+  { s: 'M', meaning: 'mass matrix (singular for the DAE)', units: '—' },
+  { s: '\\omega', meaning: 'angular frequency of the EIS perturbation', units: 'rad/s', typical: '1e-2 – 1e6' },
+  { s: '\\hat{u},\\ \\hat{b}', meaning: 'complex perturbation amplitude and forcing', units: 'mixed (scaled)' },
+  { s: '\\lambda', meaning: 'adjoint variable', units: 'Q-units per residual unit' },
+  { s: 'Q', meaning: 'scalar design objective', units: 'problem-dependent' },
+]} caption="Symbols in the Jacobian spine." />
+
+## What runs in your browser
+
+<StatusBadge status="shipped" label="browser demo" />
+
+The demos on this site are not mock-ups; they implement the numerics above in TypeScript, running in your browser. The [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) is items 1, 2, 3 and 5 of this page end to end: scaled variables, Scharfetter–Gummel fluxes, fully coupled damped Newton with the multiplicative positivity update, on a graded mesh resolving $\lambda_D$. The [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer) exercises the kinetics that enter the boundary residuals. The [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) runs a Tikhonov-regularised NNLS inversion for the distribution of relaxation times, the [microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) computes tortuosity from a Laplace solve on RSA-packed geometries, and the [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) time-steps an explicit phase-field model.
+
+The [validation page](/Electrochemical-Cell-Simulator/validation/) includes a method-of-manufactured-solutions convergence check that runs live: it solves on a sequence of refined meshes against a known analytic solution and measures the observed order of accuracy in front of you, rather than quoting a number from a run you cannot see.
+
+The DAE time integrator, autodiff Jacobian, EIS solve and adjoint belong to the Python package, which is in development and not yet released; its progress is tracked on [GitHub](https://github.com/godtier812/Electrochemical-Cell-Simulator).

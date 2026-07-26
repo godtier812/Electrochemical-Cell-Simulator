@@ -1,0 +1,230 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import Equation from '../components/Equation.astro';
+import { withBase } from '../lib/url';
+
+const gcSnippet = `import { solvePNP, gouyChapman } from './lib/pnp';
+
+const sol = solvePNP({ L: 60e-9, c0: 100, epsR: 78.5,
+                       T: 298.15, Vapp: 0.1, N: 220 });
+const gc = gouyChapman(sol.xHat, psi0, sol.lambdaD / L);
+// compare sol.psi against gc.psi point by point`;
+
+const cottrellSnippet = `import { cottrellStep } from './lib/diffusion';
+
+const run = cottrellStep({ D: 1e-9, cStar: 1, A: 1e-4,
+  nElectrons: 1, L: 400e-6, N: 600, tEnd: 5, nSteps: 300 });
+// run.i is the simulated current, run.iCottrell the analytic one`;
+
+const mmsSnippet = `import { mmsConvergence } from './lib/pnp';
+
+// uniform meshes, Dirichlet data from the manufactured fields
+const rows = mmsConvergence([21, 41, 81, 161, 321]);
+// order = log(e1/e2) / log(h1/h2) between successive rows`;
+
+const warburgSnippet = `import { impedance, omegaGrid } from './lib/eis';
+
+// isolate the diffusion element: Rct -> 0, Cdl -> 0
+const p = { Rohm: 0, Rct: 1e-9, Cdl: 1e-12, Rd: 50, tauD: 2, ... };
+const Z = omegaGrid(0.05, 2000, 90).map(w => impedance(w, p));`;
+
+const drtSnippet = `import { computeDRT } from './lib/drt';
+
+// synthetic spectrum of a known R-RC circuit, then invert
+const Z = Array.from(omega, w => impedance(w, { Rohm: 10,
+  Rct: 25, Cdl: 2e-5, ... }));
+const drt = computeDRT(omega, Z, { nTau: 60, lambda: 1e-3 });`;
+
+// LaTeX lives in String.raw so backslashes survive the .astro compiler
+const eqGC = String.raw`\tanh\!\left(\frac{\psi}{4}\right) = \tanh\!\left(\frac{\psi_0}{4}\right) e^{-x/\lambda_D}`;
+const eqCottrell = String.raw`i(t) = n F A c^{*} \sqrt{\frac{D}{\pi t}}`;
+const eqWarburg = String.raw`Z_W = R_d\,\frac{\tanh\sqrt{i\omega L^2/D}}{\sqrt{i\omega L^2/D}} \;\longrightarrow\; \sigma_W \frac{1-i}{\sqrt{\omega}} \quad (\omega L^2/D \gg 1)`;
+const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J t_a}\right)^{2}`;
+---
+
+<BaseLayout title="Validation" description="Every check on this page runs live in your browser against an analytic solution, with the error metric printed next to the plot." section="/validation/">
+  <div class="page" id="validation-root">
+    <article class="prose">
+      <span class="overline">Evidence</span>
+      <h1>Validation</h1>
+      <p>
+        A solver you cannot check is a random number generator with good typography. This page
+        holds the checks. Every plot below is computed in your browser when the page loads —
+        the numerical solution, the analytic reference, and the error between them. Nothing is
+        prerecorded, so if a change to the numerics broke a check, you would see it break here.
+        The same checks run as unit tests in the repository on every push.
+      </p>
+      <p>
+        Two planned benchmarks are listed at the bottom with their honest status: they need the
+        Python solver core, which is <a href={withBase('/roadmap/')}>in development</a>.
+      </p>
+    </article>
+
+    <section class="vp-entry">
+      <h2>1 · Gouy–Chapman double layer</h2>
+      <p class="prose">
+        At equilibrium against a blocking electrode, steady PNP reduces exactly to
+        Poisson–Boltzmann, whose single-wall solution is the Gouy–Chapman profile. The
+        numerical solver knows nothing about that closed form — it just runs
+        Scharfetter–Gummel fluxes and damped Newton — so landing on the analytic curve is a
+        genuine end-to-end check of fluxes, Jacobian, and boundary conditions.
+      </p>
+      <Equation
+        id="eq-gc"
+        latex={eqGC}
+        caption="Gouy–Chapman: the exact Poisson–Boltzmann profile at a single charged wall, 1:1 electrolyte."
+      />
+      <div class="vp-stage"><canvas id="vp-gc"></canvas></div>
+      <p class="vp-metric" id="vp-gc-err">computing…</p>
+      <CodeBlock code={gcSnippet} lang="ts" label="reproduce (TypeScript, this site's solver)" />
+    </section>
+
+    <section class="vp-entry">
+      <h2>2 · Cottrell potential step</h2>
+      <p class="prose">
+        Step the surface concentration of a diffusing species to zero and the current must
+        decay as 1/√t while the depletion layer stays far from the cell wall. The simulation
+        uses implicit Euler on 600 nodes; the reference is exact.
+      </p>
+      <Equation
+        id="eq-cottrell"
+        latex={eqCottrell}
+        caption="Cottrell equation: diffusion-limited current after a potential step."
+      />
+      <div class="vp-stage"><canvas id="vp-cottrell"></canvas></div>
+      <p class="vp-metric" id="vp-cottrell-err">computing…</p>
+      <CodeBlock code={cottrellSnippet} lang="ts" label="reproduce" />
+    </section>
+
+    <section class="vp-entry">
+      <h2>3 · Manufactured solutions — measured order of accuracy</h2>
+      <p class="prose">
+        The method of manufactured solutions plants a known smooth field in the full coupled
+        PNP operator, derives the source terms analytically, and measures how fast the
+        discrete solution converges to it as the mesh refines. Second-order convergence is the
+        design claim for the Scharfetter–Gummel scheme on smooth solutions; the observed order
+        is measured below, live, on five meshes.
+      </p>
+      <div class="vp-stage"><canvas id="vp-mms"></canvas></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th class="num">N</th><th class="num">h</th><th class="num">L₂ error (ψ)</th><th class="num">observed order</th></tr>
+          </thead>
+          <tbody id="vp-mms-table"><tr><td colspan="4">computing…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="vp-metric" id="vp-mms-order">computing…</p>
+      <CodeBlock code={mmsSnippet} lang="ts" label="reproduce" />
+    </section>
+
+    <section class="vp-entry">
+      <h2>4 · Warburg 45° asymptote</h2>
+      <p class="prose">
+        A finite-length diffusion element must approach the semi-infinite Warburg line —
+        constant 45° phase — at frequencies well above 1/τ_d. The plot keeps equal axis
+        scaling, as every Nyquist plot should; the measured high-frequency phase is printed
+        below it.
+      </p>
+      <Equation
+        id="eq-warburg"
+        latex={eqWarburg}
+        caption="Finite-length Warburg and its semi-infinite 45° limit."
+      />
+      <div class="vp-stage vp-square"><canvas id="vp-warburg"></canvas></div>
+      <p class="vp-metric" id="vp-warburg-err">computing…</p>
+      <CodeBlock code={warburgSnippet} lang="ts" label="reproduce" />
+    </section>
+
+    <section class="vp-entry">
+      <h2>5 · DRT recovery of a known circuit</h2>
+      <p class="prose">
+        Feed the Tikhonov-NNLS inversion a spectrum whose answer is known — a single RC arc —
+        and it must return one peak at τ = R<sub>ct</sub>C<sub>dl</sub> whose area integrates
+        to R<sub>ct</sub>. This exercises the regularised least-squares machinery end to end.
+      </p>
+      <div class="vp-stage"><canvas id="vp-drt"></canvas></div>
+      <p class="vp-metric" id="vp-drt-err">computing…</p>
+      <CodeBlock code={drtSnippet} lang="ts" label="reproduce" />
+    </section>
+
+    <section class="vp-entry">
+      <h2>6 · Sand's time — dendrite onset <StatusBadge status="planned" /></h2>
+      <p class="prose">
+        Sand's time predicts when the electrolyte at the electrode runs dry under
+        galvanostatic plating, which is the classical trigger for dendritic growth.
+        The phase-field demo currently shows the morphology transition qualitatively;
+        quantitative extraction of the onset time from the simulation, for comparison against
+        the formula, has not been run yet and is tracked on the roadmap.
+      </p>
+      <Equation
+        id="eq-sand"
+        latex={eqSand}
+        caption="Sand's time for depletion at the electrode under constant current density J; t_a is the anion transference number."
+      />
+    </section>
+
+    <section class="vp-entry">
+      <h2>7 · Newman P2D vs PyBaMM <StatusBadge status="planned" label="not yet run" /></h2>
+      <p class="prose">
+        The porous-electrode benchmark: a full P2D discharge compared against PyBaMM's
+        implementation, with the voltage error plotted over the discharge. This requires the
+        Python solver core and has <strong>not been run</strong>. No numbers will appear here
+        until it has; when it does, the error plot and the script that produced it will be
+        published on this page.
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .vp-entry {
+    max-width: 46rem;
+    margin-top: var(--s7);
+  }
+
+  .vp-entry h2 {
+    margin-bottom: var(--s4);
+  }
+
+  .vp-entry .prose {
+    margin-bottom: var(--s4);
+  }
+
+  .vp-stage {
+    position: relative;
+    aspect-ratio: 16/9;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    overflow: hidden;
+  }
+
+  .vp-stage.vp-square {
+    aspect-ratio: 4/3;
+  }
+
+  .vp-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .vp-metric {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--badge-shipped-fg);
+    margin-top: var(--s3);
+  }
+</style>
+
+<script>
+  import { initValidationPage } from '../components/demos/validation-page';
+  const root = document.getElementById('validation-root');
+  if (root) {
+    requestAnimationFrame(() => setTimeout(() => initValidationPage(root), 30));
+  }
+</script>

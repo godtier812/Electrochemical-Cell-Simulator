@@ -1,0 +1,234 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Examples
+description: "Worked examples against the target Python API: a 1C discharge, a PNP double-layer study, Jacobian-based EIS with DRT inversion, an SEI ageing loop, and Bayesian inverse design."
+nav: docs
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+<StatusBadge status="in-progress" label="target API" /> The Python package is in development
+and not yet released. The code below is written against the target API, so names may still
+change, and no output shown here is a measured result — each example says what the physics
+predicts you should see, qualitatively, and links to the page that derives it. What runs
+today is listed [at the end](#what-runs-today).
+
+## 1C discharge of a graphite–NMC cell
+
+The canonical first simulation: discharge a full cell at 1C and plot voltage against
+delivered capacity.
+
+```python
+import voltaire as vt
+
+cell = vt.Cell.from_preset("graphite-nmc")   # geometry, OCV curves, transport
+                                             # and kinetic parameters
+protocol = vt.protocols.Discharge(rate="1C", cutoff=3.0)  # V
+
+sim = vt.Simulation(cell, protocol=protocol)
+sol = sim.run()
+
+ax = sol.plot(x="capacity", y="voltage")
+ax.figure.savefig("discharge_1c.png")
+```
+
+The preset bundles a porous-electrode description of both electrodes: concentrated-solution
+[transport](/Electrochemical-Cell-Simulator/physics/transport/) in the electrolyte, solid
+diffusion in the particles, and Butler–Volmer
+[kinetics](/Electrochemical-Cell-Simulator/physics/kinetics/) at each interface. `run()`
+integrates the semi-discrete system implicitly, solving each step with the damped Newton
+method described on the [numerics page](/Electrochemical-Cell-Simulator/numerics/).
+
+Expect three regions in the curve. At the start, the voltage steps down from open circuit by
+the ohmic and charge-transfer overpotentials. The middle is a sloping plateau that tracks the
+difference of the two open-circuit potentials, offset below it by the rate-dependent
+polarisation. Near the end, the curve bends down sharply as solid-phase diffusion stops
+keeping up with the surface reaction and concentration polarisation takes over. Two sanity
+checks: rerun at C/10 and the whole curve should move up toward the open-circuit difference,
+and the capacity delivered at 1C should come out below the nominal (low-rate) capacity.
+
+## Double-layer study with PNP
+
+Switching the transport model to `pnp` drops the electroneutrality assumption, which is what
+lets the solver resolve the diffuse double layer at all. This example sweeps the bulk
+concentration and checks the screening length against theory.
+
+```python
+import numpy as np
+import voltaire as vt
+
+fitted = {}
+for c0 in [10.0, 100.0, 1000.0]:          # mol/m³ = 0.01, 0.1, 1 M
+    cell = vt.Cell.symmetric(
+        electrolyte=vt.materials.binary_1_1(c0=c0),
+        gap=50e-9,                        # nm-scale gap: the domain is the double layer
+        transport="pnp",                  # Poisson–Nernst–Planck, no electroneutrality
+    )
+    sim = vt.Simulation(cell, protocol=vt.protocols.Hold(voltage=0.010))
+    sol = sim.solve_steady()
+    fitted[c0] = vt.analysis.debye_length(sol)  # exponential fit to phi(x) at the wall
+```
+
+The 10 mV hold keeps the electrode in the linear (Debye–Hückel) regime, where the potential
+decays from the wall as a single exponential with decay constant $\lambda_D$:
+
+<Equation id="eq-debye" latex="\lambda_D = \sqrt{\frac{\varepsilon R T}{2 F^2 c_0}}" caption="Debye length of a symmetric 1:1 electrolyte. The rule of thumb — 0.304 nm divided by the square root of the molar ionic strength — follows directly." />
+
+<SymbolTable rows={[
+  { s: '\\lambda_D', meaning: 'Debye screening length', units: 'm', typical: '3e-10 – 1e-8' },
+  { s: '\\varepsilon', meaning: 'solvent permittivity (relative times vacuum)', units: 'F/m', typical: '6.9e-10 (water, 298 K)' },
+  { s: 'R', meaning: 'gas constant', units: 'J/(mol·K)', typical: '8.314' },
+  { s: 'T', meaning: 'temperature', units: 'K', typical: '298' },
+  { s: 'F', meaning: 'Faraday constant', units: 'C/mol', typical: '96485' },
+  { s: 'c_0', meaning: 'bulk concentration of the 1:1 salt', units: 'mol/m³', typical: '10 – 1000' },
+]} caption="Symbols in the Debye length" />
+
+### Checking the scaling
+
+```python
+eps, R, T, F = 6.94e-10, 8.314, 298.15, 96485.0
+for c0, lam in fitted.items():
+    lam_theory = np.sqrt(eps * R * T / (2 * F**2 * c0))
+    print(f"{c0/1000:.2f} M: fitted {lam*1e9:.3f} nm, analytic {lam_theory*1e9:.3f} nm")
+```
+
+In water at 298 K the analytic values are about 0.30 nm at 1 M and 0.96 nm at 0.1 M, and the
+sweep as a whole should reproduce the inverse-square-root scaling of the 0.304 nm rule of
+thumb. If the fitted lengths drift from the analytic ones at high concentration, the first
+suspect is the mesh: the grading near the electrode must place several cells inside one
+$\lambda_D$, which at 1 M means sub-ångström resolution at the wall. The
+Scharfetter–Gummel discretisation that keeps this stable is derived on the
+[transport page](/Electrochemical-Cell-Simulator/physics/transport/).
+
+## EIS and DRT from the Jacobian
+
+Voltaire computes impedance spectra without time stepping. After solving the steady state,
+each frequency is one complex linear solve against the same Jacobian that Newton already
+assembled:
+
+<Equation id="eq-eis-example" latex="\left(i\omega M - J\right)\hat{u} = \hat{b}" caption="The frequency-domain EIS system. One sparse complex solve per frequency; J is the Newton Jacobian at the operating point." />
+
+<SymbolTable rows={[
+  { s: 'M', meaning: 'mass matrix; zero rows on algebraic equations', units: 'problem-dependent' },
+  { s: 'J', meaning: 'autodiff Jacobian at the operating point', units: 'problem-dependent' },
+  { s: '\\omega', meaning: 'angular frequency of the perturbation', units: 'rad/s', typical: '6e-2 – 6e5' },
+  { s: '\\hat{u}', meaning: 'complex amplitude of the state perturbation', units: 'mixed' },
+  { s: '\\hat{b}', meaning: 'complex forcing vector (applied current)', units: 'mixed' },
+]} caption="Symbols in the frequency-domain EIS system" />
+
+```python
+import numpy as np
+import voltaire as vt
+
+cell = vt.Cell.from_preset("graphite-nmc")
+sim = vt.Simulation(cell)
+
+ss = sim.solve_steady()                        # F(u*) = 0 by damped Newton
+freqs = np.logspace(-2, 5, 50)                 # 10 mHz – 100 kHz, log-spaced
+spec = vt.eis(sim, at=ss, frequencies=freqs)   # 50 solves of (iωM − J)û = b̂
+
+drt = vt.drt(spec, lam=1e-3, tau=np.logspace(-6, 2, 120))  # Tikhonov-NNLS
+
+spec.plot_nyquist()   # equal axis scaling, −Im Z upward
+drt.plot()
+```
+
+### Reading the result
+
+The Nyquist plot should show a high-frequency real intercept (the ohmic resistance), one or
+more arcs from charge transfer at the two electrodes, and a low-frequency 45° tail that rolls
+over as the finite-length diffusion limit is reached. Where arcs overlap into a single
+depressed bump, the DRT separates them by timescale: charge-transfer peaks sit at short
+relaxation times, microseconds to milliseconds, while diffusion contributes peaks at
+milliseconds to seconds and beyond. Do not trust a peak at a single regularisation strength —
+sweep `lam` over a decade or two and keep only the peaks that stay put. The inversion, its
+failure modes, and the analytic Warburg checks are on the
+[impedance page](/Electrochemical-Cell-Simulator/physics/impedance/).
+
+## SEI ageing over 500 cycles
+
+Attach an SEI growth model to the negative electrode and cycle the cell, tracking film
+resistance and discharge capacity per cycle.
+
+```python
+import voltaire as vt
+
+cell = vt.Cell.from_preset("graphite-nmc")
+cell.degradation = vt.models.SEI()             # solvent reduction at the graphite surface
+
+protocol = vt.protocols.Cycle(
+    charge=vt.protocols.CCCV(rate="1C", v_max=4.2, i_cut="C/50"),
+    discharge=vt.protocols.Discharge(rate="1C", cutoff=3.0),
+    n=500,
+)
+
+sol = vt.Simulation(cell, protocol=protocol).run()
+
+trace = sol.per_cycle("discharge_capacity", "R_sei")
+trace.plot(y="discharge_capacity")
+trace.plot(y="R_sei")
+```
+
+The SEI reaction consumes cyclable lithium and thickens an insulating film, so capacity fades
+while $R_{\mathrm{SEI}}$ grows in proportion to the film thickness. The shape of both curves
+should show two regimes. Early on, the film is thin and the interfacial reaction is the
+bottleneck: growth per cycle is roughly constant and the fade looks linear. As the film
+thickens, solvent transport through it becomes limiting, growth slows in inverse proportion
+to thickness, and the fade flattens into the familiar square-root-of-time shape. If your
+capacity-versus-cycle plot is a straight line for all 500 cycles, the model never left the
+kinetics-limited regime — lower the diffusivity through the film or cycle longer. The growth
+law and its two limits are derived on the
+[degradation page](/Electrochemical-Cell-Simulator/physics/degradation/).
+
+## Inverse design with Bayesian optimisation
+
+<StatusBadge status="planned" label="design module" /> A teaser for the design loop: find the
+cathode porosity and thickness that maximise energy delivered at fixed power.
+
+```python
+import voltaire as vt
+
+space = vt.design.Space(
+    porosity=(0.20, 0.50),
+    cathode_thickness=(40e-6, 120e-6),   # m
+)
+
+study = vt.design.optimize(
+    objective=vt.design.EnergyAtPower(power=100.0),  # W
+    space=space,
+    cell=vt.Cell.from_preset("graphite-nmc"),
+    method="gp-ei",          # GP surrogate + expected improvement
+    gradients="adjoint",     # dQ/dp from the shared Jacobian
+    budget=40,               # full discharge simulations
+)
+
+print(study.best_params, study.best_value)
+study.plot_convergence()
+```
+
+The objective has an interior optimum because the two parameters pull against each other: a
+thick, dense electrode stores more lithium but starves on electrolyte transport at power,
+while a thin, porous one discharges efficiently with little to discharge. Each evaluation of
+the objective is a full constant-power discharge, so evaluations are expensive — which is
+exactly the regime Bayesian optimisation is built for. A Gaussian-process surrogate models
+the objective over the design space, and the expected-improvement acquisition picks the next
+design to simulate.
+
+The adjoint solve makes each evaluation worth more. Solving
+$J^{\mathsf{T}}\lambda = -\partial Q/\partial \mathbf{u}$ — the third consumer of the one
+autodiff Jacobian, alongside Newton and EIS — yields the full gradient $dQ/dp$ for the cost
+of roughly one extra linear solve, independent of how many parameters $p$ holds. Feeding
+those gradients to the GP as derivative observations sharpens the surrogate where it has
+actually looked. The shared-Jacobian architecture is described on the
+[numerics page](/Electrochemical-Cell-Simulator/numerics/).
+
+## What runs today
+
+<StatusBadge status="shipped" label="browser demos" /> Examples 2 and 3 have live
+counterparts right now: the
+[double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) runs the
+Scharfetter–Gummel PNP solver and reads out $\lambda_D$ against the analytic value, and the
+[impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) runs the
+Tikhonov-NNLS DRT inversion — both in TypeScript, in your browser, implementing the same
+numerics the Python package will ship.

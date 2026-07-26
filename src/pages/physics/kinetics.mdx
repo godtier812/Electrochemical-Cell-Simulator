@@ -1,0 +1,159 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Kinetics
+description: "Butler–Volmer interfacial kinetics: exchange current density, transfer coefficients, Tafel and micro-polarisation limits, and how the boundary condition enters the Newton solve."
+nav: physics
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+[Transport](/Electrochemical-Cell-Simulator/physics/transport/) moves ions up to the
+electrode surface; kinetics decides how fast they react once they arrive. In Voltaire the
+reaction rate law is not a separate model — it is the boundary condition that couples the
+potential and concentration fields in the electrolyte to the potential in the solid. Get it
+wrong and every polarisation curve, every impedance arc, and every capacity prediction
+downstream is wrong with it.
+
+## The Butler–Volmer relation
+
+The current density crossing an electrode–electrolyte interface is the difference between
+an anodic (oxidising) and a cathodic (reducing) partial reaction, each accelerated
+exponentially by the part of the interfacial potential step that tilts its activation
+barrier:
+
+<Equation id="eq-bv" latex="j = j_0\left[\exp\!\left(\frac{\alpha_a F \eta}{R T}\right) - \exp\!\left(-\frac{\alpha_c F \eta}{R T}\right)\right]" caption="Butler–Volmer relation: net interfacial current as the difference of anodic and cathodic partial currents." />
+
+The driving force is the surface overpotential, the deviation of the actual potential step
+across the interface from its equilibrium value:
+
+<Equation id="eq-eta" latex="\eta = \phi_s - \phi_l - E^0" caption="Surface overpotential: how far the interfacial potential step sits from the equilibrium potential of the reaction." />
+
+At $\eta = 0$ the two exponentials are both one and the net current vanishes — the
+interface is at equilibrium, not at rest. Positive $\eta$ favours oxidation and drives
+anodic current (positive $j$ by our sign convention); negative $\eta$ drives reduction.
+
+### Symbols
+
+<SymbolTable rows={[
+  { s: 'j', meaning: 'interfacial (faradaic) current density, positive anodic', units: 'A/cm²' },
+  { s: 'j_0', meaning: 'exchange current density', units: 'A/cm²', typical: '1e-6 – 1e-2' },
+  { s: '\\alpha_a', meaning: 'anodic transfer coefficient', units: '–', typical: '0.5' },
+  { s: '\\alpha_c', meaning: 'cathodic transfer coefficient', units: '–', typical: '0.5' },
+  { s: '\\eta', meaning: 'surface overpotential', units: 'V', typical: 'up to ±0.3' },
+  { s: '\\phi_s', meaning: 'electric potential of the solid electrode at the interface', units: 'V' },
+  { s: '\\phi_l', meaning: 'electric potential of the electrolyte at the interface', units: 'V' },
+  { s: 'E^0', meaning: 'equilibrium potential of the reaction', units: 'V' },
+  { s: 'F', meaning: 'Faraday constant', units: 'C/mol', typical: '96485' },
+  { s: 'R', meaning: 'gas constant', units: 'J/(mol·K)', typical: '8.314' },
+  { s: 'T', meaning: 'temperature', units: 'K', typical: '298.15' },
+]} />
+
+## Rate parameters
+
+### Exchange current density
+
+At equilibrium the net current is zero, but the forward and reverse reactions both run —
+each at rate $j_0$. The exchange current density is that hidden traffic, and it sets the
+scale for everything the interface does: a reaction with large $j_0$ delivers useful
+current at millivolts of overpotential, while one with small $j_0$ needs hundreds of
+millivolts for the same current. Typical values span four orders of magnitude, roughly
+1e-6 to 1e-2 A/cm²: oxygen reduction and evolution sit at the sluggish end of that range
+on most surfaces, while hydrogen oxidation on platinum and many lithium intercalation
+reactions sit near the facile end.
+
+$j_0$ is not a constant of the reaction alone. It depends on the local concentrations of
+reactants and products at the surface and rises with temperature in Arrhenius fashion, so
+in a full cell model it varies along the electrode and over time as the electrolyte
+depletes. The demo treats it as a slider; the solver treats it as a field.
+
+### Transfer coefficients
+
+The transfer coefficients $\alpha_a$ and $\alpha_c$ describe how the interfacial potential
+step is shared between raising the anodic barrier and lowering the cathodic one. For a
+single-electron transfer they normally sum to one, and the symmetric case
+$\alpha_a = \alpha_c = 0.5$ — a barrier tilted equally both ways — is the default
+assumption when measurements say nothing better. Asymmetric coefficients skew the
+current–overpotential curve: the branch with the larger coefficient rises faster.
+
+## Limiting regimes
+
+The full expression is rarely what you see in a measurement. Two limits cover most
+operating conditions, and knowing which one applies tells you what an experiment can and
+cannot determine.
+
+### Tafel behaviour
+
+Once $|\eta|$ is large enough, one exponential dwarfs the other. Keeping only the anodic
+branch and taking logarithms gives a straight line in semi-log coordinates:
+
+<Equation id="eq-tafel" latex="\log_{10}|j| = \log_{10} j_0 + \frac{|\eta|}{b}, \qquad b = \frac{2.303\,R T}{\alpha F}" caption="Tafel line: the slope b is the overpotential cost of one decade of current." />
+
+The slope $b$ is the number of volts of extra overpotential needed to multiply the current
+by ten. At $\alpha = 0.5$ and 25 °C it is about 118 mV per decade; at $\alpha = 1$, about
+59 mV per decade. Reading $b$ off a measured polarisation curve is the standard way to
+extract $\alpha$, and extrapolating the line back to $\eta = 0$ yields $j_0$. The
+approximation is good once the neglected reverse branch is negligible: its relative size
+is $\exp(-(\alpha_a+\alpha_c)F\eta/RT)$, which for $\alpha_a + \alpha_c = 1$ at 25 °C
+drops below 1% when $|\eta|$ exceeds roughly 118 mV.
+
+### Micro-polarisation limit
+
+Near equilibrium both exponentials can be expanded to first order and the interface
+becomes a linear resistor:
+
+<Equation id="eq-linear" latex="j \approx j_0\,\frac{(\alpha_a + \alpha_c)\,F}{R T}\,\eta" caption="Micro-polarisation limit: near equilibrium the interface responds linearly, like a resistor." />
+
+The reciprocal slope is the area-specific charge-transfer resistance
+$R_{ct} = RT/\big((\alpha_a+\alpha_c)F j_0\big)$ — about 25.7 Ω·cm² for
+$j_0 = 10^{-3}$ A/cm² with $\alpha_a+\alpha_c = 1$ at 25 °C. This is the quantity an
+impedance measurement reports as the diameter of the charge-transfer arc, which is how EIS
+measures $j_0$ without ever driving the cell hard. The textbook rule of thumb keeps
+$|\eta|$ below about 10 mV; using the sharper criterion shipped in the demo — the
+overpotential at which the linearised current deviates from the full expression by 5% —
+the linear window extends to about ±29 mV for symmetric coefficients at 25 °C. Between
+the two regimes, from a few tens of millivolts up to roughly 100 mV, neither
+approximation is trustworthy and the full expression must be used.
+
+## Numerical treatment
+
+<StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="in-progress" label="Python solver" />
+
+In the discretised cell model, Butler–Volmer enters as a nonlinear Robin-type boundary
+condition: the normal ionic flux at the interface is fixed by $j$ through Faraday's law,
+and $j$ in turn depends on the boundary values of the unknowns themselves — $\phi_s$,
+$\phi_l$, and, through $j_0$, the local concentration. Voltaire does not lag or
+hand-linearise this condition. The BV flux is written directly into the residual
+$R(u)$, and the same automatic differentiation that assembles the transport Jacobian
+$J = \partial R / \partial u$ differentiates it, so Newton sees the exponentials exactly:
+
+<Equation id="eq-djdeta" latex="\frac{\partial j}{\partial \eta} = \frac{j_0 F}{R T}\left[\alpha_a \exp\!\left(\frac{\alpha_a F \eta}{R T}\right) + \alpha_c \exp\!\left(-\frac{\alpha_c F \eta}{R T}\right)\right]" caption="Exact sensitivity of the BV current to overpotential — the Jacobian entry the Newton solver consumes." />
+
+This derivative grows as fast as the current itself, which is exactly why the solver uses
+damped Newton: a full step taken far from equilibrium can overshoot into exponential
+overflow, so the step is cut until the residual norm decreases. The same damped-Newton
+pattern runs live in the browser in the
+[double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer). Building
+the boundary condition into the one shared Jacobian also pays off twice more: the
+frequency-domain EIS solve $(i\omega M - J)\hat{u} = \hat{b}$ inherits the linearised
+interface — the $1/R_{ct}$ conductance above — with no separate small-signal model, and
+the adjoint solve $J^{\mathsf{T}}\lambda = -\partial Q/\partial u$ gets design
+sensitivities through the kinetics for free.
+
+## Validation
+
+<StatusBadge status="shipped" label="browser demo" />
+
+The [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer)
+evaluates the exact expression above in TypeScript, live, with sliders for $j_0$,
+$\alpha_a$, $\alpha_c$, and $T$. In its Tafel view it overlays dashed asymptotes whose
+labels report $b$ in mV per decade, computed from $b = 2.303RT/(\alpha F)$ at the
+current slider values; the annotation therefore matches the formula by construction, and
+the check is that the simulated curve converges onto those asymptotes at large
+overpotential and peels away below roughly 100 mV where the reverse branch still
+contributes. The linear view overlays the micro-polarisation line and marks the ±5%
+deviation boundary of the linear window, computed by bisection against the full
+expression. These are consistency checks of the implementation against exact analytic
+limits, not comparisons with experimental data — see the
+[validation page](/Electrochemical-Cell-Simulator/validation/) for the full list of what
+has and has not been checked.

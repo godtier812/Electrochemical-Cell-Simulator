@@ -15,7 +15,7 @@ import { SITE } from '../lib/site';
 import { withBase } from '../lib/url';
 
 interface Props {
-  title: string;
+  title?: string;
   description?: string;
   /** Nav section to highlight, e.g. "/physics/". */
   section?: string;
@@ -23,15 +23,20 @@ interface Props {
   ogImage?: string;
   /** Extra JSON-LD to embed (already-serialisable object). */
   jsonLd?: Record<string, unknown>;
+  /** Injected by Astro when this layout is used directly from MDX. */
+  frontmatter?: { title?: string; description?: string; section?: string };
 }
 
+const fm = Astro.props.frontmatter;
 const {
-  title,
-  description = SITE.description,
-  section,
   ogImage = 'og.png',
   jsonLd,
 } = Astro.props;
+const title = fm?.title ?? Astro.props.title ?? SITE.name;
+const description = fm?.description ?? Astro.props.description ?? SITE.description;
+const section = fm?.section ?? Astro.props.section;
+/** MDX pages get the standard reading column; .astro pages bring their own. */
+const isMdx = !!fm;
 
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogUrl = new URL(withBase(ogImage), Astro.site);
@@ -84,7 +89,17 @@ const fullTitle = title === SITE.name ? `${SITE.name} — electrochemical cell s
     <div class="ramp-rule" aria-hidden="true"></div>
     <Header section={section} />
     <main id="main">
-      <slot />
+      {
+        isMdx ? (
+          <div class="page">
+            <article class="prose">
+              <slot />
+            </article>
+          </div>
+        ) : (
+          <slot />
+        )
+      }
     </main>
     <Footer />
   </body>

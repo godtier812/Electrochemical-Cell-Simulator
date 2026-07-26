@@ -1,0 +1,109 @@
+---
+import DemoShell from '../DemoShell.astro';
+---
+
+<DemoShell
+  id="demo-impedance"
+  title="D4 · Impedance — Nyquist, Bode, DRT"
+  poster="d4-impedance.svg"
+  alt="Nyquist plot with two semicircles and a Warburg tail, Bode magnitude and phase plots, and the distribution of relaxation times showing separated peaks"
+  aspect="16/10"
+  stack={true}
+  caption="Equivalent-circuit spectrum R_Ω + [R_SEI ∥ C_SEI] + [C_dl ∥ (R_ct + Z_W)] with a finite-length Warburg, over 10 mHz–100 kHz. The DRT γ(τ) is inverted live by Tikhonov-regularised non-negative least squares on ~60 log-spaced relaxation times; drag the λ slider to watch over- and under-smoothing. The Nyquist panel keeps equal axis scaling. Hovering the DRT marks the corresponding frequency on the Nyquist curve. The Warburg tail appears in the DRT as a broad band of τ — expected for a diffusion element, which has no single relaxation time."
+>
+  <fieldset class="panel" slot="panel" disabled>
+    <legend>equivalent circuit · frequency response analyser</legend>
+    <div class="d4-controls">
+      <div class="control-row">
+        <label for="d4-rohm">R_Ω / Ω cm²</label>
+        <input type="range" id="d4-rohm" min="0" max="500" step="1" value="100" />
+        <output class="readout" id="d4-rohm-out" for="d4-rohm">10 Ω</output>
+      </div>
+      <div class="control-row">
+        <label for="d4-rct">R_ct / Ω cm²</label>
+        <input type="range" id="d4-rct" min="0" max="100" step="1" value="70" />
+        <output class="readout" id="d4-rct-out" for="d4-rct">25 Ω</output>
+      </div>
+      <div class="control-row">
+        <label for="d4-cdl">C_dl / F cm⁻²</label>
+        <input type="range" id="d4-cdl" min="0" max="100" step="1" value="43" />
+        <output class="readout" id="d4-cdl-out" for="d4-cdl">2e-5</output>
+      </div>
+      <div class="control-row">
+        <label for="d4-rd">R_d / Ω cm²</label>
+        <input type="range" id="d4-rd" min="0" max="200" step="1" value="60" />
+        <output class="readout" id="d4-rd-out" for="d4-rd">30 Ω</output>
+      </div>
+      <div class="control-row">
+        <label for="d4-taud">τ_d = L²/D / s</label>
+        <input type="range" id="d4-taud" min="0" max="100" step="1" value="58" />
+        <output class="readout" id="d4-taud-out" for="d4-taud">2 s</output>
+      </div>
+      <div class="control-row">
+        <label for="d4-age">SEI age</label>
+        <input type="range" id="d4-age" min="0" max="300" step="5" value="0" />
+        <output class="readout" id="d4-age-out" for="d4-age">fresh</output>
+      </div>
+      <div class="control-row">
+        <label for="d4-lambda">DRT λ (Tikhonov)</label>
+        <input type="range" id="d4-lambda" min="0" max="100" step="1" value="50" />
+        <output class="readout" id="d4-lambda-out" for="d4-lambda">1e-2</output>
+      </div>
+    </div>
+    <div class="switch-row">
+      <button class="copy-btn" type="button" id="d4-reset">reset</button>
+    </div>
+    <div class="panel-readouts">
+      <span>DRT misfit <output id="d4-misfit">—</output></span>
+      <span>cursor <output id="d4-hover">—</output></span>
+    </div>
+  </fieldset>
+</DemoShell>
+
+<style is:global>
+  .d4-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 2px;
+    background: var(--surface);
+  }
+
+  .d4-grid .d4-cell {
+    position: relative;
+    min-height: 0;
+  }
+
+  .d4-grid .d4-nyquist {
+    grid-row: 1 / 4;
+  }
+
+  .d4-grid canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .d4-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--s5);
+  }
+
+  @media (max-width: 900px) {
+    .d4-controls {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
+
+<script>
+  import { initWhenVisible } from './runtime';
+  initWhenVisible('demo-impedance', async (shell) => {
+    const { init } = await import('./d4-eis');
+    init(shell);
+  });
+</script>

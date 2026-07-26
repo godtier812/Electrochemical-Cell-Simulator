@@ -1,12 +1,486 @@
 ---
-// Placeholder — replaced by the full landing page in Phase 7.
 import BaseLayout from '../layouts/BaseLayout.astro';
+import JacobianDiagram from '../components/JacobianDiagram.astro';
+import StatusBadge from '../components/StatusBadge.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import D1ButlerVolmer from '../components/demos/D1ButlerVolmer.astro';
+import D4Impedance from '../components/demos/D4Impedance.astro';
 import { SITE } from '../lib/site';
+import { withBase } from '../lib/url';
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareSourceCode',
+  name: SITE.name,
+  description: SITE.description,
+  author: { '@type': 'Person', name: SITE.author, email: SITE.email },
+  codeRepository: SITE.github,
+  programmingLanguage: ['Python', 'TypeScript'],
+  license: 'https://opensource.org/licenses/MIT',
+  url: new URL(withBase('/'), Astro.site).href,
+};
+
+interface Capability {
+  title: string;
+  href: string;
+  status: 'shipped' | 'in-progress' | 'planned' | 'research';
+  label?: string;
+  blurb: string;
+  glyph: string; // inline SVG path data drawn from the domain
+}
+
+const capabilities: Capability[] = [
+  {
+    title: 'Ion transport',
+    href: '/physics/transport/',
+    status: 'shipped',
+    label: 'browser demo',
+    blurb: 'Nernst–Planck to concentrated-solution theory, and full PNP where the double layer matters.',
+    glyph: 'M3 8h16m-4-4 4 4-4 4M3 16h10m-3-3 3 3-3 3',
+  },
+  {
+    title: 'Interfacial kinetics',
+    href: '/physics/kinetics/',
+    status: 'shipped',
+    label: 'browser demo',
+    blurb: 'Butler–Volmer boundary conditions with Tafel and linear limits handled exactly in the Jacobian.',
+    glyph: 'M3 18c8 0 8-2 10-6s2-6 8-6M3 12h4m6-8v4',
+  },
+  {
+    title: 'SEI & degradation',
+    href: '/physics/degradation/',
+    status: 'in-progress',
+    label: 'solver',
+    blurb: 'Film growth, lithium inventory loss, and the stress–fracture–SEI loop behind capacity fade.',
+    glyph: 'M4 20V8m0 8h16M8 20V12m12-6-6 6m6-2v-4h-4',
+  },
+  {
+    title: 'Microstructure',
+    href: '/physics/transport/',
+    status: 'shipped',
+    label: 'browser demo',
+    blurb: 'Stochastic electrode packings, computed tortuosity, and where Bruggeman ε^1.5 misleads.',
+    glyph: 'M7 7a3 3 0 1 0 .1 0M16 9a2.5 2.5 0 1 0 .1 0M9 16.5a2.5 2.5 0 1 0 .1 0M16.5 16a2 2 0 1 0 .1 0',
+  },
+  {
+    title: 'Dendrites',
+    href: '/physics/dendrites/',
+    status: 'shipped',
+    label: 'browser demo',
+    blurb: 'Phase-field electrodeposition with crystalline anisotropy; branching emerges, no front tracking.',
+    glyph: 'M12 21V9m0 0L7 4m5 5 5-5M7 4v3m10-3v3m-5 5-3-2m3 2 3-2',
+  },
+  {
+    title: 'Thermal',
+    href: '/physics/thermal/',
+    status: 'in-progress',
+    label: 'solver',
+    blurb: 'Joule, reaction, and entropic heat feeding back through Arrhenius transport — runaway is representable.',
+    glyph: 'M10 4v10a3 3 0 1 0 4 0V4a2 2 0 0 0-4 0Zm2 5v8',
+  },
+  {
+    title: 'Impedance & DRT',
+    href: '/physics/impedance/',
+    status: 'shipped',
+    label: 'browser demo',
+    blurb: 'Frequency-domain EIS from the Jacobian, then relaxation-time inversion by regularised NNLS.',
+    glyph: 'M3 18a7 7 0 0 1 14 0M17 18c0-2 1.5-4 4-4m-18 4h18',
+  },
+  {
+    title: 'Gas evolution',
+    href: '/roadmap/',
+    status: 'planned',
+    blurb: 'Void-fraction transport, bubble departure, coverage blockage and the buoyancy convection loop.',
+    glyph: 'M8 18a2 2 0 1 0 .1 0m6-3a3 3 0 1 0 .1 0M11 7a2 2 0 1 0 .1 0m-6 14h14',
+  },
+  {
+    title: 'ML surrogates',
+    href: '/roadmap/',
+    status: 'research',
+    blurb: 'PINN and DeepONet surrogates trained on the solver, exported to ONNX for in-browser sweeps.',
+    glyph: 'M5 6a2 2 0 1 0 .1 0m-.1 12a2 2 0 1 0 .1 0M19 12a2 2 0 1 0 .1 0M7 7l10 4M7 18l10-5',
+  },
+  {
+    title: 'Inverse design',
+    href: '/roadmap/',
+    status: 'research',
+    blurb: 'Adjoint gradients from the shared Jacobian plus Bayesian optimisation against cell-level targets.',
+    glyph: 'M12 12a4 4 0 1 0 .1 0m-.1-8a8 8 0 1 0 .1 0M12 12h.01M12 2v4m0 12v4M2 12h4m12 0h4',
+  },
+];
+
+const quickstart = `import voltaire as vt
+
+cell = vt.Cell.from_preset("graphite-nmc-1d")
+result = cell.discharge(c_rate=1.0, t_end="1h")
+result.plot("voltage")            # V vs capacity
+
+spec = cell.impedance(f_min=0.01, f_max=1e5, n=50)
+spec.plot("nyquist")              # one linear solve per frequency
+drt = spec.drt(lambda_reg=1e-2)
+drt.plot()                        # peaks separate CT from diffusion`;
 ---
 
-<BaseLayout title={SITE.name}>
-  <div class="page prose">
-    <h1>{SITE.name}</h1>
-    <p>{SITE.description}</p>
+<BaseLayout title={SITE.name} jsonLd={jsonLd}>
+  <section class="hero" id="hero">
+    <img
+      class="hero-poster"
+      src={withBase('posters/hero.png')}
+      alt="Phase-field simulation of metal dendrites growing upward from an electrode, rendered in the viridis colormap"
+      decoding="async"
+      fetchpriority="high"
+    />
+    <div class="hero-veil" aria-hidden="true"></div>
+    <div class="hero-inner">
+      <h1>VOLTAIRE</h1>
+      <p class="hero-tagline">
+        From the double layer to capacity fade. A multiphysics solver for ion transport,
+        interfacial kinetics, degradation, and thermal behaviour in electrochemical cells —
+        with autodiff Jacobians shared across Newton, impedance, and inverse design.
+      </p>
+      <p class="hero-note">
+        The background is not a video: it is the phase-field electrodeposition model running in
+        your GPU right now.
+      </p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href={withBase('/physics/')}>Read the physics</a>
+        <a class="btn hero-btn-ghost" href={SITE.github} rel="noopener">View on GitHub</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="page">
+    <section class="pitch">
+      <p>
+        Battery and electrolyser models usually live in two camps: quick equivalent circuits
+        that cannot say why a cell fades, and heavyweight research codes that take a group and
+        a cluster to run. Voltaire is being built in the gap — one residual for transport,
+        kinetics, heat, mechanics and degradation, differentiated once, so the same Jacobian
+        drives time stepping, impedance spectra and design gradients. The solver is in
+        development in Python; the numerics are already running live in the demos on this page,
+        implemented in TypeScript against the same equations.
+      </p>
+    </section>
+
+    <hr class="ramp" />
+
+    <section aria-labelledby="cap-head">
+      <span class="overline">Modules</span>
+      <h2 id="cap-head">What it models</h2>
+      <div class="card-grid">
+        {
+          capabilities.map((cap) => (
+            <article class="card">
+              <svg
+                class="glyph"
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.6"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d={cap.glyph} />
+              </svg>
+              <h3>
+                <a href={withBase(cap.href)}>{cap.title}</a>
+              </h3>
+              <p>{cap.blurb}</p>
+              <StatusBadge status={cap.status} label={cap.label} />
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <hr class="ramp" />
+
+    <section aria-labelledby="spine-head">
+      <span class="overline">Architecture</span>
+      <h2 id="spine-head">One Jacobian, three consumers</h2>
+      <p class="prose">
+        Most simulation codes write their linearisation three times: once for the nonlinear
+        solver, once for small-signal impedance, once (if ever) for sensitivities. Voltaire
+        assembles a single residual R(u, p) and differentiates it once. Newton, the
+        frequency-domain EIS solve, and the adjoint all read the same matrix — so if the
+        physics is right in one place, it is right in all three. The
+        <a href={withBase('/numerics/')}>numerics page</a> walks through the whole spine.
+      </p>
+      <JacobianDiagram />
+    </section>
+
+    <hr class="ramp" />
+
+    <section aria-labelledby="demo-head">
+      <span class="overline">Live</span>
+      <h2 id="demo-head">Two of the five demos</h2>
+      <p class="prose">
+        Everything below is computed in your browser as you move the sliders — no server, no
+        prerendered frames. The full set, including the phase-field dendrite and the
+        double-layer Newton solver, lives on the <a href={withBase('/demos/')}>demos page</a>.
+      </p>
+      <D1ButlerVolmer />
+      <D4Impedance />
+    </section>
+
+    <hr class="ramp" />
+
+    <section aria-labelledby="val-head" id="validation-strip">
+      <span class="overline">Evidence</span>
+      <h2 id="val-head">Validation, computed in front of you</h2>
+      <p class="prose">
+        Three of these four checks run live in this tab the moment they scroll into view; the
+        panels state their own error. The fourth is labelled for what it is.
+        Full details on the <a href={withBase('/validation/')}>validation page</a>.
+      </p>
+      <div class="val-grid">
+        <figure class="val-card">
+          <div class="val-stage"><canvas id="val-mms"></canvas></div>
+          <figcaption>
+            <strong>MMS convergence</strong> — manufactured solution on the coupled PNP system;
+            <span id="val-mms-order">measuring…</span>. <em>Live-computed.</em>
+          </figcaption>
+        </figure>
+        <figure class="val-card">
+          <div class="val-stage"><canvas id="val-cottrell"></canvas></div>
+          <figcaption>
+            <strong>Cottrell step</strong> — implicit diffusion vs i(t) = nFAc*√(D/πt).
+            <em>Live-computed.</em>
+          </figcaption>
+        </figure>
+        <figure class="val-card">
+          <div class="val-stage"><canvas id="val-gc"></canvas></div>
+          <figcaption>
+            <strong>Gouy–Chapman</strong> — Newton PNP vs the analytic double-layer profile at
+            +100 mV. <em>Live-computed.</em>
+          </figcaption>
+        </figure>
+        <figure class="val-card val-card-pending">
+          <div class="val-stage val-pending">
+            <StatusBadge status="planned" label="not yet run" />
+            <p>Newman P2D discharge vs PyBaMM, with the error plot published here once it runs.</p>
+          </div>
+          <figcaption>
+            <strong>PyBaMM comparison</strong> — requires the Python solver core.
+            <em>Not yet run.</em>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <hr class="ramp" />
+
+    <section aria-labelledby="qs-head">
+      <span class="overline">Quickstart</span>
+      <h2 id="qs-head">The target interface <StatusBadge status="in-progress" /></h2>
+      <p class="prose">
+        The Python package is in development and unreleased; this is the interface it is being
+        built to, and it may shift before release. What you can run today are the demos above —
+        same equations, in TypeScript. Install notes live in the
+        <a href={withBase('/docs/')}>docs</a>.
+      </p>
+      <CodeBlock code={quickstart} lang="python" label="quickstart.py — target API" />
+      <p class="prose expected-output">
+        Expected output: a voltage-vs-capacity discharge curve, a Nyquist arc with a Warburg
+        tail, and a DRT with charge-transfer and diffusion peaks separated by timescale.
+      </p>
+    </section>
   </div>
 </BaseLayout>
+
+<style>
+  .hero {
+    position: relative;
+    min-height: min(82vh, 44rem);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    /* the sim's low end is viridis purple: hero is dark in both themes */
+    background: #2d0f42;
+  }
+
+  .hero :global(canvas.hero-canvas),
+  .hero-poster {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 1.2s ease;
+  }
+
+  .hero :global(canvas.hero-canvas) {
+    opacity: 0;
+  }
+
+  .hero-veil {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(105deg, rgba(10, 4, 18, 0.78) 0%, rgba(10, 4, 18, 0.45) 45%, rgba(10, 4, 18, 0.08) 75%),
+      linear-gradient(to top, rgba(10, 4, 18, 0.25), transparent 30%);
+  }
+
+  .hero-inner {
+    position: relative;
+    max-width: var(--page-max);
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--s8) var(--s4);
+  }
+
+  .hero h1 {
+    color: #f2f5f8;
+    font-size: clamp(2.6rem, 7vw, 4.4rem);
+    letter-spacing: 0.08em;
+  }
+
+  .hero-tagline {
+    color: #dfe5ec;
+    max-width: 34rem;
+    margin-top: var(--s4);
+    font-size: var(--text-md);
+    line-height: 1.5;
+    text-wrap: balance;
+  }
+
+  .hero-note {
+    color: #a9b4c0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    margin-top: var(--s4);
+    max-width: 34rem;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: var(--s3);
+    margin-top: var(--s5);
+    flex-wrap: wrap;
+  }
+
+  .hero .btn-primary {
+    background: var(--viridis-green);
+    border-color: var(--viridis-green);
+    color: #0a0412;
+  }
+
+  .hero .btn-primary:hover {
+    background: var(--viridis-lime);
+    border-color: var(--viridis-lime);
+  }
+
+  .hero-btn-ghost {
+    color: #e4e9ef;
+    border-color: rgba(228, 233, 239, 0.45);
+  }
+
+  .hero-btn-ghost:hover {
+    color: #fff;
+    border-color: #fff;
+  }
+
+  .pitch p {
+    font-size: var(--text-md);
+    line-height: 1.6;
+    max-width: 46rem;
+  }
+
+  section > .overline {
+    display: block;
+    margin-bottom: var(--s2);
+  }
+
+  section h2 {
+    margin-bottom: var(--s5);
+  }
+
+  .val-grid {
+    display: grid;
+    gap: var(--s4);
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  }
+
+  .val-card {
+    margin: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .val-stage {
+    position: relative;
+    aspect-ratio: 4/3;
+  }
+
+  .val-stage canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .val-pending {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--s3);
+    padding: var(--s4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+  }
+
+  .val-card figcaption {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+    padding: var(--s3);
+    border-top: 1px solid var(--line);
+  }
+
+  .expected-output {
+    color: var(--fg-muted);
+    font-size: var(--text-sm);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero :global(canvas.hero-canvas) {
+      display: none;
+    }
+
+    .hero-poster {
+      opacity: 1 !important;
+    }
+  }
+</style>
+
+<script>
+  import { initHero } from '../components/demos/hero-dendrite';
+  import { initValidationStrip } from '../components/demos/validation-strip';
+
+  const hero = document.getElementById('hero');
+  if (hero) initHero(hero);
+
+  const strip = document.getElementById('validation-strip');
+  if (strip) {
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          io.disconnect();
+          // yield a frame so scrolling stays smooth before the solves run
+          requestAnimationFrame(() => setTimeout(() => initValidationStrip(strip), 30));
+        }
+      },
+      { rootMargin: '150px 0px' }
+    );
+    io.observe(strip);
+  }
+</script>

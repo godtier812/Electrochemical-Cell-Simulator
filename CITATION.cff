@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use Voltaire in your work, please cite it as below."
+title: "Voltaire: a multiphysics simulator for electrochemical cells"
+type: software
+authors:
+  - family-names: Repaka
+    given-names: Ashrith
+    email: repaka.ashrith@gmail.com
+repository-code: "https://github.com/godtier812/Electrochemical-Cell-Simulator"
+url: "https://godtier812.github.io/Electrochemical-Cell-Simulator/"
+license: MIT
+year-original: 2026
+keywords:
+  - electrochemistry
+  - battery-simulation
+  - poisson-nernst-planck
+  - phase-field
+  - impedance-spectroscopy
+  - scientific-computing

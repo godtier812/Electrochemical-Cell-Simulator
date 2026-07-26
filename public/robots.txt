@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://godtier812.github.io/Electrochemical-Cell-Simulator/sitemap-index.xml

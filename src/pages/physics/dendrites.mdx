@@ -1,0 +1,112 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Dendrites
+description: Phase-field model of metal dendrite growth — electrochemically driven Allen–Cahn with anisotropic interface energy, run as a WebGL2 shader in the browser.
+nav: physics
+---
+import Equation from '../../components/Equation.astro';
+import SymbolTable from '../../components/SymbolTable.astro';
+import StatusBadge from '../../components/StatusBadge.astro';
+
+<StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="in-progress" label="Python module" />
+
+Metal plated back onto an electrode does not always plate flat. Past a critical current density the deposit roughens, throws out needles, and eventually branches into the tree-like structures that pierce separators and short cells. Voltaire models this with a phase-field method: the deposit is not a tracked boundary but a field, and the branching comes out of the equations rather than being put in by hand. The TypeScript/WebGL2 implementation described below runs live in the [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite); the Python module is in development.
+
+## Diffuse-interface picture
+
+The state variable is an order parameter $\xi \in [0,1]$: $\xi = 1$ is metal, $\xi = 0$ is electrolyte, and the interface is the thin region — a few grid cells wide — where $\xi$ passes through one half. Because the interface is a contour of a smooth field rather than a meshed curve, there is no front tracking. Tip splitting, side branching, and the merging of two branches that touch need no special-case logic; they emerge from the PDE on their own.
+
+The free energy that shapes the field is a double well plus a gradient penalty:
+
+<Equation id="eq-free-energy" latex="F[\xi] = \int_\Omega \left( W\,\xi^2 (1-\xi)^2 + \tfrac{1}{2}\,\kappa(\theta)\,|\nabla \xi|^2 \right) dV" caption="Ginzburg–Landau free energy: chemical double well plus anisotropic gradient energy." />
+
+The chemical term $f_{\mathrm{ch}} = W\,\xi^2(1-\xi)^2$ has minima at exactly $\xi = 0$ and $\xi = 1$, so both bulk phases are stable and everything in between costs energy. The gradient term charges a price for spatial variation of $\xi$. Together, $W$ and $\kappa$ set the interface width and the surface energy.
+
+## Electrochemically driven Allen–Cahn
+
+The order parameter evolves by an Allen–Cahn equation with an added electrochemical driving force:
+
+<Equation id="eq-allen-cahn" latex="\frac{\partial \xi}{\partial t} = -L_\sigma \left( \frac{\partial f_{\mathrm{ch}}}{\partial \xi} - \nabla \cdot \big( \kappa(\theta)\, \nabla \xi \big) \right) - L_\eta\, h'(\xi) \left[ \exp\!\left( \frac{(1-\alpha)\, n F \eta}{RT} \right) - \frac{C}{C_0} \exp\!\left( -\frac{\alpha\, n F \eta}{RT} \right) \right]" caption="Electrochemically driven Allen–Cahn: interfacial relaxation plus a Butler–Volmer reaction term painted onto the diffuse interface." />
+
+The first term is ordinary Allen–Cahn relaxation: the interface descends the free-energy landscape at a rate set by the mobility $L_\sigma$, smoothing curvature and keeping the profile at its equilibrium width. The second term is the physics of deposition. The bracket is a [Butler–Volmer rate](/Electrochemical-Cell-Simulator/physics/kinetics/) — an anodic dissolution exponential minus a cathodic deposition exponential weighted by the local cation concentration — and $L_\eta$ scales how strongly that rate pushes the interface.
+
+The reaction is confined to the interface by the interpolation function
+
+<Equation id="eq-h" latex="h(\xi) = \xi^3 \left( 6\xi^2 - 15\xi + 10 \right)" caption="Interpolation function: h rises smoothly from 0 to 1, and its derivative vanishes in both bulk phases." />
+
+whose derivative $h'(\xi) = 30\,\xi^2(1-\xi)^2$ is zero at $\xi = 0$ and $\xi = 1$. Bulk metal cannot dissolve from its interior and bulk electrolyte cannot spontaneously nucleate metal; only the diffuse interface reacts. Because $h$ interpolates between the wells without moving them, the reaction term deforms the dynamics but not the phase diagram.
+
+<SymbolTable rows={[
+  { s: '\\xi', meaning: 'phase-field order parameter (1 = metal, 0 = electrolyte)', units: '—', typical: '0 – 1' },
+  { s: 'L_\\sigma', meaning: 'interface mobility: rate of surface-energy relaxation', units: 'm³/(J·s)' },
+  { s: 'L_\\eta', meaning: 'reaction mobility: strength of the deposition drive', units: '1/s' },
+  { s: 'W', meaning: 'double-well barrier height', units: 'J/m³' },
+  { s: '\\kappa_0', meaning: 'mean gradient-energy coefficient', units: 'J/m' },
+  { s: '\\delta', meaning: 'anisotropy strength', units: '—', typical: '0.02 – 0.06' },
+  { s: '\\omega', meaning: 'rotational symmetry of the anisotropy', units: '—', typical: '4 or 6' },
+  { s: '\\theta_0', meaning: 'preferred growth orientation', units: 'rad' },
+  { s: '\\alpha', meaning: 'charge-transfer symmetry factor', units: '—', typical: '0.5' },
+  { s: 'n', meaning: 'electrons transferred per metal atom', units: '—', typical: '1 (Li), 2 (Zn)' },
+  { s: '\\eta', meaning: 'overpotential (negative for plating)', units: 'V', typical: '−0.05 to −0.2' },
+  { s: 'C/C_0', meaning: 'cation concentration relative to the bulk', units: '—' },
+  { s: 'F', meaning: 'Faraday constant', units: 'C/mol', typical: '96485' },
+  { s: 'R', meaning: 'gas constant', units: 'J/(mol·K)', typical: '8.314' },
+  { s: 'T', meaning: 'temperature', units: 'K', typical: '298' },
+]} caption="Symbols in the phase-field equations." />
+
+### Sign convention
+
+At cathodic overpotential ($\eta \lt 0$, the plating direction) the anodic exponential shrinks and the cathodic exponential grows, so the bracket goes negative; with the leading $-L_\eta$ the result is $\partial \xi / \partial t \gt 0$ and metal grows. The concentration factor closes a feedback loop: where the electrolyte is depleted, $C/C_0 \to 0$ kills the cathodic term and growth stalls, while a tip that pokes into fresher electrolyte sees a larger $C$ and accelerates. That tip advantage — diffusive shadowing — is the engine of the instability.
+
+## Anisotropy selects growth directions
+
+With an isotropic interface energy the model grows rounded blobs. Real dendrites grow along crystallographic directions, and the model gets this from an orientation-dependent gradient coefficient:
+
+<Equation id="eq-kappa" latex="\kappa(\theta) = \kappa_0 \left[ 1 + \delta \cos\!\big( \omega\,(\theta - \theta_0) \big) \right]^2, \qquad \theta = \arctan\!\left( \xi_y / \xi_x \right)" caption="Anisotropic gradient energy. The interface orientation θ is read from the gradient of the order parameter." />
+
+Here $\theta$ is the local orientation of the interface normal, computed directly from the field. The modulation makes interfaces facing some directions cheaper than others: $\omega = 4$ gives fourfold symmetry, $\omega = 6$ sixfold, and $\theta_0$ rotates the preferred axes relative to the grid. Tips sharpen and persist along the cheap orientations, which is what turns a generic Laplacian instability into a dendrite with a recognisable crystallographic habit. Set $\delta = 0$ in the demo and the branches collapse back into blobs.
+
+## Morphology selection
+
+The ratio $L_\sigma / L_\eta$ — how fast the interface relaxes surface energy versus how hard the reaction drives it — selects the deposit morphology. When $L_\sigma$ dominates, curvature is smoothed away as fast as the reaction roughens it and the deposit advances as a compact, mossy front. Lowering the ratio lets the tip advantage win: protrusions outrun their neighbours and the deposit becomes needle-like. Lower it further and the needles side-branch along the orientations preferred by $\kappa(\theta)$, giving the classic branched dendrite. The [demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) shows this sweep directly: mossy, then needles, then branches.
+
+## Sand's time as a validation target
+
+<StatusBadge status="planned" label="quantitative extraction" />
+
+When the applied current density exceeds what diffusion can supply, the salt concentration at the electrode surface reaches zero at a finite time, first worked out by Sand in 1901:
+
+<Equation id="eq-sand" latex="\tau_{\mathrm{Sand}} = \frac{\pi D \, (c_0\, n F)^2}{4\, J^2\, t_a^2}" caption="Sand's time: the moment of complete salt depletion at the electrode under over-limiting current." />
+
+<SymbolTable rows={[
+  { s: '\\tau_{\\mathrm{Sand}}', meaning: 'time for the electrode-surface salt concentration to reach zero', units: 's' },
+  { s: 'D', meaning: 'salt diffusion coefficient in the electrolyte', units: 'm²/s', typical: '1e-10 – 1e-9' },
+  { s: 'c_0', meaning: 'initial salt concentration', units: 'mol/m³', typical: '1000 (1 M)' },
+  { s: 'n', meaning: 'charge number of the depositing cation', units: '—', typical: '1' },
+  { s: 'J', meaning: 'applied current density', units: 'A/m²' },
+  { s: 't_a', meaning: 'anion transference number', units: '—', typical: '0.6 – 0.7' },
+]} caption="Symbols in Sand's time." />
+
+Experimentally, the onset of dendritic growth under over-limiting current tracks this depletion time, which makes it the natural quantitative check for the model: hold $J$ fixed, measure when the front destabilises, and compare against $\tau_{\mathrm{Sand}}$ across a sweep of $J$ — the onset time should scale as $1/J^2$. This extraction has not been run yet. The browser demo currently demonstrates the morphology transition qualitatively; the quantitative Sand's-time comparison is planned and will be reported on the [validation page](/Electrochemical-Cell-Simulator/validation/) when it exists.
+
+## Numerical treatment
+
+Unlike the transport and impedance modules, which share the implicit autodiff Jacobian, the dendrite module marches explicitly: a forward-Euler update with centered finite differences on a uniform grid. Because $\kappa$ depends on the orientation of $\nabla \xi$, the variational derivative of the gradient energy carries two extra terms beyond the plain divergence — the Kobayashi rotated-gradient terms:
+
+<Equation id="eq-kobayashi" latex="-\,\partial_x \big( \kappa\, \kappa_\theta\, \xi_y \big) + \partial_y \big( \kappa\, \kappa_\theta\, \xi_x \big), \qquad \kappa_\theta \equiv \frac{\partial \kappa}{\partial \theta}" caption="Anisotropy correction terms added to the divergence term in the explicit update." />
+
+These are what actually steer growth into the preferred orientations; dropping them leaves the anisotropy energetically present but dynamically inert. They are evaluated with the same centered stencils as the divergence term. Explicit stepping puts the usual diffusive stability bound on the timestep, which is an acceptable trade here: each step is cheap and local, exactly the workload a GPU is built for.
+
+In the browser demo the whole update is a WebGL2 fragment shader. The fields live in floating-point textures, and each timestep is one full-screen pass that reads the current state from one texture and writes the next state to another — ping-pong between two framebuffers, no data leaving the GPU.
+
+### Co-evolved concentration field
+
+The cation concentration evolves alongside the order parameter:
+
+<Equation id="eq-concentration" latex="\frac{\partial C}{\partial t} = \nabla \cdot \big( D(\xi)\, \nabla C \big) - \lambda\, \frac{\partial \xi}{\partial t}" caption="Concentration transport with a sink where metal is being deposited." />
+
+The sink term $-\lambda\, \partial \xi / \partial t$ consumes cations exactly where and when metal forms, and the diffusivity $D(\xi)$ is blocked inside the metal, so ions cannot tunnel through a branch — they must diffuse around it. This is what builds the depletion shadows between branches and keeps the feedback loop of the sign-convention section honest: growth spends concentration, spent concentration steers growth.
+
+## Try it
+
+The [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) runs this model at interactive rates. Vary the overpotential and the anisotropy strength $\delta$ and watch the morphology respond; the mossy–needle–branched progression appears within seconds of a parameter change. The shader source is in the [repository](https://github.com/godtier812/Electrochemical-Cell-Simulator). The co-evolved concentration field is a reduced form of the full [transport model](/Electrochemical-Cell-Simulator/physics/transport/), and the reaction bracket is the Butler–Volmer expression derived on the [kinetics page](/Electrochemical-Cell-Simulator/physics/kinetics/).

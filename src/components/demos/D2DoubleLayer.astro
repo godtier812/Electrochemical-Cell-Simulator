@@ -1,0 +1,102 @@
+---
+import DemoShell from '../DemoShell.astro';
+---
+
+<DemoShell
+  id="demo-double-layer"
+  title="D2 · Electric double layer — PNP"
+  poster="d2-double-layer.svg"
+  alt="Potential and ion concentration profiles across a nanometre-scale gap: the potential decays over the Debye length while counter-ions accumulate at the electrode, matching the dashed Gouy-Chapman curves"
+  aspect="16/9"
+  stack={true}
+  caption="Steady Poisson–Nernst–Planck for a 1:1 electrolyte between a blocking electrode (left) and a bulk reservoir (right), solved on ~220 nodes with Scharfetter–Gummel fluxes and a fully coupled damped Newton, nondimensionalised before assembly. Dashed curves: the analytic Gouy–Chapman solution, exact for a semi-infinite gap — watch the numerics land on it while L ≫ λ_D. Insets zoom the first five Debye lengths."
+>
+  <fieldset class="panel" slot="panel" disabled>
+    <legend>cell · potentiostat</legend>
+    <div class="d4-controls">
+      <div class="control-row">
+        <label for="d2-v">φ applied / mV</label>
+        <input type="range" id="d2-v" min="-300" max="300" step="5" value="100" />
+        <output class="readout" id="d2-v-out" for="d2-v">100 mV</output>
+      </div>
+      <div class="control-row">
+        <label for="d2-c0">c₀ (bulk)</label>
+        <input type="range" id="d2-c0" min="0" max="100" step="1" value="67" />
+        <output class="readout" id="d2-c0-out" for="d2-c0">0.1 M</output>
+      </div>
+      <div class="control-row">
+        <label for="d2-L">gap L / nm</label>
+        <input type="range" id="d2-L" min="20" max="200" step="5" value="50" />
+        <output class="readout" id="d2-L-out" for="d2-L">50 nm</output>
+      </div>
+      <div class="control-row">
+        <label for="d2-T">T / K</label>
+        <input type="range" id="d2-T" min="273" max="350" step="1" value="298" />
+        <output class="readout" id="d2-T-out" for="d2-T">298 K</output>
+      </div>
+    </div>
+    <div class="switch-row">
+      <button class="copy-btn" type="button" id="d2-reset">reset</button>
+    </div>
+    <div class="panel-readouts">
+      <span>λ_D <output id="d2-lambda">—</output></span>
+      <span>C_GC <output id="d2-cap">—</output></span>
+      <span>Newton <output id="d2-newton">—</output></span>
+    </div>
+  </fieldset>
+</DemoShell>
+
+<style is:global>
+  .d2-grid {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: var(--surface);
+  }
+
+  .d2-cell {
+    position: relative;
+    min-width: 0;
+  }
+
+  .d2-cell > canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .d2-inset {
+    position: absolute;
+    top: 8%;
+    right: 5%;
+    width: 44%;
+    height: 42%;
+    border: 1px solid var(--line-strong);
+    background: var(--surface);
+  }
+
+  .d2-inset canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  @media (max-width: 700px) {
+    .d2-grid {
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr 1fr;
+    }
+  }
+</style>
+
+<script>
+  import { initWhenVisible } from './runtime';
+  initWhenVisible('demo-double-layer', async (shell) => {
+    const { init } = await import('./d2-double-layer');
+    init(shell);
+  });
+</script>
