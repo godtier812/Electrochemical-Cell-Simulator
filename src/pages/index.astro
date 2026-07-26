@@ -139,8 +139,8 @@ drt.plot()                        # peaks separate CT from diffusion`;
         with autodiff Jacobians shared across Newton, impedance, and inverse design.
       </p>
       <p class="hero-note">
-        The background is not a video: it is the phase-field electrodeposition model running in
-        your GPU right now.
+        The background is not a video: it is the phase-field electrodeposition model computing
+        live in your browser right now.
       </p>
       <div class="hero-actions">
         <a class="btn btn-primary" href={withBase('/physics/')}>Read the physics</a>
@@ -238,21 +238,21 @@ drt.plot()                        # peaks separate CT from diffusion`;
       </p>
       <div class="val-grid">
         <figure class="val-card">
-          <div class="val-stage"><canvas id="val-mms"></canvas></div>
+          <div class="val-stage"><canvas id="val-mms" role="img" aria-label="Mesh-convergence plot: measured L2 error parallel to a slope-2 reference"></canvas></div>
           <figcaption>
             <strong>MMS convergence</strong> — manufactured solution on the coupled PNP system;
             <span id="val-mms-order">measuring…</span>. <em>Live-computed.</em>
           </figcaption>
         </figure>
         <figure class="val-card">
-          <div class="val-stage"><canvas id="val-cottrell"></canvas></div>
+          <div class="val-stage"><canvas id="val-cottrell" role="img" aria-label="Simulated potential-step current overlaying the analytic Cottrell curve"></canvas></div>
           <figcaption>
             <strong>Cottrell step</strong> — implicit diffusion vs i(t) = nFAc*√(D/πt).
             <em>Live-computed.</em>
           </figcaption>
         </figure>
         <figure class="val-card">
-          <div class="val-stage"><canvas id="val-gc"></canvas></div>
+          <div class="val-stage"><canvas id="val-gc" role="img" aria-label="Numerical double-layer potential overlaying the analytic Gouy-Chapman profile"></canvas></div>
           <figcaption>
             <strong>Gouy–Chapman</strong> — Newton PNP vs the analytic double-layer profile at
             +100 mV. <em>Live-computed.</em>

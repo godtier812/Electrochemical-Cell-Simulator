@@ -6,7 +6,6 @@ import '@fontsource/stix-two-text/400-italic.css';
 import '@fontsource/stix-two-text/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@fontsource/ibm-plex-mono/500.css';
-import 'katex/dist/katex.min.css';
 import '../styles/tokens.css';
 import '../styles/global.css';
 import Header from '../components/Header.astro';
@@ -67,7 +66,7 @@ const fullTitle = title === SITE.name ? `${SITE.name} — electrochemical cell s
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogUrl} />
 
-    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    {jsonLd && <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
 
     <script is:inline>
       // Set theme before first paint to avoid a flash. Falls back to the OS

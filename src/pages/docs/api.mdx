@@ -51,7 +51,7 @@ keyword arguments.
 
 ```python
 Cell.from_preset(name: str) -> Cell
-    """name: preset identifier, e.g. "li-symmetric" or "graphite-nmc"."""
+    """name: preset identifier, e.g. "li-symmetric" or "graphite-nmc-1d"."""
 ```
 
 Classmethod. Returns a fully parameterised cell from the preset library that will ship with
@@ -60,20 +60,23 @@ the package. A preset is nothing more than a bundled config file: `from_preset` 
 editing.
 
 ```python
-Cell.from_config(path: str | Path) -> Cell
-    """path: config file; schema documented on the configuration page."""
+Cell.from_config(source: str | Path | dict) -> Cell
+    """source: config file, or the same structure as an in-memory mapping;
+       schema documented on the configuration page."""
 ```
 
-Classmethod. Loads a config file, validates units and parameter ranges at load time rather
-than at solve time, and builds the mesh — graded near interfaces so the double layer is
+Classmethod. Loads a config file — or accepts the equivalent dictionary built in Python,
+which is how parameter sweeps are written — validates units and parameter ranges at load
+time rather than at solve time, and builds the mesh — graded near interfaces so the double layer is
 resolved where the config asks for it, as described on the
 [numerics page](/Electrochemical-Cell-Simulator/numerics/). The schema is documented on the
 [configuration page](/Electrochemical-Cell-Simulator/docs/configuration/).
 
 ```python
-Cell.discharge(rate: float, cutoff_voltage: float,
-               t_max: float | None = None) -> Result
-    """rate: C-rate, 1/h; cutoff_voltage: V; t_max: s (None: run to cutoff)."""
+Cell.discharge(c_rate: float, t_end: str | float | None = None,
+               cutoff_voltage: float | None = None) -> Result
+    """c_rate: C-rate, 1/h; t_end: s, or a duration string such as "1h"
+       (None: run to cutoff); cutoff_voltage: V (None: run to t_end)."""
 ```
 
 Galvanostatic discharge. Integrates the coupled differential-algebraic system with the
@@ -84,12 +87,13 @@ $R(u) = 0$. Which physics runs is set by the config:
 interface, and optionally the
 [thermal](/Electrochemical-Cell-Simulator/physics/thermal/) energy balance and the
 [degradation](/Electrochemical-Cell-Simulator/physics/degradation/) mechanisms. The run
-stops at the cutoff voltage or at `t_max`, whichever comes first.
+stops at `t_end` — given in seconds, or as a duration string such as `"1h"` — or at
+`cutoff_voltage`, whichever comes first; at least one of the two must be supplied.
 
 ```python
-Cell.charge(rate: float, cutoff_voltage: float,
+Cell.charge(c_rate: float, cutoff_voltage: float,
             cv_hold: bool = False, cutoff_current: float | None = None) -> Result
-    """rate: C-rate, 1/h; cutoff_voltage: V; cutoff_current: A/m² (ends the CV phase)."""
+    """c_rate: C-rate, 1/h; cutoff_voltage: V; cutoff_current: A/m² (ends the CV phase)."""
 ```
 
 Constant-current charge, optionally followed by a constant-voltage hold (CC–CV). The CV
@@ -110,14 +114,17 @@ state vector $u$ and carries across cycle boundaries, so capacity fade accumulat
 mechanistically rather than by an empirical per-cycle decrement.
 
 ```python
-Cell.impedance(frequencies: np.ndarray, amplitude: float = 0.005) -> ImpedanceSpectrum
-    """frequencies: Hz; amplitude: V (stored as metadata; the linearised solve
-       is amplitude-independent)."""
+Cell.impedance(f_min: float, f_max: float, n: int = 50,
+               amplitude: float = 0.005) -> ImpedanceSpectrum
+    """f_min, f_max: Hz; n: logarithmically spaced frequencies, dimensionless;
+       amplitude: V (stored as metadata; the linearised solve is
+       amplitude-independent)."""
 ```
 
 Finds the steady state with damped Newton, then solves
-$(i\omega M - J)\hat{u} = \hat{b}$ once per frequency — one sparse complex factorisation
-each, no time stepping, no transient to wait out. The response is exact to first order in
+$(i\omega M - J)\hat{u} = \hat{b}$ at `n` logarithmically spaced frequencies from `f_min`
+to `f_max` — one sparse complex factorisation per frequency, no time stepping, no
+transient to wait out. The response is exact to first order in
 the perturbation, so `amplitude` never enters the solve; it is recorded on the spectrum for
 comparison against measurements taken at a stated amplitude. The formulation is derived on
 the [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/).
@@ -133,7 +140,7 @@ Derivatives of one scalar objective with respect to many parameters by the adjoi
 solve $J^{\mathsf{T}}\lambda = -\partial Q/\partial u$ once, then read off every $dQ/dp$ —
 one extra linear solve total, independent of how many parameters are requested. The
 derivation is in the
-[adjoint section of the numerics page](/Electrochemical-Cell-Simulator/numerics/#adjoint-sensitivities).
+[adjoint section of the numerics page](/Electrochemical-Cell-Simulator/numerics/#one-jacobian-three-consumers).
 
 ### vt.Result
 
@@ -183,16 +190,19 @@ only at equal scale; the Bode form shows magnitude and phase against log frequen
 is where high-frequency features that the Nyquist plot compresses become visible.
 
 ```python
-ImpedanceSpectrum.drt(lambda_reg: float = 1e-3) -> tuple[np.ndarray, np.ndarray]
+ImpedanceSpectrum.drt(lambda_reg: float = 1e-2) -> DRT
     """lambda_reg: Tikhonov regularisation weight, dimensionless.
-       Returns (tau: s, gamma: Ω·m²) on a logarithmic tau grid."""
+       Returns a DRT holding tau (s) and gamma (Ω·m²) on a logarithmic tau
+       grid; its plot() draws gamma against log tau."""
 ```
 
 Distribution of relaxation times by Tikhonov-regularised non-negative least squares —
 exactly the formulation on the
 [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/#distribution-of-relaxation-times).
 `lambda_reg` trades peak resolution against noise amplification and has no universally
-correct value; sweep it and watch which peaks persist. This algorithm is implemented and
+correct value; sweep it and watch which peaks persist. The default of `1e-2` is the
+`drt_lambda` default on the
+[configuration page](/Electrochemical-Cell-Simulator/docs/configuration/). This algorithm is implemented and
 running today, in TypeScript, in the
 [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance).
 
@@ -293,7 +303,7 @@ design.adjoint_gradients(cell: Cell, objective: str, parameters: Sequence[str]) 
 The functional form of `Cell.sensitivities`, for calling inside optimisation loops: one
 adjoint solve $J^{\mathsf{T}}\lambda = -\partial Q/\partial u$ per objective, with cost
 independent of the number of design parameters. Maths on the
-[numerics page](/Electrochemical-Cell-Simulator/numerics/#adjoint-sensitivities).
+[numerics page](/Electrochemical-Cell-Simulator/numerics/#one-jacobian-three-consumers).
 
 ```python
 design.bayes_opt(cell: Cell, objective: str, bounds: dict[str, tuple[float, float]],

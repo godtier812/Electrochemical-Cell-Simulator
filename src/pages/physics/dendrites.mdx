@@ -93,7 +93,7 @@ Experimentally, the onset of dendritic growth under over-limiting current tracks
 
 Unlike the transport and impedance modules, which share the implicit autodiff Jacobian, the dendrite module marches explicitly: a forward-Euler update with centered finite differences on a uniform grid. Because $\kappa$ depends on the orientation of $\nabla \xi$, the variational derivative of the gradient energy carries two extra terms beyond the plain divergence — the Kobayashi rotated-gradient terms:
 
-<Equation id="eq-kobayashi" latex="-\,\partial_x \big( \kappa\, \kappa_\theta\, \xi_y \big) + \partial_y \big( \kappa\, \kappa_\theta\, \xi_x \big), \qquad \kappa_\theta \equiv \frac{\partial \kappa}{\partial \theta}" caption="Anisotropy correction terms added to the divergence term in the explicit update." />
+<Equation id="eq-kobayashi" latex="-\,\partial_x \big( \tfrac{1}{2}\,\kappa_\theta\, \xi_y \big) + \partial_y \big( \tfrac{1}{2}\,\kappa_\theta\, \xi_x \big), \qquad \kappa_\theta \equiv \frac{\partial \kappa}{\partial \theta}" caption="Anisotropy correction terms added to the divergence term in the explicit update. With κ(θ) = κ₀[1+δ cos ω(θ−θ₀)]² already the squared coefficient, ½κ_θ equals the εε′ of Kobayashi's original ε² notation — the form the shader implements." />
 
 These are what actually steer growth into the preferred orientations; dropping them leaves the anisotropy energetically present but dynamically inert. They are evaluated with the same centered stencils as the divergence term. Explicit stepping puts the usual diffusive stability bound on the timestep, which is an acceptable trade here: each step is cheap and local, exactly the workload a GPU is built for.
 
