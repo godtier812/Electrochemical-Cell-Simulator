@@ -6,7 +6,6 @@ export const SITE = {
   description:
     'A multiphysics solver for ion transport, interfacial kinetics, degradation, and thermal behaviour in electrochemical cells.',
   author: 'Ashrith Repaka',
-  email: 'repaka.ashrith@gmail.com',
   /**
    * The canonical public address of the project. While the repository is
    * private this is the only thing a visitor can actually open, so it is what
@@ -42,10 +41,14 @@ export const SITE = {
 export const REPO_PUBLIC: boolean = false;
 
 /**
- * The contact address, split so it is never emitted into the served HTML as one
- * string. Markup must render it through ObfuscatedEmail rather than using
- * SITE.email, which stays for build-time metadata only (citation files and the
- * like) where no page ever prints it.
+ * The contact address, split so it never appears as one string — not in the
+ * served HTML, and not in this file either, which becomes readable when the
+ * repository goes public.
+ *
+ * It stays as the real mailbox on purpose: this is the address that receives
+ * mail, and the GitHub noreply address used for commit metadata does not.
+ * Markup must render it through ObfuscatedEmail, which reassembles it in the
+ * browser; nothing should join these parts at build time.
  */
 export const EMAIL_PARTS = {
   user: 'repaka.ashrith',

@@ -97,7 +97,7 @@ See [CITATION.cff](CITATION.cff) or the
 
 ## Licence
 
-[MIT](LICENSE) © 2026 Ashrith Repaka · repaka.ashrith@gmail.com
+[MIT](LICENSE) © 2026 Ashrith Repaka · 135552335+godtier812@users.noreply.github.com
 
 Colormap data (viridis, plasma, inferno, cividis) from matplotlib, released
 CC0 by their authors.

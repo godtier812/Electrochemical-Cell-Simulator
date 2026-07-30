@@ -5,7 +5,7 @@ type: software
 authors:
   - family-names: Repaka
     given-names: Ashrith
-    email: repaka.ashrith@gmail.com
+    email: 135552335+godtier812@users.noreply.github.com
 # GOING PUBLIC: uncomment the next line. It is step 2 of the checklist beside
 # REPO_PUBLIC in src/lib/site.ts, and the only one the flag cannot do for you —
 # this file is static YAML that no build step templates. Until then the line
@@ -14,7 +14,7 @@ authors:
 # repository-code: "https://github.com/godtier812/Electrochemical-Cell-Simulator"
 url: "https://godtier812.github.io/Electrochemical-Cell-Simulator/"
 license: MIT
-year-original: 2026
+date-released: "2026-07-30"
 keywords:
   - electrochemistry
   - battery-simulation
