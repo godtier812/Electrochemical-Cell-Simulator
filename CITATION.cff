@@ -6,7 +6,9 @@ authors:
   - family-names: Repaka
     given-names: Ashrith
     email: repaka.ashrith@gmail.com
-repository-code: "https://github.com/godtier812/Electrochemical-Cell-Simulator"
+# repository-code is intentionally omitted while the repository is private —
+# a citation must not point at a URL the reader cannot open. Restore it when
+# the repo is published (see REPO_PUBLIC in src/lib/site.ts).
 url: "https://godtier812.github.io/Electrochemical-Cell-Simulator/"
 license: MIT
 year-original: 2026

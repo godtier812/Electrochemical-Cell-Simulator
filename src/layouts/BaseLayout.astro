@@ -22,15 +22,21 @@ interface Props {
   ogImage?: string;
   /** Extra JSON-LD to embed (already-serialisable object). */
   jsonLd?: Record<string, unknown>;
+  /** Keep this page out of the search index (used by 404). */
+  noIndex?: boolean;
   /** Injected by Astro when this layout is used directly from MDX. */
-  frontmatter?: { title?: string; description?: string; section?: string };
+  frontmatter?: {
+    title?: string;
+    description?: string;
+    section?: string;
+    ogImage?: string;
+  };
 }
 
 const fm = Astro.props.frontmatter;
-const {
-  ogImage = 'og.png',
-  jsonLd,
-} = Astro.props;
+const { jsonLd, noIndex = false } = Astro.props;
+/** MDX pages set this in frontmatter; .astro pages pass it as a prop. */
+const ogImage = fm?.ogImage ?? Astro.props.ogImage ?? 'og.png';
 const title = fm?.title ?? Astro.props.title ?? SITE.name;
 const description = fm?.description ?? Astro.props.description ?? SITE.description;
 const section = fm?.section ?? Astro.props.section;
@@ -87,7 +93,16 @@ const fullTitle = title === SITE.name ? `${SITE.name} — electrochemical cell s
     <a class="skip-link" href="#main">Skip to content</a>
     <div class="ramp-rule" aria-hidden="true"></div>
     <Header section={section} />
-    <main id="main">
+    {/* data-pagefind-body scopes the search index to page content, keeping the
+        nav, header and footer out of every result. The explicit title meta stops
+        Pagefind falling back to <title>, which would put "· Voltaire" on the end
+        of half the results. */}
+    <main
+      id="main"
+      data-pagefind-body={noIndex ? undefined : true}
+      data-pagefind-ignore={noIndex ? true : undefined}
+      data-pagefind-meta={`title:${title}`}
+    >
       {
         isMdx ? (
           <div class="page">

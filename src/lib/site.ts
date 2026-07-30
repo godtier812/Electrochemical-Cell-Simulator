@@ -7,9 +7,36 @@ export const SITE = {
     'A multiphysics solver for ion transport, interfacial kinetics, degradation, and thermal behaviour in electrochemical cells.',
   author: 'Ashrith Repaka',
   email: 'repaka.ashrith@gmail.com',
+  /**
+   * The canonical public address of the project. While the repository is
+   * private this is the only thing a visitor can actually open, so it is what
+   * citations and structured data point at.
+   */
+  url: 'https://godtier812.github.io/Electrochemical-Cell-Simulator/',
   github: 'https://github.com/godtier812/Electrochemical-Cell-Simulator',
   repoName: 'Electrochemical-Cell-Simulator',
   license: 'MIT',
+} as const;
+
+/**
+ * The repository is private while the solver is in development, so every link
+ * to SITE.github would be a 404 for a visitor. Gate repository affordances —
+ * the header icon, the footer links, the docs edit link, JSON-LD
+ * codeRepository — on this flag rather than hard-coding the URL. Flip to true
+ * when the repo is published and they all come back at once.
+ */
+export const REPO_PUBLIC: boolean = false;
+
+/**
+ * The contact address, split so it is never emitted into the served HTML as one
+ * string. Markup must render it through ObfuscatedEmail rather than using
+ * SITE.email, which stays for build-time metadata only (citation files and the
+ * like) where no page ever prints it.
+ */
+export const EMAIL_PARTS = {
+  user: 'repaka.ashrith',
+  host: 'gmail',
+  tld: 'com',
 } as const;
 
 export interface NavEntry {
@@ -25,6 +52,7 @@ export const NAV: NavEntry[] = [
   { label: 'docs', href: '/docs/' },
   { label: 'gallery', href: '/gallery/' },
   { label: 'roadmap', href: '/roadmap/' },
+  { label: 'about', href: '/about/' },
 ];
 
 /** Sidebar structure for docs-style layouts. */

@@ -3,7 +3,9 @@ layout: ../../layouts/DocsLayout.astro
 title: Quickstart
 description: The target Python API for Voltaire — a ten-line discharge simulation and a two-line impedance spectrum, with what each line does.
 nav: docs
+ogImage: posters/og-docs.png
 ---
+import ObfuscatedEmail from '../../components/ObfuscatedEmail.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 
 ## Before you read
@@ -37,7 +39,9 @@ result.plot("voltage")
 
 `cell.discharge(c_rate=1.0, t_end="1h")` runs a galvanostatic discharge. `c_rate=1.0` sets the current to drain the nominal capacity in one hour, and `t_end="1h"` sets the simulated duration, so this is nominally a full discharge. Internally, each implicit time step is one damped Newton solve of the full nonlinear residual, using the autodiff Jacobian $J = \partial R / \partial u$ — the same matrix the impedance and sensitivity machinery reuse below.
 
-`result.plot("voltage")` opens a matplotlib figure of cell voltage against discharged capacity. Expect the shape every battery engineer knows: the curve starts near the full-charge open-circuit voltage, drops immediately by the ohmic and kinetic overpotential the 1C current forces, follows a slowly declining plateau whose shape is set by the two electrodes' open-circuit potential curves, and bends down steeply near the end as the graphite empties and transport limits bite. For this chemistry the curve lives roughly in the 4.2 V to 3.0 V window. No numbers are quoted here because none have been produced by a released solver yet.
+`result.plot("voltage")` opens a matplotlib figure of cell voltage against discharged capacity. Expect the shape every battery engineer knows: the curve starts near the full-charge open-circuit voltage, drops immediately by the ohmic and kinetic overpotential the 1C current forces, follows a slowly declining plateau whose shape is set by the two electrodes' open-circuit potential curves, and bends down steeply near the end as the graphite empties and transport limits bite.
+
+You do not have to take that on trust. The [discharge demo](/Electrochemical-Cell-Simulator/demos/#demo-discharge) computes that curve in your browser right now, for the same chemistry, under a C-rate slider — but with a **single-particle** reduction of the model rather than the porous-electrode P2D this preset describes. The reduction keeps solid diffusion, interfacial kinetics and both open-circuit curves, and drops the electrolyte gradient down the cell thickness, so it is optimistic above roughly 2C. Closing that gap is what the Python solver is for; no numbers from a released solver exist yet.
 
 ## An impedance spectrum
 
@@ -64,4 +68,4 @@ You do not have to wait for the package to poke at the methods. The [impedance d
 
 - Function names, argument names, and defaults may change before release; presets may be renamed.
 - No output of this API has been benchmarked against other solvers yet. In particular, the comparison against a PyBaMM P2D reference has not yet been run — see [validation](/Electrochemical-Cell-Simulator/validation/) for the current state of checking.
-- When behaviour on this page and behaviour of the released package differ, trust the package and report the page: repaka.ashrith@gmail.com.
+- When behaviour on this page and behaviour of the released package differ, trust the package and report the page: <ObfuscatedEmail />.

@@ -7,12 +7,11 @@ import {
   tafelSlopeMV,
 } from '../../lib/butlervolmer';
 import {
+  bindParam,
   createCanvas,
   enablePanel,
   rafDebounce,
   revealCanvas,
-  siFormat,
-  sliderToLog,
   type Shell,
 } from './runtime';
 
@@ -20,18 +19,10 @@ const ETA_MAX = 0.4;
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
-  const j0Slider = $<HTMLInputElement>('#d1-j0');
-  const aaSlider = $<HTMLInputElement>('#d1-aa');
-  const acSlider = $<HTMLInputElement>('#d1-ac');
   const lock = $<HTMLInputElement>('#d1-lock');
-  const tSlider = $<HTMLInputElement>('#d1-T');
   const modeInputs = shell.root.querySelectorAll<HTMLInputElement>('input[name="d1-mode"]');
   const reset = $<HTMLButtonElement>('#d1-reset');
 
-  const outJ0 = $<HTMLOutputElement>('#d1-j0-out');
-  const outAa = $<HTMLOutputElement>('#d1-aa-out');
-  const outAc = $<HTMLOutputElement>('#d1-ac-out');
-  const outT = $<HTMLOutputElement>('#d1-T-out');
   const outSlopeA = $<HTMLOutputElement>('#d1-slope-a');
   const outSlopeC = $<HTMLOutputElement>('#d1-slope-c');
   const outLin = $<HTMLOutputElement>('#d1-linear');
@@ -40,20 +31,26 @@ export function init(shell: Shell): void {
   const plot = new Plot(canvas);
   let firstFrame = true;
 
+  const redraw = () => draw();
+  const pJ0 = bindParam(shell, 'd1-j0', redraw);
+  // The lock keeps α_a + α_c = 1, driven from whichever coefficient was touched.
+  const pAa = bindParam(shell, 'd1-aa', () => {
+    if (lock.checked) pAc.value = 1 - pAa.value;
+    redraw();
+  });
+  const pAc = bindParam(shell, 'd1-ac', () => {
+    if (lock.checked) pAa.value = 1 - pAc.value;
+    redraw();
+  });
+  const pT = bindParam(shell, 'd1-T', redraw);
+
   const draw = rafDebounce(() => {
-    const j0 = sliderToLog(Number(j0Slider.value), 1e-6, 1e-1);
-    const aa = Number(aaSlider.value) / 100;
-    if (lock.checked) {
-      acSlider.value = String(100 - Number(aaSlider.value));
-    }
-    const ac = Number(acSlider.value) / 100;
-    const T = Number(tSlider.value);
+    const j0 = pJ0.value;
+    const aa = pAa.value;
+    const ac = pAc.value;
+    const T = pT.value;
     const tafelMode = [...modeInputs].find((r) => r.checked)?.value === 'tafel';
 
-    outJ0.value = siFormat(j0, 'A/cm²');
-    outAa.value = aa.toFixed(2);
-    outAc.value = ac.toFixed(2);
-    outT.value = `${T} K`;
     const bA = tafelSlopeMV(aa, T);
     const bC = tafelSlopeMV(ac, T);
     outSlopeA.value = `${bA.toFixed(0)} mV/dec`;
@@ -127,20 +124,14 @@ export function init(shell: Shell): void {
     }
   });
 
-  for (const el of [j0Slider, aaSlider, acSlider, tSlider, lock]) {
-    el.addEventListener('input', draw);
-  }
-  // exponents α are exchanged via the lock in both directions
-  acSlider.addEventListener('input', () => {
-    if (lock.checked) aaSlider.value = String(100 - Number(acSlider.value));
+  lock.addEventListener('input', () => {
+    if (lock.checked) pAc.value = 1 - pAa.value;
+    draw();
   });
   modeInputs.forEach((r) => r.addEventListener('change', draw));
   reset.addEventListener('click', () => {
-    j0Slider.value = '50';
-    aaSlider.value = '50';
-    acSlider.value = '50';
+    for (const p of [pJ0, pAa, pAc, pT]) p.reset();
     lock.checked = true;
-    tSlider.value = '298';
     modeInputs.forEach((r) => (r.checked = r.value === 'linear'));
     draw();
   });

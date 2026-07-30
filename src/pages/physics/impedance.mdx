@@ -3,6 +3,7 @@ layout: ../../layouts/DocsLayout.astro
 title: Impedance
 description: Frequency-domain EIS from the model Jacobian — one complex solve per frequency — and DRT inversion by Tikhonov-regularised non-negative least squares.
 nav: physics
+ogImage: posters/og-physics-impedance.png
 ---
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
@@ -69,7 +70,7 @@ for impedance, and the adjoint system $J^{\mathsf{T}}\lambda = -\partial Q/\part
 for design sensitivities. Implement the residual once, differentiate it once, and all three
 consumers stay in agreement by construction.
 
-<StatusBadge status="in-progress" label="Python solver" /> The Jacobian-based EIS path belongs
+<StatusBadge status="planned" label="Python solver: planned" /> The Jacobian-based EIS path belongs
 to the Python solver, which is in development. The DRT inversion below runs in the browser
 today.
 

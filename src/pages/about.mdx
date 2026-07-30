@@ -1,0 +1,72 @@
+---
+layout: ../layouts/BaseLayout.astro
+title: About
+description: Who builds Voltaire and why — the goal of the project, what is finished, and what is still being written.
+section: /about/
+ogImage: posters/og-about.png
+---
+
+import ObfuscatedEmail from '../components/ObfuscatedEmail.astro';
+
+# About
+
+## The project
+
+Voltaire is a multiphysics solver for electrochemical cells, built around one idea: write
+the residual once, differentiate it once, and let the same Jacobian drive time stepping,
+impedance, and design sensitivities. The [numerics page](/Electrochemical-Cell-Simulator/numerics/)
+walks through that spine, and the [physics section](/Electrochemical-Cell-Simulator/physics/)
+derives each model it carries.
+
+What exists today is this site and its [browser demos](/Electrochemical-Cell-Simulator/demos/) —
+a self-contained in-browser solver, written in TypeScript and computed on your own machine.
+The Python solver package is in development and unreleased; the
+[roadmap](/Electrochemical-Cell-Simulator/roadmap/) is the status of record, and the
+[validation page](/Electrochemical-Cell-Simulator/validation/) is where the claims get
+checked against analytic results while you watch.
+
+## Who builds it
+
+I'm a high schooler interested in mathematics, computer science, and physics, with a
+particular pull toward computational science. I like working through hard problems, building
+models from first principles, and figuring out how mathematical ideas map onto real physical
+systems.
+
+Outside of this, I compete in mathematics and programming, Science Olympiad, tennis, and
+orchestra — different problems, same habit of sticking with something long enough to actually
+finish it.
+
+## Why
+
+Simulations are what got me hooked on this project specifically — there's something clarifying
+about watching a system actually behave, instead of just deriving how it should on paper. I
+wanted to build something that made electrochemistry feel less like a black box, for myself
+and for anyone curious enough to drag a slider and watch what happens.
+
+## How it is built
+
+The site is a static [Astro](https://astro.build) build with no client framework: every
+demo is hand-written TypeScript talking to a canvas or a WebGL2 context, and the numerical
+kernels are covered by unit tests that run on every push. Nothing on the site is a
+prerecorded animation, and no figure is an artist's impression — the
+[gallery](/Electrochemical-Cell-Simulator/gallery/) images are generated at build time by
+the same code the demos run.
+
+The honesty rules the site follows are deliberate and worth stating plainly: a number is
+only presented as measured if it was computed live in your browser or by exact analytics,
+anything unbuilt carries a status badge saying so, and benchmarks that have not been run
+are labelled *not yet run* rather than quietly omitted.
+
+## Contact
+
+I'm looking for opportunities involving mathematical problems, artificial intelligence,
+engineering, computational science, and software development, and I'm always glad to learn
+from people further along in this than I am.
+
+- Email — <ObfuscatedEmail user="repaka.ashrith" host="gmail" tld="com" />
+- LinkedIn — [ashrith-repaka](https://www.linkedin.com/in/ashrith-repaka-727959287/)
+- GitHub — [godtier812](https://github.com/godtier812)
+
+Corrections, questions, and anything the site gets wrong are welcome at the same address. If
+you want to cite the work, the [cite page](/Electrochemical-Cell-Simulator/cite/) has the
+BibTeX entry and the licence terms.

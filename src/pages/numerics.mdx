@@ -3,6 +3,7 @@ layout: ../layouts/DocsLayout.astro
 title: Numerics
 description: How Voltaire turns the PNP equations into linear algebra — nondimensionalisation, Scharfetter–Gummel fluxes, damped Newton, index-1 DAE integration, and one Jacobian reused for impedance and adjoints.
 nav: physics
+ogImage: posters/og-numerics.png
 ---
 import Equation from '../components/Equation.astro';
 import SymbolTable from '../components/SymbolTable.astro';
@@ -67,7 +68,7 @@ Expanding the exponential shows this agrees with the additive Newton step to fir
 
 ## DAE, not ODE
 
-<StatusBadge status="in-progress" label="python solver" />
+<StatusBadge status="planned" label="Python solver: planned" />
 
 Away from interfaces, at scales well above $\lambda_D$, the Poisson equation is replaced by electroneutrality. That deletes the time derivative associated with the potential: $\phi$ is no longer evolved, it is constrained. The semi-discretised system has the form $M\dot{u} = f(u)$ with a singular mass matrix $M$ — an index-1 differential-algebraic system, not an ODE. Explicit time steppers cannot integrate it at all, because nothing advances the algebraic variables; the constraint must be solved implicitly at every step.
 
@@ -123,4 +124,4 @@ The demos on this site are not mock-ups; they implement the numerics above in Ty
 
 The [validation page](/Electrochemical-Cell-Simulator/validation/) includes a method-of-manufactured-solutions convergence check that runs live: it solves on a sequence of refined meshes against a known analytic solution and measures the observed order of accuracy in front of you, rather than quoting a number from a run you cannot see.
 
-The DAE time integrator, autodiff Jacobian, EIS solve and adjoint belong to the Python package, which is in development and not yet released; its progress is tracked on [GitHub](https://github.com/godtier812/Electrochemical-Cell-Simulator).
+The DAE time integrator, autodiff Jacobian, EIS solve and adjoint belong to the Python package, which is in development and not yet released; its repository is private for now, and its progress is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/).

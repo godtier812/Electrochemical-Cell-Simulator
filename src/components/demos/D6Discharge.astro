@@ -1,0 +1,39 @@
+---
+import DemoShell from '../DemoShell.astro';
+import Control from './Control.astro';
+---
+
+<DemoShell
+  id="demo-discharge"
+  title="D6 · Galvanostatic discharge"
+  poster="d6-discharge.svg"
+  alt="Cell voltage falling from about 4.2 volts to the 2.5 volt cut-off against discharged capacity, with the open-circuit curve above it"
+  aspect="16/10"
+  caption="Constant-current discharge of an NMC811 | graphite cell, computed live by a single-particle model: solid diffusion inside one representative particle per electrode by implicit Euler, symmetric Butler–Volmer kinetics inverted analytically, and the two open-circuit potential curves. The gap between the dashed open-circuit curve and the solid terminal voltage is the overpotential the current costs you. This is a single-particle reduction, not the porous-electrode (P2D) model the quickstart describes — it carries no electrolyte gradient, so above roughly 2C it is optimistic. Open-circuit potential fits follow Chen et al. (2020) for an LG M50 cell; the remaining parameters are representative of that format, not a validated reproduction of a measured cell."
+>
+  <fieldset class="panel" slot="panel" disabled>
+    <legend>cell · galvanostat</legend>
+    <Control id="d6-crate" label="C-rate / h⁻¹" min={0.1} max={4} value={1} step={0.1} />
+    <Control id="d6-radius" label="particle R / µm" min={2} max={12} value={6} step={1} />
+    <Control id="d6-r0" label="series R₀ / mΩ" min={0} max={60} value={25} step={1} />
+    <Control id="d6-T" label="T / K" min={273} max={333} value={298} step={1} />
+    <div class="switch-row">
+      <label><input type="checkbox" id="d6-ocv" checked /> open-circuit overlay</label>
+      <button class="copy-btn" type="button" id="d6-reset">reset</button>
+    </div>
+    <div class="panel-readouts">
+      <span>capacity <output id="d6-cap">—</output></span>
+      <span>mean V <output id="d6-vmean">—</output></span>
+      <span>energy <output id="d6-energy">—</output></span>
+      <span>ends on <output id="d6-cutoff">—</output></span>
+    </div>
+  </fieldset>
+</DemoShell>
+
+<script>
+  import { initWhenVisible } from './runtime';
+  initWhenVisible('demo-discharge', async (shell) => {
+    const { init } = await import('./d6-discharge');
+    init(shell);
+  });
+</script>

@@ -3,12 +3,14 @@ layout: ../../layouts/DocsLayout.astro
 title: Degradation
 description: SEI growth, loss of lithium inventory, and stress-coupled diffusion — how Voltaire models capacity fade as one coupled system.
 nav: physics
+ogImage: posters/og-physics-degradation.png
 ---
+import ObfuscatedEmail from '../../components/ObfuscatedEmail.astro';
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 
-<StatusBadge status="in-progress" label="solver, in progress" />
+<StatusBadge status="planned" label="solver: planned" />
 
 A battery model that stops at [transport](/Electrochemical-Cell-Simulator/physics/transport/) and kinetics predicts a cell that lives forever. The interesting question is why real cells do not, and the answer is not one mechanism but a loop: a parasitic film that consumes lithium, mechanical stress that the lithium itself generates, and fracture that feeds the film new surface to grow on. This page specifies the two submodels — SEI growth and chemo-mechanics — and the coupling between them. This physics is part of the solver design; there is no browser demo for it yet, and none of it should be read as validated. The [roadmap](/Electrochemical-Cell-Simulator/roadmap/) tracks its status.
 
@@ -117,4 +119,4 @@ Degradation state joins the same unknown vector $u$ as everything else: film thi
 
 ## Status
 
-Everything on this page is model specification, not shipped code. The equations are fixed; the discretisation and the coupled solves are in progress in the solver package, which is not yet publicly released. No browser demo implements this physics, and no fade predictions exist to show. The [roadmap](/Electrochemical-Cell-Simulator/roadmap/) lists where degradation sits in the build order, and the [validation page](/Electrochemical-Cell-Simulator/validation/) records what has actually been checked. Questions and corrections: [repaka.ashrith@gmail.com](mailto:repaka.ashrith@gmail.com) or the [GitHub repository](https://github.com/godtier812/Electrochemical-Cell-Simulator).
+Everything on this page is model specification, not shipped code. The equations are fixed; the discretisation and the coupled solves are in progress in the solver package, which is not yet publicly released. No browser demo implements this physics, and no fade predictions exist to show. The [roadmap](/Electrochemical-Cell-Simulator/roadmap/) lists where degradation sits in the build order, and the [validation page](/Electrochemical-Cell-Simulator/validation/) records what has actually been checked. Questions and corrections: <ObfuscatedEmail />.

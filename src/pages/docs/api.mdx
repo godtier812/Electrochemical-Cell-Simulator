@@ -3,7 +3,9 @@ layout: ../../layouts/DocsLayout.astro
 title: API reference
 description: The target public Python API of Voltaire — Cell, Result, ImpedanceSpectrum, Microstructure, and the surrogates, design, and uq modules — documented at design stage.
 nav: docs
+ogImage: posters/og-docs.png
 ---
+import ObfuscatedEmail from '../../components/ObfuscatedEmail.astro';
 
 import StatusBadge from '../../components/StatusBadge.astro';
 
@@ -351,7 +353,8 @@ parameter list should be short.
 
 Nothing on this page is frozen. Signatures, defaults and return types may all change before
 the first release, and the cheapest time to change them is now — objections and better
-ideas go to [GitHub](https://github.com/godtier812/Electrochemical-Cell-Simulator). Two
+ideas go to <ObfuscatedEmail />, since the
+repository is not public yet and there is no issue tracker to file them on. Two
 things will not change: every argument keeps a documented unit, and every numerical claim
 made for this API stays within what the
 [browser demos](/Electrochemical-Cell-Simulator/demos/) or analytic solutions on the

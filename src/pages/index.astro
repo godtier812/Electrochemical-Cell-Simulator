@@ -5,7 +5,7 @@ import StatusBadge from '../components/StatusBadge.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 import D1ButlerVolmer from '../components/demos/D1ButlerVolmer.astro';
 import D4Impedance from '../components/demos/D4Impedance.astro';
-import { SITE } from '../lib/site';
+import { SITE, REPO_PUBLIC } from '../lib/site';
 import { withBase } from '../lib/url';
 
 const jsonLd = {
@@ -13,8 +13,10 @@ const jsonLd = {
   '@type': 'SoftwareSourceCode',
   name: SITE.name,
   description: SITE.description,
-  author: { '@type': 'Person', name: SITE.author, email: SITE.email },
-  codeRepository: SITE.github,
+  // No email in structured data: it would ship the address as plain text.
+  author: { '@type': 'Person', name: SITE.author },
+  // Only advertise the repository once it is actually reachable.
+  ...(REPO_PUBLIC ? { codeRepository: SITE.github } : {}),
   programmingLanguage: ['Python', 'TypeScript'],
   license: 'https://opensource.org/licenses/MIT',
   url: new URL(withBase('/'), Astro.site).href,
@@ -49,8 +51,8 @@ const capabilities: Capability[] = [
   {
     title: 'SEI & degradation',
     href: '/physics/degradation/',
-    status: 'in-progress',
-    label: 'solver',
+    status: 'planned',
+    label: 'solver: planned',
     blurb: 'Film growth, lithium inventory loss, and the stress–fracture–SEI loop behind capacity fade.',
     glyph: 'M4 20V8m0 8h16M8 20V12m12-6-6 6m6-2v-4h-4',
   },
@@ -73,8 +75,8 @@ const capabilities: Capability[] = [
   {
     title: 'Thermal',
     href: '/physics/thermal/',
-    status: 'in-progress',
-    label: 'solver',
+    status: 'planned',
+    label: 'solver: planned',
     blurb: 'Joule, reaction, and entropic heat feeding back through Arrhenius transport — runaway is representable.',
     glyph: 'M10 4v10a3 3 0 1 0 4 0V4a2 2 0 0 0-4 0Zm2 5v8',
   },
@@ -144,8 +146,15 @@ drt.plot()                        # peaks separate CT from diffusion`;
       </p>
       <div class="hero-actions">
         <a class="btn btn-primary" href={withBase('/physics/')}>Read the physics</a>
-        <a class="btn hero-btn-ghost" href={SITE.github} rel="noopener">View on GitHub</a>
+        <a class="btn hero-btn-ghost" href={withBase('/demos/')}>Run the demos</a>
       </div>
+      <p class="hero-note hero-source">
+        {
+          REPO_PUBLIC
+            ? 'Source on GitHub, MIT licensed.'
+            : 'Source is not public yet — the repository opens when the solver core is further along.'
+        }
+      </p>
     </div>
   </section>
 
@@ -156,9 +165,11 @@ drt.plot()                        # peaks separate CT from diffusion`;
         that cannot say why a cell fades, and heavyweight research codes that take a group and
         a cluster to run. Voltaire is being built in the gap — one residual for transport,
         kinetics, heat, mechanics and degradation, differentiated once, so the same Jacobian
-        drives time stepping, impedance spectra and design gradients. The solver is in
-        development in Python; the numerics are already running live in the demos on this page,
-        implemented in TypeScript against the same equations.
+        drives time stepping, impedance spectra and design gradients. That Python solver is
+        planned and does not exist yet. What runs today is an in-browser solver — the demos on
+        this page are TypeScript implementations of the same governing equations, computed
+        entirely on your machine, at demo scale on fixed configurations rather than as a
+        general-purpose package. No server sits behind them.
       </p>
     </section>
 
@@ -216,7 +227,7 @@ drt.plot()                        # peaks separate CT from diffusion`;
 
     <section aria-labelledby="demo-head">
       <span class="overline">Live</span>
-      <h2 id="demo-head">Two of the five demos</h2>
+      <h2 id="demo-head">Two of the demos</h2>
       <p class="prose">
         Everything below is computed in your browser as you move the sliders — no server, no
         prerendered frames. The full set, including the phase-field dendrite and the
@@ -275,7 +286,7 @@ drt.plot()                        # peaks separate CT from diffusion`;
 
     <section aria-labelledby="qs-head">
       <span class="overline">Quickstart</span>
-      <h2 id="qs-head">The target interface <StatusBadge status="in-progress" /></h2>
+      <h2 id="qs-head">The target interface <StatusBadge status="planned" /></h2>
       <p class="prose">
         The Python package is in development and unreleased; this is the interface it is being
         built to, and it may shift before release. What you can run today are the demos above —
@@ -353,6 +364,11 @@ drt.plot()                        # peaks separate CT from diffusion`;
     font-size: var(--text-sm);
     margin-top: var(--s4);
     max-width: 34rem;
+  }
+
+  /* Sits directly under the call-to-action row, so it needs less air above. */
+  .hero-source {
+    margin-top: var(--s3);
   }
 
   .hero-actions {

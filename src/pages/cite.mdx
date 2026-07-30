@@ -2,11 +2,13 @@
 layout: ../layouts/BaseLayout.astro
 title: Cite
 description: How to cite Voltaire, the licence it ships under, and the prior work its formulations and figures depend on.
+ogImage: posters/og-cite.png
 ---
+import ObfuscatedEmail from '../components/ObfuscatedEmail.astro';
 
 # Cite
 
-If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos/), or its write-ups contributed to your work, cite the software. One honest caveat first: the Python solver package is in development and not yet released. What exists today is this site and its in-browser demos, which implement the numerics in TypeScript. The citation below points at the repository, which contains both.
+If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos/), or its write-ups contributed to your work, cite the software. One honest caveat first: the Python solver package is in development and not yet released. What exists today is this site and its in-browser demos, which implement the numerics in TypeScript. The repository is still private, so the citation below points at the site itself — the only version of the work a reader of your paper can actually open.
 
 ## BibTeX
 
@@ -15,18 +17,20 @@ If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos
   author  = {Repaka, Ashrith},
   title   = {Voltaire: a multiphysics simulator for electrochemical cells},
   year    = {2026},
-  url     = {https://github.com/godtier812/Electrochemical-Cell-Simulator},
+  url     = {https://godtier812.github.io/Electrochemical-Cell-Simulator/},
   license = {MIT}
 }
 ```
 
-A `CITATION.cff` file ships in the repository root, so GitHub's "Cite this repository" button produces the same entry in BibTeX or APA form without any copying from this page.
+A `CITATION.cff` file ships alongside the source and carries the same metadata, so once the repository is public GitHub's "Cite this repository" button will produce this entry in BibTeX or APA form without any copying from this page. Until then, the block above is the canonical form.
 
-Because the project is under active development, results can change between commits. If reproducibility matters for your use, record the commit hash you ran against alongside the citation.
+Because the project is under active development, results can change. The repository is private, so there is no commit hash you can quote yet; if reproducibility matters for your use, record the date you ran the demos and email me — I can tell you what was deployed that day.
 
 ## Licence
 
-Voltaire is released under the MIT licence: you may use, copy, modify, and redistribute the code, commercially or otherwise, as long as the copyright and licence notice stay with it. The full text is in `LICENSE` at the repository root.
+Voltaire is released under the MIT licence: you may use, copy, modify, and redistribute the code, commercially or otherwise, as long as the copyright and licence notice stay with it. The full text is in `LICENSE`, which ships with the source.
+
+The same terms cover the visual material — the [gallery](/Electrochemical-Cell-Simulator/gallery/) figures, the demo posters, and the plots the demos draw. They are all output of the MIT-licensed generator rather than separate artwork, so licensing them separately would be an odd fiction. Put them in a talk or a paper if they are useful; carry the notice, and a credit line reading “Voltaire, Ashrith Repaka” is welcome though the licence does not demand one.
 
 ## Acknowledgements
 
@@ -40,4 +44,4 @@ Voltaire owes three debts worth naming.
 
 ## Contact
 
-Questions, corrections, or a use of Voltaire you would like mentioned: [repaka.ashrith@gmail.com](mailto:repaka.ashrith@gmail.com).
+Questions, corrections, or a use of Voltaire you would like mentioned: <ObfuscatedEmail />.

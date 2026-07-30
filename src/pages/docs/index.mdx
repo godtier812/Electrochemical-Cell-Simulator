@@ -3,26 +3,31 @@ layout: ../../layouts/DocsLayout.astro
 title: Install
 description: How to get Voltaire — the browser demos that run today, and the from-source install route for the Python package in development.
 nav: docs
+ogImage: posters/og-docs.png
 ---
+import ObfuscatedEmail from '../../components/ObfuscatedEmail.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import { DEMOS } from '../../lib/demos';
 
 ## Status
 
-<StatusBadge status="in-progress" label="Python package" /> <StatusBadge status="planned" label="voltaire-echem on PyPI" />
+<StatusBadge status="planned" label="Python package: planned" /> <StatusBadge status="planned" label="voltaire-echem on PyPI" />
 
 The Voltaire Python package is in development and is not on PyPI. There is nothing to `pip install` today, and any package you find under a similar name is not this project. The planned distribution name is `voltaire-echem`; when it ships, this page becomes a one-line install.
 
-What is real and running right now is this site and its demos. The demos are not videos or mock-ups: they implement the solver's numerical methods in TypeScript and run them in your browser.
+What is real and running right now is this site and its demos. They are not videos or mock-ups, and they are not a front end over a backend: they are a self-contained **in-browser solver** — TypeScript implementations of the governing equations, computed on your own machine, at demo scale in one or two dimensions on fixed configurations rather than as a general-purpose package.
 
 ## Run the numerics today, nothing to install
 
-The [demos page](/Electrochemical-Cell-Simulator/demos/) executes the same methods the Python solver is built around:
+The [demos page](/Electrochemical-Cell-Simulator/demos/) runs these models entirely in your browser. The planned Python package is being built around the same equations, but nothing on that side exists yet:
 
-- [Butler–Volmer kinetics](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer) — interfacial current against overpotential, with the Tafel limits.
-- [Double layer](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) — Poisson–Nernst–Planck solved with Scharfetter–Gummel fluxes and damped Newton iteration.
-- [Impedance](/Electrochemical-Cell-Simulator/demos/#demo-impedance) — distribution of relaxation times by Tikhonov-regularised NNLS.
-- [Microstructure](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) — random sequential adsorption packing and tortuosity from a Laplace solve.
-- [Dendrite growth](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) — explicit phase-field electrodeposition.
+<ul>
+  {DEMOS.map((d) => (
+    <li>
+      <a href={`/Electrochemical-Cell-Simulator/demos/#${d.id}`}>{d.name}</a> — {d.blurb}
+    </li>
+  ))}
+</ul>
 
 If you are deciding whether the methods hold up before the package exists, start there, then read the [validation page](/Electrochemical-Cell-Simulator/validation/) for what has been checked against analytic results — and what has not been run yet.
 
@@ -71,10 +76,10 @@ That installs the CPU build; for GPU builds, follow the install matrix in the JA
 
 <StatusBadge status="planned" label="pip install voltaire-echem" />
 
-The planned release command is `pip install voltaire-echem`. It does not work yet. Progress toward the release is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/) and in the [repository](https://github.com/godtier812/Electrochemical-Cell-Simulator).
+The planned release command is `pip install voltaire-echem`. It does not work yet. Progress toward the release is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/).
 
 ## Licence and contact
 
-Voltaire is MIT-licensed. Questions and bug reports: repaka.ashrith@gmail.com, or open an issue on GitHub once the repository is public.
+Voltaire is MIT-licensed. Questions and bug reports: <ObfuscatedEmail />, or open an issue on GitHub once the repository is public.
 
 Next: the [quickstart](/Electrochemical-Cell-Simulator/docs/quickstart/) shows the API the package is being built to.

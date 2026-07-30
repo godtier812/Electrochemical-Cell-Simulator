@@ -1,17 +1,31 @@
 ---
-import { SITE } from '../lib/site';
+import { SITE, REPO_PUBLIC } from '../lib/site';
+import { BUILD } from '../lib/buildinfo';
+import ObfuscatedEmail from './ObfuscatedEmail.astro';
 import { withBase } from '../lib/url';
 ---
 
 <footer class="site-footer">
   <div class="inner">
     <div>
-      <div>{SITE.name} · {SITE.license} licence</div>
-      <div>© 2026 {SITE.author} · <a href={`mailto:${SITE.email}`}>{SITE.email}</a></div>
+      <div>{SITE.name} · {SITE.license} licence, code and figures alike</div>
+      <div>© 2026 {SITE.author} · <ObfuscatedEmail /></div>
+      <div>Last updated <time datetime={BUILD.iso}>{BUILD.label}</time></div>
     </div>
     <nav aria-label="Footer">
-      <a href={SITE.github} rel="noopener">Repository</a>
-      <a href={`${SITE.github}/issues`} rel="noopener">Issues</a>
+      {
+        REPO_PUBLIC && (
+          <>
+            <a href={SITE.github} rel="noopener">
+              Repository
+            </a>
+            <a href={`${SITE.github}/issues`} rel="noopener">
+              Issues
+            </a>
+          </>
+        )
+      }
+      <a href={withBase('/about/')}>About</a>
       <a href={withBase('/cite/')}>Cite</a>
       <a href={withBase('/roadmap/')}>Roadmap</a>
       <a href={withBase('/gallery/')}>Gallery</a>

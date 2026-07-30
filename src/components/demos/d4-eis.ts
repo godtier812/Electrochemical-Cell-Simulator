@@ -3,32 +3,18 @@ import { css } from '../../lib/colormaps';
 import { impedance, omegaGrid, type CircuitParams } from '../../lib/eis';
 import { computeDRT } from '../../lib/drt';
 import {
+  bindParam,
   enablePanel,
   rafDebounce,
   siFormat,
-  sliderToLog,
   type Shell,
 } from './runtime';
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
-  const sliders = {
-    rohm: $<HTMLInputElement>('#d4-rohm'),
-    rct: $<HTMLInputElement>('#d4-rct'),
-    cdl: $<HTMLInputElement>('#d4-cdl'),
-    rd: $<HTMLInputElement>('#d4-rd'),
-    taud: $<HTMLInputElement>('#d4-taud'),
-    age: $<HTMLInputElement>('#d4-age'),
-    lambda: $<HTMLInputElement>('#d4-lambda'),
-  };
+  const ageSlider = $<HTMLInputElement>('#d4-age');
   const outs = {
-    rohm: $<HTMLOutputElement>('#d4-rohm-out'),
-    rct: $<HTMLOutputElement>('#d4-rct-out'),
-    cdl: $<HTMLOutputElement>('#d4-cdl-out'),
-    rd: $<HTMLOutputElement>('#d4-rd-out'),
-    taud: $<HTMLOutputElement>('#d4-taud-out'),
     age: $<HTMLOutputElement>('#d4-age-out'),
-    lambda: $<HTMLOutputElement>('#d4-lambda-out'),
     misfit: $<HTMLOutputElement>('#d4-misfit'),
     hover: $<HTMLOutputElement>('#d4-hover'),
   };
@@ -62,15 +48,23 @@ export function init(shell: Shell): void {
   let lastDrt: ReturnType<typeof computeDRT> | null = null;
   let hoverTau: number | null = null;
 
+  const rerun = () => recompute();
+  const pRohm = bindParam(shell, 'd4-rohm', rerun);
+  const pRct = bindParam(shell, 'd4-rct', rerun);
+  const pCdl = bindParam(shell, 'd4-cdl', rerun);
+  const pRd = bindParam(shell, 'd4-rd', rerun);
+  const pTauD = bindParam(shell, 'd4-taud', rerun);
+  const pLambda = bindParam(shell, 'd4-lambda', rerun);
+
   const readParams = (): CircuitParams => ({
-    Rohm: Number(sliders.rohm.value) / 10,
-    Rct: sliderToLog(Number(sliders.rct.value), 1, 100),
-    Cdl: sliderToLog(Number(sliders.cdl.value), 1e-6, 1e-3),
-    Rd: Number(sliders.rd.value) / 2,
-    tauD: sliderToLog(Number(sliders.taud.value), 0.01, 100),
+    Rohm: pRohm.value,
+    Rct: pRct.value,
+    Cdl: pCdl.value,
+    Rd: pRd.value,
+    tauD: pTauD.value,
     Rsei: 15,
     Csei: 2e-3,
-    age: Number(sliders.age.value) / 100,
+    age: Number(ageSlider.value) / 100,
   });
 
   const cData = css('viridis', 0.45);
@@ -79,15 +73,9 @@ export function init(shell: Shell): void {
 
   const recompute = rafDebounce(() => {
     params = readParams();
-    const lambda = sliderToLog(Number(sliders.lambda.value), 1e-4, 1);
+    const lambda = pLambda.value;
 
-    outs.rohm.value = `${params.Rohm.toFixed(1)} Ω·cm²`;
-    outs.rct.value = `${params.Rct.toFixed(1)} Ω·cm²`;
-    outs.cdl.value = siFormat(params.Cdl, 'F/cm²');
-    outs.rd.value = `${params.Rd.toFixed(1)} Ω·cm²`;
-    outs.taud.value = `${params.tauD.toPrecision(3)} s`;
     outs.age.value = params.age === 0 ? 'fresh' : `${params.age.toFixed(2)}×`;
-    outs.lambda.value = lambda.toExponential(1);
 
     const Z = Array.from(omega, (w) => impedance(w, params));
     lastZ = {
@@ -175,15 +163,10 @@ export function init(shell: Shell): void {
     drawAll();
   });
 
-  for (const el of Object.values(sliders)) el.addEventListener('input', recompute);
+  ageSlider.addEventListener('input', recompute);
   reset.addEventListener('click', () => {
-    sliders.rohm.value = '100';
-    sliders.rct.value = '70';
-    sliders.cdl.value = '43';
-    sliders.rd.value = '60';
-    sliders.taud.value = '58';
-    sliders.age.value = '0';
-    sliders.lambda.value = '50';
+    for (const p of [pRohm, pRct, pCdl, pRd, pTauD, pLambda]) p.reset();
+    ageSlider.value = '0';
     recompute();
   });
   addEventListener('resize', recompute);

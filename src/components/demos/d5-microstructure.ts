@@ -6,22 +6,16 @@ import {
   type Microstructure,
   type TransportResult,
 } from '../../lib/microstructure';
-import { createCanvas, enablePanel, rafDebounce, revealCanvas, type Shell } from './runtime';
+import { bindParam, createCanvas, enablePanel, rafDebounce, revealCanvas, type Shell } from './runtime';
 
 const NX = 192;
 const NY = 120;
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
-  const epsSlider = $<HTMLInputElement>('#d5-eps');
-  const rSlider = $<HTMLInputElement>('#d5-r');
-  const sSlider = $<HTMLInputElement>('#d5-s');
   const linesToggle = $<HTMLInputElement>('#d5-lines');
   const reseed = $<HTMLButtonElement>('#d5-reseed');
   const outs = {
-    eps: $<HTMLOutputElement>('#d5-eps-out'),
-    r: $<HTMLOutputElement>('#d5-r-out'),
-    s: $<HTMLOutputElement>('#d5-s-out'),
     measEps: $<HTMLOutputElement>('#d5-meas-eps'),
     deff: $<HTMLOutputElement>('#d5-deff'),
     brugg: $<HTMLOutputElement>('#d5-brugg'),
@@ -91,13 +85,15 @@ export function init(shell: Shell): void {
     }
   };
 
+  const rerun = () => regenerate();
+  const pEps = bindParam(shell, 'd5-eps', rerun);
+  const pR = bindParam(shell, 'd5-r', rerun);
+  const pS = bindParam(shell, 'd5-s', rerun);
+
   const regenerate = rafDebounce(() => {
-    const solidTarget = 1 - Number(epsSlider.value) / 100;
-    const radius = Number(rSlider.value);
-    const spread = Number(sSlider.value) / 100;
-    outs.eps.value = (Number(epsSlider.value) / 100).toFixed(2);
-    outs.r.value = `${radius} px`;
-    outs.s.value = `±${Math.round(spread * 100)}%`;
+    const solidTarget = 1 - pEps.value;
+    const radius = pR.value;
+    const spread = pS.value / 100;
 
     ms = generateRSA({ nx: NX, ny: NY, solidFraction: solidTarget, radius, spread });
     tr = solveTransport(ms);
@@ -115,7 +111,6 @@ export function init(shell: Shell): void {
     render();
   });
 
-  for (const el of [epsSlider, rSlider, sSlider]) el.addEventListener('input', regenerate);
   linesToggle.addEventListener('change', render);
   reseed.addEventListener('click', regenerate);
   addEventListener('resize', () => render());

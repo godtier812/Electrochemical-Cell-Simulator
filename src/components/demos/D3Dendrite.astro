@@ -1,5 +1,6 @@
 ---
 import DemoShell from '../DemoShell.astro';
+import Control from './Control.astro';
 ---
 
 <DemoShell
@@ -9,36 +10,25 @@ import DemoShell from '../DemoShell.astro';
   alt="Metal dendrites in yellow and green growing upward from a flat electrode into purple electrolyte, computed by the phase-field model"
   aspect="16/9"
   stack={true}
-  caption="Electrochemically driven Allen–Cahn phase field with Kobayashi anisotropy, running as a WebGL2 fragment shader on ping-pong float textures (CPU fallback at reduced resolution). ξ = 1 is metal, ξ = 0 electrolyte; the concentration field co-evolves and throttles growth where the electrolyte depletes. Units are nondimensional lattice units; the morphology sequence mossy → needle → dendritic tracks the L_σ/L_η ratio. Cathodic overpotential is negative — more negative grows faster."
+  caption="Electrochemically driven Allen–Cahn phase field with Kobayashi anisotropy, running as a WebGL2 fragment shader on ping-pong float textures (CPU fallback at reduced resolution). ξ = 1 is metal, ξ = 0 electrolyte; the concentration field co-evolves and throttles growth where the electrolyte depletes. Length and time are nondimensional lattice units; the morphology sequence mossy → needle → dendritic tracks the L_σ/L_η ratio. The overpotential control sets the physical cathodic overpotential as a magnitude in millivolts — what a potentiostat actually applies — so dragging it right means more drive and faster growth. The dimensionless group that enters the Butler–Volmer exponentials, aη = Fη/RT, is derived from it and reported in the readouts; because it carries T in its denominator, it changes when you move the temperature even though the applied millivolts do not."
 >
   <fieldset class="panel" slot="panel" disabled>
     <legend>deposition cell</legend>
     <div class="d4-controls">
-      <div class="control-row">
-        <label for="d3-eta">overpotential aη</label>
-        <input type="range" id="d3-eta" min="20" max="80" step="1" value="60" />
-        <output class="readout" id="d3-eta-out" for="d3-eta">−6.0</output>
-      </div>
-      <div class="control-row">
-        <label for="d3-delta">anisotropy δ</label>
-        <input type="range" id="d3-delta" min="0" max="100" step="1" value="85" />
-        <output class="readout" id="d3-delta-out" for="d3-delta">0.05</output>
-      </div>
+      {/* The physical overpotential a potentiostat would apply, as a positive
+          magnitude so the slider is monotonic. The sign is applied once, and the
+          dimensionless aη is derived from it, in d3-dendrite.ts. */}
+      <Control id="d3-eta" label="cathodic |η| / mV" min={50} max={205} value={154} step={1} />
+      <Control id="d3-delta" label="anisotropy δ" min={0} max={0.06} value={0.051} step={0.001} />
+      {/* Morphology stays slider-only: its readout is a regime name, and a
+          typed L_η would be a number most readers cannot place. */}
       <div class="control-row">
         <label for="d3-morph">morphology L_σ/L_η</label>
         <input type="range" id="d3-morph" min="0" max="100" step="1" value="75" />
         <output class="readout" id="d3-morph-out" for="d3-morph">dendritic</output>
       </div>
-      <div class="control-row">
-        <label for="d3-T">temperature / K</label>
-        <input type="range" id="d3-T" min="250" max="350" step="1" value="298" />
-        <output class="readout" id="d3-T-out" for="d3-T">298 K</output>
-      </div>
-      <div class="control-row">
-        <label for="d3-nuc">nucleation sites</label>
-        <input type="range" id="d3-nuc" min="1" max="8" step="1" value="3" />
-        <output class="readout" id="d3-nuc-out" for="d3-nuc">3</output>
-      </div>
+      <Control id="d3-T" label="temperature / K" min={250} max={350} value={298} step={1} />
+      <Control id="d3-nuc" label="nucleation sites" min={1} max={8} value={3} step={1} />
     </div>
     <div class="switch-row" role="radiogroup" aria-label="Anisotropy mode">
       <label><input type="radio" name="d3-omega" value="4" checked /> ω = 4</label>
@@ -48,6 +38,7 @@ import DemoShell from '../DemoShell.astro';
       <button class="copy-btn" type="button" id="d3-reset">seed / reset</button>
     </div>
     <div class="panel-readouts">
+      <span>aη = Fη/RT <output id="d3-aeta">—</output></span>
       <span>solid fraction <output id="d3-solid">—</output></span>
       <span>interface / width <output id="d3-rough">—</output></span>
       <span>rate <output id="d3-rate">—</output></span>

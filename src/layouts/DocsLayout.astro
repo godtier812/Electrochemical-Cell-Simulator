@@ -2,7 +2,7 @@
 import 'katex/dist/katex.min.css';
 import BaseLayout from './BaseLayout.astro';
 import { withBase } from '../lib/url';
-import { SITE, PHYSICS_PAGES, DOCS_PAGES } from '../lib/site';
+import { SITE, PHYSICS_PAGES, DOCS_PAGES, REPO_PUBLIC } from '../lib/site';
 
 interface Heading {
   depth: number;
@@ -16,6 +16,8 @@ interface Props {
   description?: string;
   nav?: 'physics' | 'docs';
   section?: string;
+  /** Path of the social-card image under the site base. */
+  ogImage?: string;
   headings?: Heading[];
   /** Injected by Astro when used as an MDX layout. */
   frontmatter?: {
@@ -23,6 +25,7 @@ interface Props {
     description?: string;
     nav?: 'physics' | 'docs';
     section?: string;
+    ogImage?: string;
     file?: string;
   };
 }
@@ -30,6 +33,7 @@ interface Props {
 const fm = Astro.props.frontmatter;
 const title = fm?.title ?? Astro.props.title ?? SITE.name;
 const description = fm?.description ?? Astro.props.description;
+const ogImage = fm?.ogImage ?? Astro.props.ogImage;
 const navKind = fm?.nav ?? Astro.props.nav ?? 'physics';
 const section = fm?.section ?? Astro.props.section ?? (navKind === 'docs' ? '/docs/' : '/physics/');
 const headings = (Astro.props.headings ?? []).filter((h) => h.depth === 2 || h.depth === 3);
@@ -44,7 +48,7 @@ const file = fm?.file ?? '';
 const repoPath = file.includes('/src/') ? `src/${file.split('/src/')[1]}` : undefined;
 ---
 
-<BaseLayout title={title} description={description} section={section}>
+<BaseLayout title={title} description={description} section={section} ogImage={ogImage}>
   <div class="docs-grid">
     <nav class="side-nav" aria-label="Section">
       <div class="group">
@@ -88,7 +92,7 @@ const repoPath = file.includes('/src/') ? `src/${file.split('/src/')[1]}` : unde
         }
       </div>
       {
-        repoPath && (
+        REPO_PUBLIC && repoPath && (
           <p>
             <a class="edit-link" href={`${SITE.github}/edit/main/${repoPath}`} rel="noopener">
               Edit this page on GitHub

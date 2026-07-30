@@ -1,6 +1,8 @@
 import { PF_DEFAULTS, type PFParams } from '../../lib/phasefield';
+import { F, R as Rgas } from '../../lib/constants';
 import { createEngine } from './pf-engine';
 import {
+  bindParam,
   createCanvas,
   enablePanel,
   Loop,
@@ -13,21 +15,14 @@ import {
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
-  const etaSlider = $<HTMLInputElement>('#d3-eta');
-  const deltaSlider = $<HTMLInputElement>('#d3-delta');
   const omegaInputs = shell.root.querySelectorAll<HTMLInputElement>('input[name="d3-omega"]');
   const morphSlider = $<HTMLInputElement>('#d3-morph');
-  const tSlider = $<HTMLInputElement>('#d3-T');
-  const nucSlider = $<HTMLInputElement>('#d3-nuc');
   const showC = $<HTMLInputElement>('#d3-showc');
   const pauseBtn = $<HTMLButtonElement>('#d3-pause');
   const resetBtn = $<HTMLButtonElement>('#d3-reset');
   const outs = {
-    eta: $<HTMLOutputElement>('#d3-eta-out'),
-    delta: $<HTMLOutputElement>('#d3-delta-out'),
     morph: $<HTMLOutputElement>('#d3-morph-out'),
-    T: $<HTMLOutputElement>('#d3-T-out'),
-    nuc: $<HTMLOutputElement>('#d3-nuc-out'),
+    aeta: $<HTMLOutputElement>('#d3-aeta'),
     solid: $<HTMLOutputElement>('#d3-solid'),
     rough: $<HTMLOutputElement>('#d3-rough'),
     rate: $<HTMLOutputElement>('#d3-rate'),
@@ -54,13 +49,24 @@ export function init(shell: Shell): void {
   let stepsAtStamp = 0;
 
   const readControls = () => {
-    const etaA = -Number(etaSlider.value) / 10; // slider 20..80 -> -2..-8
-    const T = Number(tSlider.value);
-    params.etaA = etaA * (298 / T); // aη = Fη/RT: colder means a larger argument
+    const T = pT.value;
+    // The only sign conversion in the demo, and the only place the control's
+    // units meet the physics. The slider carries the applied cathodic
+    // overpotential as a positive magnitude in millivolts — monotonic, and the
+    // quantity a potentiostat actually sets. What the model needs is the signed
+    // dimensionless group aη = Fη/RT, because it goes straight into the
+    // Butler–Volmer exponentials exp((1−α)aη) and exp(−α·aη) in phasefield.ts.
+    // Deriving it here rather than storing it is what makes the temperature
+    // coupling real: the same millivolts give a smaller |aη| in a hotter cell.
+    const etaVolts = -pEtaMag.value / 1000;
+    params.etaA = (F * etaVolts) / (Rgas * T);
     const omega = [...omegaInputs].find((r) => r.checked)?.value === '6' ? 6 : 4;
     params.omegaMode = omega;
     const deltaMax = omega === 6 ? 0.028 : 0.06; // keeps κ + κ'' > 0 (well-posed)
-    params.delta = (Number(deltaSlider.value) / 100) * deltaMax;
+    // Six-fold anisotropy is well-posed over a narrower band, so clamp the
+    // control itself rather than silently using a value it does not show.
+    if (pDelta.value > deltaMax) pDelta.value = deltaMax;
+    params.delta = pDelta.value;
     params.Leta = sliderToLog(Number(morphSlider.value), 0.01, 0.15);
     // higher drive needs the sharper-interface regime found in tuning
     const drive01 = Number(morphSlider.value) / 100;
@@ -71,15 +77,15 @@ export function init(shell: Shell): void {
     params.lambdaC = 3.0 + drive01;
     params.dt = 0.045;
 
-    // report both the nondimensional argument and the equivalent mV at T
-    const mV = params.etaA * ((8.314462618 * T) / 96485.33212) * 1000;
-    outs.eta.value = `aη=${params.etaA.toFixed(1)} (${mV.toFixed(0)} mV)`;
-    outs.delta.value = params.delta.toFixed(3);
+    outs.aeta.value = params.etaA.toFixed(2);
     outs.morph.value =
       drive01 < 0.33 ? `mossy (L_η=${params.Leta.toFixed(3)})` : drive01 < 0.7 ? `needle (L_η=${params.Leta.toFixed(3)})` : `dendritic (L_η=${params.Leta.toFixed(3)})`;
-    outs.T.value = `${T} K`;
-    outs.nuc.value = nucSlider.value;
   };
+
+  const pEtaMag = bindParam(shell, 'd3-eta', () => readControls());
+  const pDelta = bindParam(shell, 'd3-delta', () => readControls());
+  const pT = bindParam(shell, 'd3-T', () => readControls());
+  const pNuc = bindParam(shell, 'd3-nuc', () => readControls());
 
   const loop = new Loop(shell.stage, () => {
     const sub = engine.info.backend === 'webgl2' ? 10 : 4;
@@ -111,15 +117,13 @@ export function init(shell: Shell): void {
 
   pauseBtn.addEventListener('click', () => setPaused(loop.active));
   resetBtn.addEventListener('click', () => {
-    engine.seed(Number(nucSlider.value));
+    engine.seed(pNuc.value);
     steps = 0;
     stepsAtStamp = 0;
     stepStamp = performance.now();
     engine.render(showC.checked);
   });
-  for (const el of [etaSlider, deltaSlider, morphSlider, tSlider, nucSlider]) {
-    el.addEventListener('input', readControls);
-  }
+  morphSlider.addEventListener('input', readControls);
   omegaInputs.forEach((r) => r.addEventListener('change', readControls));
   showC.addEventListener('change', () => engine.render(showC.checked));
   addEventListener('pagehide', () => {
@@ -128,7 +132,7 @@ export function init(shell: Shell): void {
   });
 
   readControls();
-  engine.seed(Number(nucSlider.value));
+  engine.seed(pNuc.value);
   engine.render(showC.checked);
   revealCanvas(shell, canvas);
   enablePanel(shell);

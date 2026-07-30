@@ -1,5 +1,6 @@
 ---
 import DemoShell from '../DemoShell.astro';
+import Control from './Control.astro';
 ---
 
 <DemoShell
@@ -14,41 +15,18 @@ import DemoShell from '../DemoShell.astro';
   <fieldset class="panel" slot="panel" disabled>
     <legend>equivalent circuit · frequency response analyser</legend>
     <div class="d4-controls">
-      <div class="control-row">
-        <label for="d4-rohm">R_Ω / Ω cm²</label>
-        <input type="range" id="d4-rohm" min="0" max="500" step="1" value="100" />
-        <output class="readout" id="d4-rohm-out" for="d4-rohm">10 Ω</output>
-      </div>
-      <div class="control-row">
-        <label for="d4-rct">R_ct / Ω cm²</label>
-        <input type="range" id="d4-rct" min="0" max="100" step="1" value="70" />
-        <output class="readout" id="d4-rct-out" for="d4-rct">25 Ω</output>
-      </div>
-      <div class="control-row">
-        <label for="d4-cdl">C_dl / F cm⁻²</label>
-        <input type="range" id="d4-cdl" min="0" max="100" step="1" value="43" />
-        <output class="readout" id="d4-cdl-out" for="d4-cdl">2e-5</output>
-      </div>
-      <div class="control-row">
-        <label for="d4-rd">R_d / Ω cm²</label>
-        <input type="range" id="d4-rd" min="0" max="200" step="1" value="60" />
-        <output class="readout" id="d4-rd-out" for="d4-rd">30 Ω</output>
-      </div>
-      <div class="control-row">
-        <label for="d4-taud">τ_d = L²/D / s</label>
-        <input type="range" id="d4-taud" min="0" max="100" step="1" value="58" />
-        <output class="readout" id="d4-taud-out" for="d4-taud">2 s</output>
-      </div>
+      <Control id="d4-rohm" label="R_Ω / Ω cm²" min={0} max={50} value={10} step={0.1} />
+      <Control id="d4-rct" label="R_ct / Ω cm²" min={1} max={100} value={25} scale="log" />
+      <Control id="d4-cdl" label="C_dl / F cm⁻²" min={1e-6} max={1e-3} value={2e-5} scale="log" />
+      <Control id="d4-rd" label="R_d / Ω cm²" min={0} max={100} value={30} step={0.5} />
+      <Control id="d4-taud" label="τ_d = L²/D / s" min={0.01} max={100} value={2} scale="log" />
+      {/* SEI age stays slider-only: its readout is a state name, not a quantity. */}
       <div class="control-row">
         <label for="d4-age">SEI age</label>
         <input type="range" id="d4-age" min="0" max="300" step="5" value="0" />
         <output class="readout" id="d4-age-out" for="d4-age">fresh</output>
       </div>
-      <div class="control-row">
-        <label for="d4-lambda">DRT λ (Tikhonov)</label>
-        <input type="range" id="d4-lambda" min="0" max="100" step="1" value="50" />
-        <output class="readout" id="d4-lambda-out" for="d4-lambda">1e-2</output>
-      </div>
+      <Control id="d4-lambda" label="DRT λ (Tikhonov)" min={1e-4} max={1} value={1e-2} scale="log" />
     </div>
     <div class="switch-row">
       <button class="copy-btn" type="button" id="d4-reset">reset</button>

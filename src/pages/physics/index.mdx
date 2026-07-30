@@ -3,6 +3,7 @@ layout: ../../layouts/DocsLayout.astro
 title: Physics
 description: A map of the physics Voltaire models — transport, kinetics, degradation, dendrites, thermal behaviour, impedance — and how the pieces couple.
 nav: physics
+ogImage: posters/og-microstructure.png
 ---
 
 import Equation from '../../components/Equation.astro';
@@ -39,7 +40,7 @@ Butler–Volmer kinetics set the current density at every electrode–electrolyt
 
 ## Degradation
 
-<StatusBadge status="in-progress" label="solver, in progress" />
+<StatusBadge status="planned" label="solver: planned" />
 
 Capacity fade has mechanisms, and Voltaire models them rather than fitting an empirical decay curve. The first is SEI growth: a parasitic side reaction consumes lithium and thickens a resistive film on the negative electrode, with the growth rate set by the parasitic current density. As the film thickens it throttles its own reactant supply, which is why SEI-dominated fade slows over time. The second is chemo-mechanics: intercalation swells particles, the resulting stress drives fracture and fresh surface exposure. Both belong to the Python solver under development and have no browser demo. Models and status on the [degradation page](/Electrochemical-Cell-Simulator/physics/degradation/).
 
@@ -55,7 +56,7 @@ Metal electrodes fail by growing dendrites, and sharp-interface methods struggle
 
 ## Thermal
 
-<StatusBadge status="in-progress" label="solver, in progress" />
+<StatusBadge status="planned" label="solver: planned" />
 
 Cells heat themselves. The energy balance collects three sources: irreversible heat from reaction overpotential, reversible entropic heat proportional to the temperature derivative of the open-circuit potential, and ohmic (Joule) heat from current through finite conductivity. The entropic term can change sign with state of charge, which is why some cells briefly cool on charge. Temperature is not a passive output — it feeds back into every rate parameter, as described under coupling below. The thermal model is part of the solver in development; there is no browser demo. Formulation on the [thermal page](/Electrochemical-Cell-Simulator/physics/thermal/).
 

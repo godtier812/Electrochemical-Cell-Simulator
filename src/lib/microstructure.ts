@@ -109,10 +109,15 @@ export function solveTransport(ms: Microstructure, maxIter = 4000): TransportRes
       if (pore[y * nx + x]) isUnknown[y * nx + x] = 1;
     }
   }
-  const bnd = (x: number, y: number): number => {
-    // boundary value for Dirichlet columns
-    return x <= 0 ? 1 : 0;
-  };
+  /**
+   * Dirichlet value for the two fixed columns. It depends only on which column
+   * you are in, because both walls are held uniform along y: u(0,·) = 1 at the
+   * inlet, u(nx−1,·) = 0 at the outlet. The other boundaries are no-flux and
+   * are handled where the stencil is assembled — a y-wall or solid neighbour is
+   * skipped rather than coupled, which is exactly a zero-flux condition — so
+   * there is no y-dependence for this function to carry.
+   */
+  const bnd = (x: number): number => (x <= 0 ? 1 : 0);
 
   // matrix-vector product for masked Laplacian (negative definite form: A = -L)
   const apply = (v: Float64Array, out: Float64Array): void => {
@@ -154,7 +159,7 @@ export function solveTransport(ms: Microstructure, maxIter = 4000): TransportRes
       if (!isUnknown[i]) continue;
       const xn = x === 1 ? 0 : nx - 1;
       const j = y * nx + xn;
-      if (pore[j]) b[i] += bnd(xn, y);
+      if (pore[j]) b[i] += bnd(xn);
     }
   }
 

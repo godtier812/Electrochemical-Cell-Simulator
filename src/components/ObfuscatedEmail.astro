@@ -1,0 +1,54 @@
+---
+/**
+ * An email address that a human can read and click but a naive harvester
+ * cannot lift verbatim.
+ *
+ * This is a public GitHub Pages site, so a raw `mailto:` in the HTML is a
+ * standing invitation to address scrapers. Three things make that harder here:
+ * the address never appears as a contiguous string in the served markup, the
+ * `mailto:` href is assembled at runtime from separated parts, and the parts are
+ * split across elements so a regex over the raw HTML sees only fragments.
+ *
+ * Without JavaScript it still renders "user at host dot tld", which is
+ * unambiguous to a person reading it — the degraded state is readable prose, not
+ * a broken link or an empty gap.
+ */
+import { EMAIL_PARTS } from '../lib/site';
+
+interface Props {
+  /** Optional subject line for the assembled mailto:. */
+  subject?: string;
+}
+
+const { subject } = Astro.props;
+const { user, host, tld } = EMAIL_PARTS;
+---
+
+<span class="obfuscated-email" data-user={user} data-host={host} data-tld={tld} data-subject={subject}>
+  <span>{user}</span><span class="at"> at </span><span>{host}</span><span class="dot"> dot </span><span>{tld}</span>
+</span>
+
+<script>
+  /**
+   * Replace each rendered "user at host dot tld" with a real link. Runs on every
+   * page that uses the component; if it never runs, the readable form stands.
+   */
+  for (const el of document.querySelectorAll<HTMLElement>('.obfuscated-email')) {
+    const { user, host, tld, subject } = el.dataset;
+    if (!user || !host || !tld) continue;
+    const address = `${user}@${host}.${tld}`;
+    const a = document.createElement('a');
+    a.href = `mailto:${address}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
+    a.textContent = address;
+    el.replaceChildren(a);
+    el.classList.add('is-linked');
+  }
+</script>
+
+<style>
+  /* Keep the spelled-out separators legible but visually secondary. */
+  .obfuscated-email .at,
+  .obfuscated-email .dot {
+    color: var(--fg-muted);
+  }
+</style>

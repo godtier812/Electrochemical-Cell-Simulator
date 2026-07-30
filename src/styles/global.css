@@ -121,6 +121,34 @@ hr.ramp {
   display: none;
 }
 
+/* The menu button only exists below the breakpoint; see the 700px block. */
+.nav-toggle {
+  display: none;
+  color: var(--fg-muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-panel);
+  padding: var(--s1) var(--s2);
+  cursor: pointer;
+}
+
+.nav-toggle:hover {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.nav-toggle .cross {
+  display: none;
+}
+
+.nav-toggle[aria-expanded='true'] .bars {
+  display: none;
+}
+
+.nav-toggle[aria-expanded='true'] .cross {
+  display: inline;
+}
+
 .site-nav a {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -607,6 +635,37 @@ fieldset.panel {
   white-space: nowrap;
 }
 
+/* Editable twin of .readout: same type, but visibly a field you can type in. */
+.control-row .readout-input {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  /* Fixed rather than 100%: the third grid track is minmax(7rem, auto), and a
+     number input's intrinsic width (~20ch) would otherwise stretch it and
+     squeeze the slider. */
+  width: 7rem;
+  min-width: 0;
+  padding: var(--s1) var(--s2);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.control-row .readout-input:hover {
+  border-color: var(--line-strong);
+}
+
+.control-row .readout-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.panel:disabled .readout-input {
+  background: none;
+}
+
 .panel .switch-row {
   display: flex;
   flex-wrap: wrap;
@@ -912,9 +971,56 @@ select {
   white-space: nowrap;
 }
 
-@media (max-width: 700px) {
+/* A control row needs label + slider + numeric entry side by side, which does
+   not fit in the 1fr side column much below a 1000px page. Drop the panel under
+   the stage first; the row itself only stacks at 700px. */
+@media (max-width: 1000px) {
   .demo-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px) {
+  /* The horizontal-scrolling nav strip hid items with no affordance at all;
+     below the breakpoint it becomes a real menu behind the toggle button. */
+  .site-header .inner {
+    flex-wrap: wrap;
+    gap: var(--s3);
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .site-nav {
+    display: none;
+    order: 3;
+    flex: 1 0 100%;
+    flex-direction: column;
+    gap: 0;
+    overflow-x: visible;
+    border-top: 1px solid var(--line);
+    padding-bottom: var(--s2);
+  }
+
+  .site-nav[data-open] {
+    display: flex;
+  }
+
+  .site-nav a {
+    padding: var(--s3) var(--s1);
+    border-bottom: none;
+    border-left: 2px solid transparent;
+    padding-left: var(--s3);
+  }
+
+  .site-nav a[aria-current='true'] {
+    border-bottom-color: transparent;
+    border-left-color: var(--accent);
+  }
+
+  .wordmark {
+    flex: 1;
   }
 
   .control-row {
@@ -924,6 +1030,11 @@ select {
 
   .control-row .readout {
     text-align: left;
+  }
+
+  .control-row .readout-input {
+    text-align: left;
+    width: 100%;
   }
 
   h1 {

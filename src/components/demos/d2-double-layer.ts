@@ -3,25 +3,17 @@ import { css } from '../../lib/colormaps';
 import { gcCapacitance, gouyChapman, solvePNP } from '../../lib/pnp';
 import { thermalVoltage } from '../../lib/constants';
 import {
+  bindParam,
   enablePanel,
   rafDebounce,
   siFormat,
-  sliderToLog,
   type Shell,
 } from './runtime';
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
-  const vSlider = $<HTMLInputElement>('#d2-v');
-  const cSlider = $<HTMLInputElement>('#d2-c0');
-  const lSlider = $<HTMLInputElement>('#d2-L');
-  const tSlider = $<HTMLInputElement>('#d2-T');
   const reset = $<HTMLButtonElement>('#d2-reset');
   const outs = {
-    v: $<HTMLOutputElement>('#d2-v-out'),
-    c0: $<HTMLOutputElement>('#d2-c0-out'),
-    L: $<HTMLOutputElement>('#d2-L-out'),
-    T: $<HTMLOutputElement>('#d2-T-out'),
     lam: $<HTMLOutputElement>('#d2-lambda'),
     cap: $<HTMLOutputElement>('#d2-cap'),
     newton: $<HTMLOutputElement>('#d2-newton'),
@@ -49,16 +41,18 @@ export function init(shell: Shell): void {
   const cNum2 = css('viridis', 0.75);
   const cGC = css('plasma', 0.55);
 
-  const recompute = rafDebounce(() => {
-    const Vapp = Number(vSlider.value) / 1000;
-    const c0 = sliderToLog(Number(cSlider.value), 1, 1000);
-    const L = Number(lSlider.value) * 1e-9;
-    const T = Number(tSlider.value);
+  const rerun = () => recompute();
+  const pV = bindParam(shell, 'd2-v', rerun);
+  const pC0 = bindParam(shell, 'd2-c0', rerun);
+  const pL = bindParam(shell, 'd2-L', rerun);
+  const pT = bindParam(shell, 'd2-T', rerun);
 
-    outs.v.value = `${(Vapp * 1000).toFixed(0)} mV`;
-    outs.c0.value = c0 >= 1 ? `${(c0 / 1000).toPrecision(3)} M` : `${c0.toPrecision(2)} mol/m³`;
-    outs.L.value = `${(L * 1e9).toFixed(0)} nm`;
-    outs.T.value = `${T} K`;
+  const recompute = rafDebounce(() => {
+    const Vapp = pV.value / 1000;
+    // the control is in molar; the solver works in mol/m³
+    const c0 = pC0.value * 1000;
+    const L = pL.value * 1e-9;
+    const T = pT.value;
 
     const sol = solvePNP({ L, c0, epsR: 78.5, T, Vapp, N: 220 });
     const psi0 = Vapp / thermalVoltage(T);
@@ -103,12 +97,8 @@ export function init(shell: Shell): void {
     ]);
   });
 
-  for (const el of [vSlider, cSlider, lSlider, tSlider]) el.addEventListener('input', recompute);
   reset.addEventListener('click', () => {
-    vSlider.value = '100';
-    cSlider.value = '67';
-    lSlider.value = '50';
-    tSlider.value = '298';
+    for (const p of [pV, pC0, pL, pT]) p.reset();
     recompute();
   });
   addEventListener('resize', recompute);

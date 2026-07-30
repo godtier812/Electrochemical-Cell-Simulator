@@ -3,6 +3,7 @@ layout: ../../layouts/DocsLayout.astro
 title: Kinetics
 description: "Butler–Volmer interfacial kinetics: exchange current density, transfer coefficients, Tafel and micro-polarisation limits, and how the boundary condition enters the Newton solve."
 nav: physics
+ogImage: posters/og-physics-kinetics.png
 ---
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
@@ -117,7 +118,7 @@ approximation is trustworthy and the full expression must be used.
 
 ## Numerical treatment
 
-<StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="in-progress" label="Python solver" />
+<StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Python solver: planned" />
 
 In the discretised cell model, Butler–Volmer enters as a nonlinear Robin-type boundary
 condition: the normal ionic flux at the interface is fixed by $j$ through Faraday's law,

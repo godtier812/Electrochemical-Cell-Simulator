@@ -6,6 +6,7 @@ import { impedance, omegaGrid, type CircuitParams } from '../src/lib/eis';
 import { cottrellStep } from '../src/lib/diffusion';
 import { generateRSA, mulberry32, solveTransport } from '../src/lib/microstructure';
 import { debyeLength, thermalVoltage } from '../src/lib/constants';
+import { CELL, ocpGraphite, ocpNMC, simulateDischarge } from '../src/lib/spm';
 
 describe('Bernoulli function', () => {
   it('is smooth through zero and matches the exact form away from it', () => {
@@ -198,5 +199,69 @@ describe('microstructure', () => {
     expect(tr.deffRatio).toBeLessThan(ms.porosity); // transport worse than volume fraction
     expect(tr.deffRatio).toBeGreaterThan(0.05);
     expect(tr.tortuosity).toBeGreaterThan(1);
+  });
+});
+
+describe('single-particle discharge', () => {
+  it('open-circuit potentials fall monotonically across their operating windows', () => {
+    const { neg, pos } = CELL;
+    for (let i = 1; i <= 100; i++) {
+      const xa = neg.x0 + ((neg.x100 - neg.x0) * (i - 1)) / 100;
+      const xb = neg.x0 + ((neg.x100 - neg.x0) * i) / 100;
+      expect(ocpGraphite(xb)).toBeLessThanOrEqual(ocpGraphite(xa) + 1e-9);
+      const ya = pos.y100 + ((pos.y0 - pos.y100) * (i - 1)) / 100;
+      const yb = pos.y100 + ((pos.y0 - pos.y100) * i) / 100;
+      expect(ocpNMC(yb)).toBeLessThanOrEqual(ocpNMC(ya) + 1e-9);
+    }
+  });
+
+  it('rests near 4.2 V charged and near the 2.5 V cut-off discharged', () => {
+    const { neg, pos } = CELL;
+    const full = ocpNMC(pos.y100) - ocpGraphite(neg.x100);
+    const empty = ocpNMC(pos.y0) - ocpGraphite(neg.x0);
+    expect(full).toBeGreaterThan(4.0);
+    expect(full).toBeLessThan(4.3);
+    expect(empty).toBeGreaterThan(2.3);
+    expect(empty).toBeLessThan(2.7);
+  });
+
+  it('counts coulombs: reported capacity equals the integrated current', () => {
+    const run = simulateDischarge({ cRate: 1, T: 298.15, radius: 6e-6 });
+    const tEnd = run.t[run.n - 1];
+    expect(run.capacity).toBeCloseTo((run.current * tEnd) / 3600, 9);
+    // and the delivered energy is consistent with the mean voltage
+    expect(run.energy).toBeCloseTo(run.meanV * run.capacity, 6);
+  });
+
+  it('approaches the open-circuit curve as the rate falls', () => {
+    const slow = simulateDischarge({ cRate: 0.05, T: 298.15, radius: 6e-6 });
+    let worst = 0;
+    for (let i = 0; i < slow.n; i++) worst = Math.max(worst, Math.abs(slow.ocv[i] - slow.v[i]));
+    // at C/20 the only gap left is kinetics and the series drop, both small
+    expect(worst).toBeLessThan(0.05);
+    expect(slow.capacity).toBeGreaterThan(0.97 * slow.capacityNominal);
+  });
+
+  it('loses capacity and mean voltage as the rate rises', () => {
+    const rates = [0.5, 1, 2, 3].map((cRate) => simulateDischarge({ cRate, T: 298.15, radius: 6e-6 }));
+    for (let i = 1; i < rates.length; i++) {
+      expect(rates[i].capacity).toBeLessThan(rates[i - 1].capacity);
+      expect(rates[i].meanV).toBeLessThan(rates[i - 1].meanV);
+    }
+    expect(rates[0].capacity).toBeGreaterThan(0.9 * rates[0].capacityNominal);
+  });
+
+  it('bigger particles discharge less at the same rate', () => {
+    const small = simulateDischarge({ cRate: 2, T: 298.15, radius: 3e-6 });
+    const big = simulateDischarge({ cRate: 2, T: 298.15, radius: 10e-6 });
+    expect(big.capacity).toBeLessThan(small.capacity);
+  });
+
+  it('conserves lithium: capacity never exceeds the limiting electrode', () => {
+    for (const cRate of [0.2, 1, 3]) {
+      const run = simulateDischarge({ cRate, T: 298.15, radius: 6e-6 });
+      expect(run.capacity).toBeLessThanOrEqual(run.capacityNominal * 1.02);
+      expect(run.v[0]).toBeGreaterThan(run.v[run.n - 1]);
+    }
   });
 });

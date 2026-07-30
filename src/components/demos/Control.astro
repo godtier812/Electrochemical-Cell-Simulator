@@ -1,0 +1,75 @@
+---
+/**
+ * One demo parameter: a slider to sweep it and a number input to type an exact
+ * value. The physical range is declared here once and travels to the runtime in
+ * data- attributes (see bindParam in runtime.ts); the slider itself stays in
+ * abstract detents so log-scaled quantities get even travel per decade.
+ *
+ * Put the unit in the label — the number input shows a bare number.
+ */
+interface Props {
+  /** Element id of the slider; the number input becomes `${id}-num`. */
+  id: string;
+  /** Visible label, including units, e.g. "j₀ / A cm⁻²". */
+  label: string;
+  min: number;
+  max: number;
+  /** Initial physical value. */
+  value: number;
+  /** Rounding for typed and dragged values. Omit to leave continuous. */
+  step?: number;
+  scale?: 'linear' | 'log';
+  /**
+   * Slider detents. Defaults to one detent per `step` so a single arrow-key
+   * press moves the value by exactly one step; without that, a fine step on a
+   * 200-detent track means several presses produce no visible change. Log
+   * scales have no step and fall back to a smooth 200.
+   */
+  positions?: number;
+}
+
+const {
+  id,
+  label,
+  min,
+  max,
+  value,
+  step,
+  scale = 'linear',
+  positions = step ? Math.max(1, Math.round((max - min) / step)) : 200,
+} = Astro.props;
+
+const raw =
+  scale === 'log'
+    ? (Math.log10(value) - Math.log10(min)) / (Math.log10(max) - Math.log10(min))
+    : (value - min) / (max - min);
+const initialPosition = Math.round(Math.min(1, Math.max(0, raw)) * positions);
+/** Number inputs reject values off their step grid, so log scales stay free. */
+const numberStep = step === undefined ? 'any' : step;
+---
+
+<div class="control-row" role="group" aria-labelledby={`${id}-label`}>
+  <label id={`${id}-label`} for={id}>{label}</label>
+  <input
+    type="range"
+    id={id}
+    min="0"
+    max={positions}
+    step="1"
+    value={initialPosition}
+    data-min={min}
+    data-max={max}
+    data-scale={scale}
+    data-step={step ?? ''}
+  />
+  <input
+    type="number"
+    class="readout-input"
+    id={`${id}-num`}
+    min={min}
+    max={max}
+    step={numberStep}
+    value={value}
+    aria-label={`${label}, numeric entry`}
+  />
+</div>

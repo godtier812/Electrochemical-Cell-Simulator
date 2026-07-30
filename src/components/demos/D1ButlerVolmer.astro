@@ -1,5 +1,6 @@
 ---
 import DemoShell from '../DemoShell.astro';
+import Control from './Control.astro';
 ---
 
 <DemoShell
@@ -12,26 +13,10 @@ import DemoShell from '../DemoShell.astro';
 >
   <fieldset class="panel" slot="panel" disabled>
     <legend>kinetics</legend>
-    <div class="control-row">
-      <label for="d1-j0">j₀ / A cm⁻²</label>
-      <input type="range" id="d1-j0" min="0" max="100" step="1" value="50" />
-      <output class="readout" id="d1-j0-out" for="d1-j0">1.00e-3</output>
-    </div>
-    <div class="control-row">
-      <label for="d1-aa">α_a</label>
-      <input type="range" id="d1-aa" min="10" max="90" step="1" value="50" />
-      <output class="readout" id="d1-aa-out" for="d1-aa">0.50</output>
-    </div>
-    <div class="control-row">
-      <label for="d1-ac">α_c</label>
-      <input type="range" id="d1-ac" min="10" max="90" step="1" value="50" />
-      <output class="readout" id="d1-ac-out" for="d1-ac">0.50</output>
-    </div>
-    <div class="control-row">
-      <label for="d1-T">T / K</label>
-      <input type="range" id="d1-T" min="250" max="350" step="1" value="298" />
-      <output class="readout" id="d1-T-out" for="d1-T">298 K</output>
-    </div>
+    <Control id="d1-j0" label="j₀ / A cm⁻²" min={1e-6} max={1e-1} value={1e-3} scale="log" />
+    <Control id="d1-aa" label="α_a" min={0.1} max={0.9} value={0.5} step={0.01} />
+    <Control id="d1-ac" label="α_c" min={0.1} max={0.9} value={0.5} step={0.01} />
+    <Control id="d1-T" label="T / K" min={250} max={350} value={298} step={1} />
     <div class="switch-row">
       <label><input type="checkbox" id="d1-lock" checked /> lock α_a + α_c = 1</label>
     </div>

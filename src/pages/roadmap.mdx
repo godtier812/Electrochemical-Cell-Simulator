@@ -1,34 +1,36 @@
 ---
 layout: ../layouts/BaseLayout.astro
 title: Roadmap
-description: What Voltaire ships today, the five-day MVP sprint for the Python package, and the longer research arc — with honest status labels.
+description: What Voltaire ships today, the staged build order for the Python package, and the longer research arc — with honest status labels.
+ogImage: posters/og-roadmap.png
 ---
+import ObfuscatedEmail from '../components/ObfuscatedEmail.astro';
 import 'katex/dist/katex.min.css';
 import StatusBadge from '../components/StatusBadge.astro';
 
 # Roadmap
 
-Shipped today: this website and its five in-browser demos, which implement the project's actual numerics in TypeScript — Scharfetter–Gummel fluxes with damped Newton for Poisson–Nernst–Planck, Tikhonov-regularised NNLS for DRT, RSA microstructure generation with Laplace tortuosity, an explicit phase-field dendrite solver, and Butler–Volmer kinetics — backed by 22 unit tests on the numerical kernels. In development: the Python solver package, which ports the same numerics onto an autodiff core so that one Jacobian $J = \partial R/\partial u$ serves time stepping, impedance, and design sensitivities.
+Shipped today: this website and its demos, which together are an **in-browser solver** — TypeScript implementations of the governing equations, computed client-side with no server behind them, at demo scale in one or two dimensions on fixed configurations rather than as a general-purpose package. It covers Scharfetter–Gummel fluxes with damped Newton for Poisson–Nernst–Planck, Tikhonov-regularised NNLS for DRT, RSA microstructure generation with Laplace tortuosity, an explicit phase-field dendrite model, Butler–Volmer kinetics, and a single-particle discharge, and is covered by unit tests in `tests/`. Planned: the Python solver package, which would port the same equations onto an autodiff core so that one Jacobian $J = \partial R/\partial u$ serves time stepping, impedance, and design sensitivities. None of that Python code exists in this repository yet.
 
 Every item below carries a status badge. "Shipped" means you can run it in your browser right now. "In progress" means code exists and is being ported or extended. "Planned" and "research" mean exactly what they say: not built yet.
 
-## The five-day MVP sprint
+## The MVP build order
 
-The Python MVP is scoped as a five-day sprint. The order is not decoration — each day consumes the residuals and Jacobian structure the previous day built.
+The Python MVP is scoped as five stages. The order is not decoration — each stage consumes the residuals and Jacobian structure the one before it built, which is why they cannot sensibly be done in parallel. No stage carries a date: this is a side project, and a promised date I miss is worth less than a status badge that stays accurate.
 
-1. **Day 1 — 1D transport core.** The Poisson–Nernst–Planck system in one dimension: Scharfetter–Gummel exponential-fitting fluxes on a finite-volume grid, solved implicitly with a damped Newton iteration. These numerics already run in the [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer); the Python port onto the autodiff core is in progress.
-   <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="in-progress" label="Python port" />
+1. **Stage 1 — 1D transport core.** The Poisson–Nernst–Planck system in one dimension: Scharfetter–Gummel exponential-fitting fluxes on a finite-volume grid, solved implicitly with a damped Newton iteration. These numerics already run in the [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer); the Python port onto the autodiff core is in progress.
+   <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Python port: planned" />
 
-2. **Day 2 — Butler–Volmer coupling and thermal block.** Butler–Volmer kinetics as the boundary condition linking electrode potential to interfacial flux, plus an energy balance so overpotential heat feeds back into temperature-dependent parameters. The kinetics are live in the [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer); the thermal block is in progress.
-   <StatusBadge status="shipped" label="kinetics in browser" /> <StatusBadge status="in-progress" label="thermal block" />
+2. **Stage 2 — Butler–Volmer coupling and thermal block.** Butler–Volmer kinetics as the boundary condition linking electrode potential to interfacial flux, plus an energy balance so overpotential heat feeds back into temperature-dependent parameters. The kinetics are live in the [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer); the thermal block is in progress.
+   <StatusBadge status="shipped" label="kinetics in browser" /> <StatusBadge status="planned" label="thermal block: planned" />
 
-3. **Day 3 — frequency-domain EIS and DRT.** Impedance spectra and their inversion to a distribution of relaxation times by Tikhonov-regularised NNLS run in the [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance). The full Jacobian-based path — solving $(i\omega M - J)\hat{u} = \hat{b}$ around a Newton-converged operating point — needs the autodiff core and ships with the Python package.
-   <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="in-progress" label="Jacobian EIS" />
+3. **Stage 3 — frequency-domain EIS and DRT.** Impedance spectra and their inversion to a distribution of relaxation times by Tikhonov-regularised NNLS run in the [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance). The full Jacobian-based path — solving $(i\omega M - J)\hat{u} = \hat{b}$ around a Newton-converged operating point — needs the autodiff core and ships with the Python package.
+   <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Jacobian EIS: planned" />
 
-4. **Day 4 — phase-field dendrites and microstructure.** Explicit phase-field dendrite growth (the animation on the landing page is the solver, not a video) and RSA-packed electrode microstructures whose tortuosity comes from a Laplace solve. Both run in the browser: [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite), [microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure).
-   <StatusBadge status="shipped" label="browser demo" />
+4. **Stage 4 — phase-field dendrites and microstructure.** Explicit phase-field dendrite growth (the animation on the landing page is the in-browser solver computing live, not a video) and RSA-packed electrode microstructures whose tortuosity comes from a Laplace solve. Both run in the browser: [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite), [microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure).
+   <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Python port: planned" />
 
-5. **Day 5 — validation suite and docs.** Gouy–Chapman, Cottrell, and method-of-manufactured-solutions checks run live on the [validation page](/Electrochemical-Cell-Simulator/validation/), comparing the browser solvers against exact analytic results. The PyBaMM P2D comparison has not yet been run and will not be quoted until it has.
+5. **Stage 5 — validation suite and docs.** Gouy–Chapman, Cottrell, and method-of-manufactured-solutions checks run live on the [validation page](/Electrochemical-Cell-Simulator/validation/), comparing the browser solvers against exact analytic results. The PyBaMM P2D comparison has not yet been run and will not be quoted until it has.
    <StatusBadge status="shipped" label="analytic checks" /> <StatusBadge status="planned" label="PyBaMM P2D: not yet run" />
 
 ## The longer arc
@@ -42,6 +44,8 @@ Past the MVP, the plan follows the same spine — one residual, one Jacobian —
 - **Bayesian inverse design** <StatusBadge status="research" /> — infer cell parameters from measured impedance and cycling data with full posterior distributions, using adjoint gradients from $J^\top \lambda = -\partial Q/\partial u$.
 - **Uncertainty quantification** <StatusBadge status="planned" /> — Sobol sensitivity indices and polynomial-chaos expansions to propagate parameter uncertainty through cell-level predictions.
 
-## Follow along
+## Following the project
 
-Development happens in the open. The issue tracker is the roadmap's source of truth — each sprint day and longer-arc item has an issue, and status changes land there first: [github.com/godtier812/Electrochemical-Cell-Simulator/issues](https://github.com/godtier812/Electrochemical-Cell-Simulator/issues). If a badge on this page disagrees with the tracker, the tracker is right and this page needs a fix — [email me](mailto:repaka.ashrith@gmail.com) or open an issue.
+The repository is private while the solver core is being built, so there is no public issue tracker yet and no source to read. That makes this page the status of record: the badges above are what I believe is true, and they are updated as items move. The one place they are checked against something other than my own judgement is the [validation page](/Electrochemical-Cell-Simulator/validation/), where the analytic comparisons recompute in your browser on every visit — a broken claim breaks visibly there.
+
+When the repository is published, this section becomes a link to it and to its issue tracker, and the tracker takes over as the source of truth. Until then, corrections and questions go to <ObfuscatedEmail />.

@@ -19,10 +19,10 @@ update rule at build time.
 
 | Piece | Status |
 | --- | --- |
-| Website with five interactive demos (Butler–Volmer, PNP double layer, phase-field dendrites, EIS + live DRT inversion, microstructure tortuosity) | **Shipped** — the numerics run in your browser, in TypeScript |
-| Numerical kernels (Scharfetter–Gummel + damped Newton PNP, Lawson–Hanson NNLS, Tikhonov DRT, block-tridiagonal solves, RSA + CG tortuosity, explicit phase field) with 22 unit tests | **Shipped** (`src/lib/`, `tests/`) |
+| Website with interactive demos — Butler–Volmer, PNP double layer, phase-field dendrites, EIS + live DRT inversion, microstructure tortuosity, single-particle discharge | **Shipped** — an in-browser solver, in TypeScript, computed client-side |
+| In-browser solver kernels — Scharfetter–Gummel + damped Newton PNP, Lawson–Hanson NNLS, Tikhonov DRT, block-tridiagonal solves, RSA + CG tortuosity, explicit phase field, single-particle discharge — covered by unit tests in `tests/` | **Shipped** (`src/lib/`, `tests/`) |
 | Live validation page: Gouy–Chapman, Cottrell, MMS convergence order, Warburg 45°, DRT recovery — each with its error metric computed in-browser | **Shipped** |
-| Python solver package (`voltaire-echem`) | **In development** — not yet released |
+| Python solver package (`voltaire-echem`) | **Planned** — no Python code in this repository yet |
 | PyBaMM P2D comparison | **Not yet run** |
 
 See the [roadmap](https://godtier812.github.io/Electrochemical-Cell-Simulator/roadmap/)
@@ -73,11 +73,19 @@ tests/            vitest unit tests for the numerics
 
 ```bash
 npm install
-npm test          # 22 numerics tests
+npm test          # numerics, parameter-mapping and registry tests
 npm run dev       # http://localhost:4321/Electrochemical-Cell-Simulator/
-npm run build     # static site in dist/
-npm run posters   # regenerate posters/gallery from the physics (seeded)
+npm run build     # static site in dist/, then the Pagefind search index
+npm run posters   # regenerate posters/gallery/OG cards from the physics (seeded)
 ```
+
+`npm run posters` is **not** run by CI, and its output is committed to
+`public/posters/` and `public/gallery/`. If you change a poster input — the
+physics in `src/lib/`, the generator in `scripts/generate-posters.ts`, or a page
+title that appears on a social card — re-run it and commit the regenerated
+images, or the demo fallbacks and Open Graph previews go stale. The generator is
+seeded, so identical inputs produce byte-identical files and a no-op run leaves
+nothing to commit.
 
 Deployment is GitHub Actions → GitHub Pages on push to `main`
 (`.github/workflows/deploy.yml`).

@@ -1,5 +1,6 @@
 ---
 import DemoShell from '../DemoShell.astro';
+import Control from './Control.astro';
 ---
 
 <DemoShell
@@ -14,26 +15,10 @@ import DemoShell from '../DemoShell.astro';
   <fieldset class="panel" slot="panel" disabled>
     <legend>cell · potentiostat</legend>
     <div class="d4-controls">
-      <div class="control-row">
-        <label for="d2-v">φ applied / mV</label>
-        <input type="range" id="d2-v" min="-300" max="300" step="5" value="100" />
-        <output class="readout" id="d2-v-out" for="d2-v">100 mV</output>
-      </div>
-      <div class="control-row">
-        <label for="d2-c0">c₀ (bulk)</label>
-        <input type="range" id="d2-c0" min="0" max="100" step="1" value="67" />
-        <output class="readout" id="d2-c0-out" for="d2-c0">0.1 M</output>
-      </div>
-      <div class="control-row">
-        <label for="d2-L">gap L / nm</label>
-        <input type="range" id="d2-L" min="20" max="200" step="5" value="50" />
-        <output class="readout" id="d2-L-out" for="d2-L">50 nm</output>
-      </div>
-      <div class="control-row">
-        <label for="d2-T">T / K</label>
-        <input type="range" id="d2-T" min="273" max="350" step="1" value="298" />
-        <output class="readout" id="d2-T-out" for="d2-T">298 K</output>
-      </div>
+      <Control id="d2-v" label="φ applied / mV" min={-300} max={300} value={100} step={5} />
+      <Control id="d2-c0" label="c₀ bulk / M" min={0.001} max={1} value={0.1} scale="log" />
+      <Control id="d2-L" label="gap L / nm" min={20} max={200} value={50} step={5} />
+      <Control id="d2-T" label="T / K" min={273} max={350} value={298} step={1} />
     </div>
     <div class="switch-row">
       <button class="copy-btn" type="button" id="d2-reset">reset</button>

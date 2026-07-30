@@ -12,8 +12,9 @@ import { computeDRT } from '../../lib/drt';
  * browser; nothing is prerecorded.
  */
 export function initValidationPage(root: HTMLElement): void {
+  // Every plot on this page is one computed curve against one analytic
+  // reference, so two colours is the whole palette it needs.
   const cNum = css('viridis', 0.45);
-  const cNum2 = css('viridis', 0.75);
   const cRef = css('plasma', 0.55);
   const set = (id: string, text: string) => {
     const el = root.querySelector(`#${id}`);
