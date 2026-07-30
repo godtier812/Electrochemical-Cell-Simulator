@@ -5,7 +5,7 @@ description: The target public Python API of Voltaire — Cell, Result, Impedanc
 nav: docs
 ogImage: posters/og-docs.png
 ---
-import ObfuscatedEmail from '../../components/ObfuscatedEmail.astro';
+import RepoNote from '../../components/RepoNote.astro';
 
 import StatusBadge from '../../components/StatusBadge.astro';
 
@@ -13,7 +13,7 @@ import StatusBadge from '../../components/StatusBadge.astro';
 
 <StatusBadge status="in-progress" label="design-stage interface" />
 
-The Python package is in development and not yet released. Nothing on this page is
+The Python package is planned and not yet written. Nothing on this page is
 installable today. What follows is the target public interface — the surface the solver is
 being built behind — published now so it can be criticised before it hardens. Where a
 method's numerics already exist, they run in TypeScript in this site's
@@ -294,7 +294,7 @@ today; the signature is here so deployment is designed in rather than bolted on.
 
 ### vt.design
 
-The gradient half of this module rides the solver's adjoint machinery and is in development
+The gradient half of this module rides the solver's adjoint machinery and is planned
 with it; the optimisation loop on top is planned and unstarted.
 
 ```python
@@ -353,8 +353,7 @@ parameter list should be short.
 
 Nothing on this page is frozen. Signatures, defaults and return types may all change before
 the first release, and the cheapest time to change them is now — objections and better
-ideas go to <ObfuscatedEmail />, since the
-repository is not public yet and there is no issue tracker to file them on. Two
+<RepoNote kind="feedback" />. Two
 things will not change: every argument keeps a documented unit, and every numerical claim
 made for this API stays within what the
 [browser demos](/Electrochemical-Cell-Simulator/demos/) or analytic solutions on the

@@ -5,6 +5,7 @@ description: How Voltaire models ion transport — Nernst–Planck, concentrated
 nav: physics
 ogImage: posters/og-physics-transport.png
 ---
+import RepoNote from '../../components/RepoNote.astro';
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
@@ -57,7 +58,7 @@ and the current density obeys a modified Ohm's law in which a concentration grad
 
 <Equation id="eq-newman-current" latex="\mathbf{i} = -\kappa \nabla \phi_2 + \frac{2 \kappa R T}{F} \left( 1 - t_+^0 \right) \left( 1 + \frac{\partial \ln f_\pm}{\partial \ln c} \right) \nabla \ln c" caption="MacInnes equation: ohmic conduction plus the concentration-driven diffusion potential." />
 
-The thermodynamic factor $(1 + \partial \ln f_\pm / \partial \ln c)$ corrects the driving force from concentration to activity, and $t_+^0(c)$ enters both equations as a measured, concentration-dependent property rather than a constant. These two functions plus $D(c)$ and $\kappa(c)$ are exactly the four properties a full cell model needs from electrolyte characterisation. This module is part of the Python solver, which is in development and not yet publicly released; the browser demos implement the dilute and PNP models below.
+The thermodynamic factor $(1 + \partial \ln f_\pm / \partial \ln c)$ corrects the driving force from concentration to activity, and $t_+^0(c)$ enters both equations as a measured, concentration-dependent property rather than a constant. These two functions plus $D(c)$ and $\kappa(c)$ are exactly the four properties a full cell model needs from electrolyte characterisation. This module is part of the Python solver, which is planned and not yet written; the browser demos implement the dilute and PNP models below.
 
 <SymbolTable rows={[
   { s: '\\mu_i', meaning: 'chemical potential of species i', units: 'J/mol' },
@@ -136,4 +137,4 @@ Two checks are live today. The equilibrium PNP solution for a 1:1 electrolyte ag
 
 ## Try it in the browser
 
-The [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) solves the full PNP system with the Scharfetter–Gummel flux and damped Newton, in TypeScript, in your browser — the same numerics described on this page, not an animation of them. Adjust $c_0$ and watch $\lambda_D$ move; the readout reports it in nanometres. The implementation is not published yet — the repository opens once the Python core is further along — but the scheme it runs is the one written out above, and the [validation page](/Electrochemical-Cell-Simulator/validation/) checks it against the analytic Gouy–Chapman profile while you watch.
+The [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) solves the full PNP system with the Scharfetter–Gummel flux and damped Newton, in TypeScript, in your browser — the same numerics described on this page, not an animation of them. Adjust $c_0$ and watch $\lambda_D$ move; the readout reports it in nanometres. <RepoNote kind="source" /> — but the scheme it runs is the one written out above, and the [validation page](/Electrochemical-Cell-Simulator/validation/) checks it against the analytic Gouy–Chapman profile while you watch.

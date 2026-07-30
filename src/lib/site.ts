@@ -19,11 +19,25 @@ export const SITE = {
 } as const;
 
 /**
- * The repository is private while the solver is in development, so every link
- * to SITE.github would be a 404 for a visitor. Gate repository affordances —
- * the header icon, the footer links, the docs edit link, JSON-LD
- * codeRepository — on this flag rather than hard-coding the URL. Flip to true
- * when the repo is published and they all come back at once.
+ * Whether the GitHub repository is publicly readable.
+ *
+ * The repository is private while the project is being built, so every link to
+ * SITE.github would be a 404 for a visitor, and any sentence promising source
+ * to read would be false. Both are gated on this flag: the repository
+ * affordances (header icon, footer links, docs edit link, JSON-LD
+ * codeRepository) and every sentence whose truth depends on visibility, which
+ * lives in components/RepoNote.astro with both variants side by side.
+ *
+ * GOING PUBLIC — the whole checklist:
+ *   1. Flip this to true.
+ *   2. Uncomment `repository-code` in CITATION.cff. It is static YAML that no
+ *      build step templates, so it is the one thing this flag cannot reach.
+ *   3. Change the repository's visibility on GitHub.
+ * Nothing else. `npm run build` then `python3 scripts/check-links.py` will
+ * confirm; the prose flips with the flag and needs no editing.
+ *
+ * GitHub Pages already serves this site publicly from the private repository
+ * (Pro and above), so going public changes nothing about deployment.
  */
 export const REPO_PUBLIC: boolean = false;
 

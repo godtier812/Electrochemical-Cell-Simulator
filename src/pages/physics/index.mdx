@@ -12,7 +12,7 @@ import StatusBadge from '../../components/StatusBadge.astro';
 
 # Physics
 
-Voltaire treats an electrochemical cell as one coupled nonlinear system, not a chain of separate solvers. Every model below discretises to a residual $R(u) = 0$ on the same state vector, and one autodiff Jacobian $J = \partial R / \partial u$ is consumed three ways: damped Newton for time stepping, the frequency-domain impedance solve $(i\omega M - J)\hat{u} = \hat{b}$, and adjoint sensitivities $J^\top \lambda = -\partial Q / \partial u$ for design. The status labels are literal. Shipped means the numerics run today, in TypeScript, in this site's [browser demos](/Electrochemical-Cell-Simulator/demos/); the Python solver package is in development and not yet released. Each section links to a sub-page with the derivation, discretisation, and validation.
+Voltaire treats an electrochemical cell as one coupled nonlinear system, not a chain of separate solvers. Every model below discretises to a residual $R(u) = 0$ on the same state vector, and one autodiff Jacobian $J = \partial R / \partial u$ is consumed three ways: damped Newton for time stepping, the frequency-domain impedance solve $(i\omega M - J)\hat{u} = \hat{b}$, and adjoint sensitivities $J^\top \lambda = -\partial Q / \partial u$ for design. The status labels are literal. Shipped means the numerics run today, in TypeScript, in this site's [browser demos](/Electrochemical-Cell-Simulator/demos/); the Python solver package is planned and not yet written. Each section links to a sub-page with the derivation, discretisation, and validation.
 
 ## Transport
 
@@ -58,7 +58,7 @@ Metal electrodes fail by growing dendrites, and sharp-interface methods struggle
 
 <StatusBadge status="planned" label="solver: planned" />
 
-Cells heat themselves. The energy balance collects three sources: irreversible heat from reaction overpotential, reversible entropic heat proportional to the temperature derivative of the open-circuit potential, and ohmic (Joule) heat from current through finite conductivity. The entropic term can change sign with state of charge, which is why some cells briefly cool on charge. Temperature is not a passive output — it feeds back into every rate parameter, as described under coupling below. The thermal model is part of the solver in development; there is no browser demo. Formulation on the [thermal page](/Electrochemical-Cell-Simulator/physics/thermal/).
+Cells heat themselves. The energy balance collects three sources: irreversible heat from reaction overpotential, reversible entropic heat proportional to the temperature derivative of the open-circuit potential, and ohmic (Joule) heat from current through finite conductivity. The entropic term can change sign with state of charge, which is why some cells briefly cool on charge. Temperature is not a passive output — it feeds back into every rate parameter, as described under coupling below. The thermal model is part of the planned solver; there is no browser demo. Formulation on the [thermal page](/Electrochemical-Cell-Simulator/physics/thermal/).
 
 <Equation id="eq-heat" latex="\rho c_p \frac{\partial T}{\partial t} = \nabla \cdot (k \nabla T) + j \left( \eta + T \frac{\partial U}{\partial T} \right) + \sigma_{\mathrm{eff}} \, |\nabla \phi|^2" caption="Energy balance: conduction plus irreversible, reversible, and ohmic heat sources." />
 

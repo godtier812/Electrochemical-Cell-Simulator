@@ -4,7 +4,7 @@ title: Roadmap
 description: What Voltaire ships today, the staged build order for the Python package, and the longer research arc — with honest status labels.
 ogImage: posters/og-roadmap.png
 ---
-import ObfuscatedEmail from '../components/ObfuscatedEmail.astro';
+import RepoNote from '../components/RepoNote.astro';
 import 'katex/dist/katex.min.css';
 import StatusBadge from '../components/StatusBadge.astro';
 
@@ -46,6 +46,6 @@ Past the MVP, the plan follows the same spine — one residual, one Jacobian —
 
 ## Following the project
 
-The repository is private while the solver core is being built, so there is no public issue tracker yet and no source to read. That makes this page the status of record: the badges above are what I believe is true, and they are updated as items move. The one place they are checked against something other than my own judgement is the [validation page](/Electrochemical-Cell-Simulator/validation/), where the analytic comparisons recompute in your browser on every visit — a broken claim breaks visibly there.
+<RepoNote kind="statusOfRecord" />
 
-When the repository is published, this section becomes a link to it and to its issue tracker, and the tracker takes over as the source of truth. Until then, corrections and questions go to <ObfuscatedEmail />.
+<RepoNote kind="follow" />

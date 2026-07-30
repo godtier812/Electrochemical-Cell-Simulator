@@ -28,7 +28,7 @@ update rule at build time.
 See the [roadmap](https://godtier812.github.io/Electrochemical-Cell-Simulator/roadmap/)
 for the full status board.
 
-## Quickstart (target API, in development)
+## Quickstart (target API, not yet implemented)
 
 ```python
 import voltaire as vt

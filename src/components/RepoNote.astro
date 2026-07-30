@@ -1,0 +1,160 @@
+---
+/**
+ * Every sentence on the site whose truth depends on whether the repository is
+ * public, in one place, with both variants side by side.
+ *
+ * These were previously hardcoded across eight files, which meant flipping
+ * REPO_PUBLIC produced a site that linked to GitHub while still insisting the
+ * repository was private. Now the flag is the only thing that changes.
+ *
+ * This is a component rather than a table of strings because several of these
+ * sentences carry links, and a plain string cannot.
+ *
+ * Adding a variant: put both halves here, never at the call site.
+ */
+import { REPO_PUBLIC, SITE } from '../lib/site';
+import ObfuscatedEmail from './ObfuscatedEmail.astro';
+
+interface Props {
+  kind:
+    | 'source' // where the code behind a browser demo lives
+    | 'shader' // same, for the GLSL specifically
+    | 'feedback' // how to send a correction or an objection
+    | 'contact' // the licence-and-contact line in the docs
+    | 'citation' // why the citation points where it does
+    | 'provenance' // whether a commit hash is quotable
+    | 'packageRepo' // status of the Python package's repository
+    | 'statusOfRecord' // how the roadmap is kept honest
+    | 'follow' // what the roadmap's follow section points at
+    | 'installIntro'; // preamble to the from-source install steps
+}
+
+const { kind } = Astro.props;
+const repo = SITE.github;
+const issues = `${SITE.github}/issues`;
+---
+
+{
+  kind === 'source' &&
+    (REPO_PUBLIC ? (
+      <>
+        The implementation is <a href={repo} rel="noopener">on GitHub</a>
+      </>
+    ) : (
+      <>The implementation is not published yet — the repository opens once the project is further along</>
+    ))
+}{
+  kind === 'shader' &&
+    (REPO_PUBLIC ? (
+      <>
+        The GLSL shader is <a href={repo} rel="noopener">in the repository</a>.
+      </>
+    ) : (
+      <>The GLSL shader is not published yet; the repository opens once the project is further along.</>
+    ))
+}{
+  kind === 'feedback' &&
+    (REPO_PUBLIC ? (
+      <>
+        objections and better ideas go to <a href={issues} rel="noopener">the issue tracker</a>
+      </>
+    ) : (
+      <>
+        objections and better ideas go to <ObfuscatedEmail />, since the repository is not public yet
+        and there is no issue tracker to file them on
+      </>
+    ))
+}{
+  kind === 'contact' &&
+    (REPO_PUBLIC ? (
+      <>
+        Questions and bug reports: <ObfuscatedEmail />, or{' '}
+        <a href={issues} rel="noopener">open an issue</a>.
+      </>
+    ) : (
+      <>
+        Questions and bug reports: <ObfuscatedEmail />. There is no public issue tracker yet.
+      </>
+    ))
+}{
+  kind === 'citation' &&
+    (REPO_PUBLIC ? (
+      <>
+        The citation below points at the site, which is the version a reader of your paper can open
+        without cloning anything; the <a href={repo} rel="noopener">repository</a> carries the source.
+      </>
+    ) : (
+      <>
+        The repository is still private, so the citation below points at the site itself — the only
+        version of the work a reader of your paper can actually open.
+      </>
+    ))
+}{
+  kind === 'provenance' &&
+    (REPO_PUBLIC ? (
+      <>
+        Because the project is under active development, results can change between commits. If
+        reproducibility matters for your use, record the commit hash you ran against alongside the
+        citation.
+      </>
+    ) : (
+      <>
+        Because the project is under active development, results can change. The repository is
+        private, so there is no commit hash you can quote yet; if reproducibility matters for your
+        use, record the date you ran the demos and email me — I can tell you what was deployed that
+        day.
+      </>
+    ))
+}{
+  kind === 'packageRepo' &&
+    (REPO_PUBLIC ? (
+      <>its progress is tracked on the</>
+    ) : (
+      <>its repository is private for now, and its progress is tracked on the</>
+    ))
+}{
+  kind === 'statusOfRecord' &&
+    (REPO_PUBLIC ? (
+      <>
+        The <a href={issues} rel="noopener">issue tracker</a> is the source of truth for status; this
+        page is the readable summary of it. Both are checked against something other than my own
+        judgement in one place — the{' '}
+        <a href="/Electrochemical-Cell-Simulator/validation/">validation page</a>, where the analytic
+        comparisons recompute in your browser on every visit, so a broken claim breaks visibly.
+      </>
+    ) : (
+      <>
+        The repository is private while the solver core is being built, so there is no public issue
+        tracker yet and no source to read. That makes this page the status of record: the badges
+        above are what I believe is true, and they are updated as items move. The one place they are
+        checked against something other than my own judgement is the{' '}
+        <a href="/Electrochemical-Cell-Simulator/validation/">validation page</a>, where the analytic
+        comparisons recompute in your browser on every visit — a broken claim breaks visibly there.
+      </>
+    ))
+}{
+  kind === 'follow' &&
+    (REPO_PUBLIC ? (
+      <>
+        Development happens in <a href={repo} rel="noopener">the repository</a>; status changes land
+        in <a href={issues} rel="noopener">its issue tracker</a> first, and it wins over this page
+        if the two disagree. Corrections and questions also reach me at <ObfuscatedEmail />.
+      </>
+    ) : (
+      <>
+        When the repository is published, this section becomes a link to it and to its issue tracker,
+        and the tracker takes over as the source of truth. Until then, corrections and questions go
+        to <ObfuscatedEmail />.
+      </>
+    ))
+}{
+  kind === 'installIntro' &&
+    (REPO_PUBLIC ? (
+      <>The supported route is an editable install into a fresh virtual environment.</>
+    ) : (
+      <>
+        When the repository is public, the supported route will be an editable install into a fresh
+        virtual environment.
+      </>
+    ))
+}

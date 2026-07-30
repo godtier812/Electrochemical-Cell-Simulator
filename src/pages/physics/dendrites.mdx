@@ -5,13 +5,14 @@ description: Phase-field model of metal dendrite growth — electrochemically dr
 nav: physics
 ogImage: posters/og-physics-dendrites.png
 ---
+import RepoNote from '../../components/RepoNote.astro';
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
 
 <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Python module: planned" />
 
-Metal plated back onto an electrode does not always plate flat. Past a critical current density the deposit roughens, throws out needles, and eventually branches into the tree-like structures that pierce separators and short cells. Voltaire models this with a phase-field method: the deposit is not a tracked boundary but a field, and the branching comes out of the equations rather than being put in by hand. The TypeScript/WebGL2 implementation described below runs live in the [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite); the Python module is in development.
+Metal plated back onto an electrode does not always plate flat. Past a critical current density the deposit roughens, throws out needles, and eventually branches into the tree-like structures that pierce separators and short cells. Voltaire models this with a phase-field method: the deposit is not a tracked boundary but a field, and the branching comes out of the equations rather than being put in by hand. The TypeScript/WebGL2 implementation described below runs live in the [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite); the Python module is planned.
 
 ## Diffuse-interface picture
 
@@ -110,4 +111,4 @@ The sink term $-\lambda\, \partial \xi / \partial t$ consumes cations exactly wh
 
 ## Try it
 
-The [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) runs this model at interactive rates. Vary the overpotential and the anisotropy strength $\delta$ and watch the morphology respond; the mossy–needle–branched progression appears within seconds of a parameter change. The GLSL shader is not published yet; the repository opens once the Python core is further along. The co-evolved concentration field is a reduced form of the full [transport model](/Electrochemical-Cell-Simulator/physics/transport/), and the reaction bracket is the Butler–Volmer expression derived on the [kinetics page](/Electrochemical-Cell-Simulator/physics/kinetics/).
+The [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) runs this model at interactive rates. Vary the overpotential and the anisotropy strength $\delta$ and watch the morphology respond; the mossy–needle–branched progression appears within seconds of a parameter change. <RepoNote kind="shader" /> The co-evolved concentration field is a reduced form of the full [transport model](/Electrochemical-Cell-Simulator/physics/transport/), and the reaction bracket is the Butler–Volmer expression derived on the [kinetics page](/Electrochemical-Cell-Simulator/physics/kinetics/).

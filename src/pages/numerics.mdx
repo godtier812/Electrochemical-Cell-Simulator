@@ -5,6 +5,7 @@ description: How Voltaire turns the PNP equations into linear algebra — nondim
 nav: physics
 ogImage: posters/og-numerics.png
 ---
+import RepoNote from '../components/RepoNote.astro';
 import Equation from '../components/Equation.astro';
 import SymbolTable from '../components/SymbolTable.astro';
 import StatusBadge from '../components/StatusBadge.astro';
@@ -124,4 +125,4 @@ The demos on this site are not mock-ups; they implement the numerics above in Ty
 
 The [validation page](/Electrochemical-Cell-Simulator/validation/) includes a method-of-manufactured-solutions convergence check that runs live: it solves on a sequence of refined meshes against a known analytic solution and measures the observed order of accuracy in front of you, rather than quoting a number from a run you cannot see.
 
-The DAE time integrator, autodiff Jacobian, EIS solve and adjoint belong to the Python package, which is in development and not yet released; its repository is private for now, and its progress is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/).
+The DAE time integrator, autodiff Jacobian, EIS solve and adjoint belong to the Python package, which is planned and not yet written; <RepoNote kind="packageRepo" /> [roadmap](/Electrochemical-Cell-Simulator/roadmap/).

@@ -1,11 +1,12 @@
 ---
 layout: ../../layouts/DocsLayout.astro
 title: Install
-description: How to get Voltaire — the browser demos that run today, and the from-source install route for the Python package in development.
+description: How to get Voltaire — the browser demos that run today, and the from-source install route for the planned Python package.
 nav: docs
 ogImage: posters/og-docs.png
 ---
-import ObfuscatedEmail from '../../components/ObfuscatedEmail.astro';
+import RepoNote from '../../components/RepoNote.astro';
+import { REPO_PUBLIC } from '../../lib/site';
 import StatusBadge from '../../components/StatusBadge.astro';
 import { DEMOS } from '../../lib/demos';
 
@@ -13,7 +14,7 @@ import { DEMOS } from '../../lib/demos';
 
 <StatusBadge status="planned" label="Python package: planned" /> <StatusBadge status="planned" label="voltaire-echem on PyPI" />
 
-The Voltaire Python package is in development and is not on PyPI. There is nothing to `pip install` today, and any package you find under a similar name is not this project. The planned distribution name is `voltaire-echem`; when it ships, this page becomes a one-line install.
+The Voltaire Python package is planned and is not on PyPI. There is nothing to `pip install` today, and any package you find under a similar name is not this project. The planned distribution name is `voltaire-echem`; when it ships, this page becomes a one-line install.
 
 What is real and running right now is this site and its demos. They are not videos or mock-ups, and they are not a front end over a backend: they are a self-contained **in-browser solver** — TypeScript implementations of the governing equations, computed on your own machine, at demo scale in one or two dimensions on fixed configurations rather than as a general-purpose package.
 
@@ -33,9 +34,9 @@ If you are deciding whether the methods hold up before the package exists, start
 
 ## Install from source
 
-<StatusBadge status="in-progress" label="repository not yet public" />
+{!REPO_PUBLIC && <StatusBadge status="in-progress" label="repository not yet public" />}
 
-When the repository is public, the supported route is an editable install into a fresh virtual environment.
+<RepoNote kind="installIntro" />
 
 ### Requirements
 
@@ -80,6 +81,6 @@ The planned release command is `pip install voltaire-echem`. It does not work ye
 
 ## Licence and contact
 
-Voltaire is MIT-licensed. Questions and bug reports: <ObfuscatedEmail />, or open an issue on GitHub once the repository is public.
+Voltaire is MIT-licensed. <RepoNote kind="contact" />
 
 Next: the [quickstart](/Electrochemical-Cell-Simulator/docs/quickstart/) shows the API the package is being built to.

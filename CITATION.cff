@@ -6,9 +6,12 @@ authors:
   - family-names: Repaka
     given-names: Ashrith
     email: repaka.ashrith@gmail.com
-# repository-code is intentionally omitted while the repository is private —
-# a citation must not point at a URL the reader cannot open. Restore it when
-# the repo is published (see REPO_PUBLIC in src/lib/site.ts).
+# GOING PUBLIC: uncomment the next line. It is step 2 of the checklist beside
+# REPO_PUBLIC in src/lib/site.ts, and the only one the flag cannot do for you —
+# this file is static YAML that no build step templates. Until then the line
+# stays commented, because a citation must not point at a URL the reader cannot
+# open; `url` below is the site, which is public either way.
+# repository-code: "https://github.com/godtier812/Electrochemical-Cell-Simulator"
 url: "https://godtier812.github.io/Electrochemical-Cell-Simulator/"
 license: MIT
 year-original: 2026

@@ -4,11 +4,12 @@ title: Cite
 description: How to cite Voltaire, the licence it ships under, and the prior work its formulations and figures depend on.
 ogImage: posters/og-cite.png
 ---
+import RepoNote from '../components/RepoNote.astro';
 import ObfuscatedEmail from '../components/ObfuscatedEmail.astro';
 
 # Cite
 
-If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos/), or its write-ups contributed to your work, cite the software. One honest caveat first: the Python solver package is in development and not yet released. What exists today is this site and its in-browser demos, which implement the numerics in TypeScript. The repository is still private, so the citation below points at the site itself — the only version of the work a reader of your paper can actually open.
+If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos/), or its write-ups contributed to your work, cite the software. One honest caveat first: the Python solver package is planned and not yet written. What exists today is this site and its in-browser demos, which implement the numerics in TypeScript. <RepoNote kind="citation" />
 
 ## BibTeX
 
@@ -24,7 +25,7 @@ If Voltaire's methods, its [browser demos](/Electrochemical-Cell-Simulator/demos
 
 A `CITATION.cff` file ships alongside the source and carries the same metadata, so once the repository is public GitHub's "Cite this repository" button will produce this entry in BibTeX or APA form without any copying from this page. Until then, the block above is the canonical form.
 
-Because the project is under active development, results can change. The repository is private, so there is no commit hash you can quote yet; if reproducibility matters for your use, record the date you ran the demos and email me — I can tell you what was deployed that day.
+<RepoNote kind="provenance" />
 
 ## Licence
 
