@@ -50,6 +50,17 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
     <article class="prose">
       <span class="overline">Evidence</span>
       <h1>Validation</h1>
+      {/* Filled in by validation-page.ts once every check below has run. The
+          no-JS text is what it says, not a result: nothing has been computed. */}
+      <div class="vp-summary" id="vp-summary" data-state="pending" role="status" aria-live="polite">
+        <span class="vp-summary-mark" aria-hidden="true"></span>
+        <span class="vp-summary-text" id="vp-summary-text"
+          >Running the checks below in your browser…<noscript
+            >JavaScript is off, so nothing on this page has been computed and there is no result
+            to report.</noscript
+          ></span
+        >
+      </div>
       <p>
         A solver you cannot check is a random number generator with good typography. This page
         holds the checks. Every plot below is computed in your browser when the page loads —
@@ -219,6 +230,55 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
     font-size: var(--text-sm);
     color: var(--badge-shipped-fg);
     margin-top: var(--s3);
+  }
+
+  /* ---------- live summary ---------- */
+
+  .vp-summary {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    border: 1px solid var(--line-strong);
+    border-left-width: 3px;
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    padding: var(--s3) var(--s4);
+    margin: var(--s5) 0 var(--s6);
+    max-width: var(--measure);
+  }
+
+  .vp-summary-mark {
+    flex: none;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    margin-top: 0.45em;
+    background: var(--fg-muted);
+  }
+
+  .vp-summary[data-state='pass'] {
+    border-left-color: var(--check-pass-fg);
+  }
+
+  .vp-summary[data-state='pass'] .vp-summary-mark {
+    background: var(--check-pass-fg);
+  }
+
+  /* A failure has to be impossible to skim past, hence the weight change. */
+  .vp-summary[data-state='fail'] {
+    border-left-color: var(--check-fail-fg);
+  }
+
+  .vp-summary[data-state='fail'] .vp-summary-mark {
+    background: var(--check-fail-fg);
+  }
+
+  .vp-summary[data-state='fail'] .vp-summary-text {
+    color: var(--check-fail-fg);
+    font-weight: 500;
   }
 </style>
 

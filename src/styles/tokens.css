@@ -79,6 +79,10 @@ html[data-theme='light'] {
   --badge-progress-fg: #1e5f72;
   --badge-planned-fg: #46525e;
   --badge-research-fg: var(--viridis-purple);
+  /* Validation summary. Pass reuses the shipped-badge green; fail is the only
+     red on the site, reserved for a check that actually failed. 6.5:1 on white. */
+  --check-pass-fg: var(--badge-shipped-fg);
+  --check-fail-fg: #b3261e;
   --plot-grid: #dde3e9;
   --plot-axis: #46525e;
   --kbd-bg: #e9edf1;
@@ -102,6 +106,8 @@ html[data-theme='dark'] {
   --badge-progress-fg: #58b7cf;
   --badge-planned-fg: #9aa7b4;
   --badge-research-fg: #b58fd4;
+  --check-pass-fg: var(--badge-shipped-fg);
+  --check-fail-fg: #ff8a80; /* 7.7:1 on carbon */
   --plot-grid: #232b35;
   --plot-axis: #9aa7b4;
   --kbd-bg: #1d242e;
