@@ -36,7 +36,7 @@ The stiffness that survives scaling is physical, not unit-borne: $\lambda_D/L$ i
 
 The scaled Nernst–Planck flux is discretised on cell faces with the exponentially fitted scheme of Scharfetter and Gummel (1969), originally built for semiconductor device simulation — the same drift–diffusion structure:
 
-<Equation id="eq-sg" latex="J_{i+1/2} = \frac{D}{h}\Big[\, B(-\Delta\psi)\, C_{i+1} - B(\Delta\psi)\, C_i \,\Big], \qquad B(x) = \frac{x}{e^{x} - 1}" caption="Scharfetter–Gummel face flux with the Bernoulli weighting function." />
+<Equation id="eq-sg" latex="J_{i+1/2} = \frac{D}{h}\Big[\, B(\Delta\psi)\, C_i - B(-\Delta\psi)\, C_{i+1} \,\Big], \qquad B(x) = \frac{x}{e^{x} - 1}" caption="Scharfetter–Gummel face flux with the Bernoulli weighting function. Setting Δψ = 0 gives B = 1 on both terms and recovers Fick's law, (D/h)(C_i − C_{i+1}): flux down the gradient." />
 
 Here $\Delta\psi = z\,(\psi_{i+1} - \psi_i)$ is the potential drop across the cell in thermal units, signed by the species charge. Between two nodes the scheme solves the local two-point problem — constant flux, linear potential — exactly; the Bernoulli weights are that exact solution, which is why the method tolerates coarse cells in the bulk without losing the profile shape.
 

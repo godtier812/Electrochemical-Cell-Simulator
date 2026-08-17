@@ -1,6 +1,7 @@
 import { fieldToRGBA } from '../../lib/colormaps';
 import {
   generateRSA,
+  mulberry32,
   solveTransport,
   streamline,
   type Microstructure,
@@ -19,9 +20,12 @@ export function init(shell: Shell): void {
     measEps: $<HTMLOutputElement>('#d5-meas-eps'),
     deff: $<HTMLOutputElement>('#d5-deff'),
     brugg: $<HTMLOutputElement>('#d5-brugg'),
+    maxwell: $<HTMLOutputElement>('#d5-maxwell'),
     tort: $<HTMLOutputElement>('#d5-tort'),
     tortB: $<HTMLOutputElement>('#d5-tort-brugg'),
+    sat: $<HTMLOutputElement>('#d5-sat'),
   };
+  const satNote = $<HTMLSpanElement>('#d5-sat-note');
 
   const canvas = createCanvas(
     shell,
@@ -46,12 +50,16 @@ export function init(shell: Shell): void {
     const norm = new Float64Array(NX * NY);
     for (let i = 0; i < NX * NY; i++) norm[i] = isNaN(tr.u[i]) ? 0 : tr.u[i];
     fieldToRGBA('viridis', Float64Array.from(norm), rgba as unknown as Uint8ClampedArray);
+    // Blend by pore fraction rather than switching on a binary flag: a cell the
+    // particle boundary cuts through is part solid, and drawing it as one or the
+    // other is the same rounding the solver no longer does.
     for (let i = 0; i < NX * NY; i++) {
-      if (!ms.pore[i]) {
-        rgba[i * 4] = solidCol[0];
-        rgba[i * 4 + 1] = solidCol[1];
-        rgba[i * 4 + 2] = solidCol[2];
-      }
+      const a = ms.phi[i];
+      if (a >= 1) continue;
+      const s = 1 - a;
+      rgba[i * 4] = Math.round(rgba[i * 4] * a + solidCol[0] * s);
+      rgba[i * 4 + 1] = Math.round(rgba[i * 4 + 1] * a + solidCol[1] * s);
+      rgba[i * 4 + 2] = Math.round(rgba[i * 4 + 2] * a + solidCol[2] * s);
     }
     offCtx.putImageData(img, 0, 0);
 
@@ -85,6 +93,15 @@ export function init(shell: Shell): void {
     }
   };
 
+  /**
+   * The packing seed is held across slider moves so that changing porosity,
+   * radius or polydispersity varies that one parameter against a fixed draw.
+   * Reseeding on every move changed the structure and the parameter together,
+   * which makes the comparison the demo exists for impossible to read. A new
+   * draw is what the "new packing" button is for.
+   */
+  let seed = (Math.random() * 0x100000000) >>> 0;
+
   const rerun = () => regenerate();
   const pEps = bindParam(shell, 'd5-eps', rerun);
   const pR = bindParam(shell, 'd5-r', rerun);
@@ -95,7 +112,7 @@ export function init(shell: Shell): void {
     const radius = pR.value;
     const spread = pS.value / 100;
 
-    ms = generateRSA({ nx: NX, ny: NY, solidFraction: solidTarget, radius, spread });
+    ms = generateRSA({ nx: NX, ny: NY, solidFraction: solidTarget, radius, spread, rng: mulberry32(seed) });
     tr = solveTransport(ms);
 
     outs.measEps.value = ms.porosity.toFixed(3);
@@ -107,12 +124,21 @@ export function init(shell: Shell): void {
       outs.tort.value = tr.tortuosity.toFixed(2);
     }
     outs.brugg.value = tr.bruggemanRatio.toFixed(3);
+    outs.maxwell.value = tr.maxwell2dRatio.toFixed(3);
     outs.tortB.value = Math.pow(ms.porosity, -0.5).toFixed(2);
+
+    // The slider asks for a target porosity; RSA cannot always reach it. Say so
+    // with the value actually attained rather than letting the control look dead.
+    satNote.hidden = !ms.saturated;
+    if (ms.saturated) outs.sat.value = `ε cannot go below ${ms.porosity.toFixed(3)} at this radius and polydispersity`;
     render();
   });
 
   linesToggle.addEventListener('change', render);
-  reseed.addEventListener('click', regenerate);
+  reseed.addEventListener('click', () => {
+    seed = (seed + 0x9e3779b9) >>> 0; // golden-ratio step: well spread, no state beyond the seed
+    regenerate();
+  });
   addEventListener('resize', () => render());
   addEventListener('voltaire-theme', () => render());
 

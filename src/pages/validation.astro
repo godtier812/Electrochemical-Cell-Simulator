@@ -154,8 +154,13 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
       <h2>5 · DRT recovery of a known circuit</h2>
       <p class="prose">
         Feed the Tikhonov-NNLS inversion a spectrum whose answer is known — a single RC arc —
-        and it must return one peak at τ = R<sub>ct</sub>C<sub>dl</sub> whose area integrates
-        to R<sub>ct</sub>. This exercises the regularised least-squares machinery end to end.
+        and it must return one peak at τ = R<sub>ct</sub>C<sub>dl</sub>. γ is reported as a
+        density in ln τ, so the area under the curve is R<sub>ct</sub> however finely the τ
+        axis is sampled — refining from 30 bins to 240 moves it from 25.14 Ω to 25.02 Ω. The
+        <em>height</em> of the peak is not a grid-independent quantity and should not be read
+        as one: the true distribution for a single RC arc is a spike of zero width, so a finer
+        grid resolves it taller and narrower while the area holds. This exercises the
+        regularised least-squares machinery end to end.
       </p>
       <div class="vp-stage"><canvas id="vp-drt" role="img" aria-label="Distribution of relaxation times: a single recovered peak aligned with the true RC time constant marker"></canvas></div>
       <p class="vp-metric" id="vp-drt-err">computing…</p>

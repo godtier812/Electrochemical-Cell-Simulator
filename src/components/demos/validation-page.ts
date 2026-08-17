@@ -185,9 +185,10 @@ export function initValidationPage(root: HTMLElement): void {
     const drt = computeDRT(omega, Z, { nTau: 60, lambda: 1e-3 });
     let peakTau = 0;
     let peakVal = 0;
-    let sum = 0;
+    // gamma is a density in ln τ, so the resistance is the integral, not the sum
+    let area = 0;
     for (let k = 0; k < drt.tau.length; k++) {
-      sum += drt.gamma[k];
+      area += drt.gamma[k] * drt.dlnTau;
       if (drt.gamma[k] > peakVal) {
         peakVal = drt.gamma[k];
         peakTau = drt.tau[k];
@@ -200,15 +201,15 @@ export function initValidationPage(root: HTMLElement): void {
     );
     set(
       'vp-drt-err',
-      `Σγ = ${sum.toFixed(1)} Ω vs R_ct = ${p.Rct} Ω (${((100 * Math.abs(sum - p.Rct)) / p.Rct).toFixed(1)}% off); peak at τ = ${peakTau.toExponential(2)} s vs true ${tauTrue.toExponential(2)} s; R_∞ = ${drt.Rinf.toFixed(2)} Ω vs 10 Ω; misfit ${(drt.misfit * 100).toFixed(2)}%`
+      `∫γ dlnτ = ${area.toFixed(1)} Ω vs R_ct = ${p.Rct} Ω (${((100 * Math.abs(area - p.Rct)) / p.Rct).toFixed(1)}% off); peak at τ = ${peakTau.toExponential(2)} s vs true ${tauTrue.toExponential(2)} s; R_∞ = ${drt.Rinf.toFixed(2)} Ω vs 10 Ω; misfit ${(drt.misfit * 100).toFixed(2)}%`
     );
 
-    // tolerances: tests/physics.test.ts — misfit under 2%, Σγ within 10% of R_ct,
-    // and the peak within 0.35 decades of the true RC time constant
-    const areaOff = Math.abs(sum - p.Rct) / p.Rct;
+    // tolerances: tests/physics.test.ts — misfit under 2%, ∫γ dlnτ within 10% of
+    // R_ct, and the peak within 0.35 decades of the true RC time constant
+    const areaOff = Math.abs(area - p.Rct) / p.Rct;
     const decades = Math.abs(Math.log10(peakTau / tauTrue));
     if (drt.misfit >= 0.02) return { name: 'DRT recovery', ok: false, reason: `misfit ${(drt.misfit * 100).toFixed(1)}%, tolerance 2%` };
-    if (areaOff >= 0.1) return { name: 'DRT recovery', ok: false, reason: `Σγ off by ${(areaOff * 100).toFixed(1)}%, tolerance 10%` };
+    if (areaOff >= 0.1) return { name: 'DRT recovery', ok: false, reason: `∫γ dlnτ off by ${(areaOff * 100).toFixed(1)}%, tolerance 10%` };
     if (decades >= 0.35) return { name: 'DRT recovery', ok: false, reason: `peak off by ${decades.toFixed(2)} decades, tolerance 0.35` };
     return { name: 'DRT recovery', ok: true };
   });

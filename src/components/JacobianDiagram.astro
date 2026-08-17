@@ -31,9 +31,9 @@
       <text x="105" y="190" class="jac-label" text-anchor="middle">discretised residual</text>
     </g>
 
-    <!-- autodiff arrow -->
+    <!-- differentiation arrow -->
     <line x1="190" y1="170" x2="280" y2="170" class="jac-edge" marker-end="url(#jac-arrow)"></line>
-    <text x="235" y="156" class="jac-label" text-anchor="middle">autodiff</text>
+    <text x="235" y="156" class="jac-label" text-anchor="middle">differentiate</text>
 
     <!-- Jacobian box -->
     <g class="jac-box jac-box-accent">
@@ -72,9 +72,11 @@
     </g>
   </svg>
   <figcaption class="demo-caption">
-    The architectural spine: the solver assembles one autodiff Jacobian of the residual, and
-    Newton iteration, frequency-domain impedance, and adjoint design sensitivities all consume
-    the same matrix. Linearisation is written once and tested once.
+    The architecture designed for the Python package <code>voltaire-echem</code>: one Jacobian
+    of the residual, with Newton iteration, frequency-domain impedance, and adjoint design
+    sensitivities all consuming the same matrix, so linearisation is written once and tested
+    once. None of this diagram is implemented — that package has no code yet, and the browser
+    solver on this site hand-assembles its PNP Jacobian and has no adjoint.
   </figcaption>
 </figure>
 

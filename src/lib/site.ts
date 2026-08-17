@@ -2,7 +2,7 @@
 export const SITE = {
   name: 'Voltaire',
   tagline:
-    'From the double layer to capacity fade. A multiphysics solver for ion transport, interfacial kinetics, degradation, and thermal behaviour in electrochemical cells — with autodiff Jacobians shared across Newton, impedance, and inverse design.',
+    'From the double layer to capacity fade. A multiphysics solver for ion transport, interfacial kinetics, degradation, and thermal behaviour in electrochemical cells, with interactive demos that compute in your browser.',
   description:
     'A multiphysics solver for ion transport, interfacial kinetics, degradation, and thermal behaviour in electrochemical cells.',
   author: 'Ashrith Repaka',

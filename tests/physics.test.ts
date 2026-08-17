@@ -117,12 +117,12 @@ describe('EIS + DRT', () => {
     const drt = computeDRT(omega, Z, { nTau: 60, lambda: 1e-3 });
     expect(drt.misfit).toBeLessThan(0.02);
     expect(drt.Rinf).toBeCloseTo(base.Rohm, 0);
-    // gamma integrates (sums) to ~Rct and peaks near tau = Rct*Cdl
+    // gamma is a density in ln tau, so the resistance is the integral
     let sum = 0;
     let peakTau = 0;
     let peakVal = 0;
     for (let k = 0; k < drt.tau.length; k++) {
-      sum += drt.gamma[k];
+      sum += drt.gamma[k] * drt.dlnTau;
       if (drt.gamma[k] > peakVal) {
         peakVal = drt.gamma[k];
         peakTau = drt.tau[k];
@@ -132,6 +132,49 @@ describe('EIS + DRT', () => {
     expect(sum).toBeLessThan(1.1 * base.Rct);
     const tauTrue = base.Rct * base.Cdl;
     expect(Math.abs(Math.log10(peakTau / tauTrue))).toBeLessThan(0.35);
+  });
+
+  /**
+   * The recovered resistance must not depend on how finely the tau axis is
+   * sampled. As bare residues it did — the summed value fell 2.8x from nTau 30
+   * to 240 on identical physics — and the old test could not see it, because it
+   * hardcoded nTau 60 and summed.
+   *
+   * Peak height is deliberately not asserted. The true distribution here is a
+   * delta, whose density is unbounded, so a finer grid resolves a taller,
+   * narrower spike no matter how gamma is normalised. Area and peak location
+   * are the grid-independent quantities; height is not one and pinning it would
+   * be pinning an artefact.
+   */
+  it('DRT is grid-independent: integrated area recovers R_ct across nTau', () => {
+    const omega = omegaGrid(0.01, 1e5, 60);
+    const Z = Array.from(omega, (w) => impedance(w, base));
+    const tauTrue = base.Rct * base.Cdl;
+    const runs = [30, 60, 120, 240].map((nTau) => {
+      const drt = computeDRT(omega, Z, { nTau, lambda: 1e-3 });
+      let area = 0;
+      let peak = 0;
+      let peakTau = 0;
+      for (let k = 0; k < drt.tau.length; k++) {
+        area += drt.gamma[k] * drt.dlnTau;
+        if (drt.gamma[k] > peak) {
+          peak = drt.gamma[k];
+          peakTau = drt.tau[k];
+        }
+      }
+      return { nTau, area, peakTau, misfit: drt.misfit };
+    });
+
+    for (const r of runs) {
+      expect(r.area).toBeGreaterThan(0.9 * base.Rct);
+      expect(r.area).toBeLessThan(1.1 * base.Rct);
+      expect(Math.abs(Math.log10(r.peakTau / tauTrue))).toBeLessThan(0.35);
+      expect(r.misfit).toBeLessThan(0.02);
+    }
+
+    const areas = runs.map((r) => r.area);
+    const spread = (Math.max(...areas) - Math.min(...areas)) / Math.min(...areas);
+    expect(spread).toBeLessThan(0.05);
   });
 
   it('aged cell shows a second resolvable DRT peak', () => {
@@ -199,6 +242,157 @@ describe('microstructure', () => {
     expect(tr.deffRatio).toBeLessThan(ms.porosity); // transport worse than volume fraction
     expect(tr.deffRatio).toBeGreaterThan(0.05);
     expect(tr.tortuosity).toBeGreaterThan(1);
+  });
+
+  // The external audit writes the 2D reference as (1-f)/(1+f); the demo plots
+  // eps/(2-eps). These are one expression, so the site must never be able to
+  // drift into quoting two different numbers for it.
+  it('2D reference: eps/(2-eps) and (1-f)/(1+f) are the same expression', () => {
+    for (let i = 1; i <= 999; i++) {
+      const eps = i / 1000;
+      const f = 1 - eps;
+      expect(eps / (2 - eps)).toBeCloseTo((1 - f) / (1 + f), 15);
+    }
+  });
+
+  it('reports the 2D reference and it bounds the measurement from above', () => {
+    const ms = generateRSA({
+      nx: 96,
+      ny: 72,
+      solidFraction: 0.45,
+      radius: 7,
+      spread: 0.3,
+      rng: mulberry32(7),
+    });
+    const tr = solveTransport(ms);
+    expect(tr.maxwell2dRatio).toBeCloseTo(ms.porosity / (2 - ms.porosity), 12);
+    // Hashin-Shtrikman upper bound for an insulating second phase.
+    expect(tr.deffRatio).toBeLessThan(tr.maxwell2dRatio);
+  });
+
+  // Bruggeman is a 3D correlation. Above this porosity it exceeds what any 2D
+  // two-phase medium can achieve, which is why the demo shows both curves.
+  it('Bruggeman exceeds the 2D bound above eps = (3-sqrt5)/2', () => {
+    const crossing = (3 - Math.sqrt(5)) / 2;
+    expect(crossing).toBeCloseTo(0.381966, 5);
+    const bound = (e: number) => e / (2 - e);
+    for (const e of [0.45, 0.55, 0.7, 0.9]) {
+      expect(Math.pow(e, 1.5)).toBeGreaterThan(bound(e));
+    }
+    for (const e of [0.2, 0.3, 0.37]) {
+      expect(Math.pow(e, 1.5)).toBeLessThan(bound(e));
+    }
+    // the crossing itself: eps^1.5 = eps/(2-eps)  <=>  sqrt(eps)(2-eps) = 1
+    expect(Math.sqrt(crossing) * (2 - crossing)).toBeCloseTo(1, 12);
+  });
+
+  // The audit's H2: there was no refinement test anywhere, and the binary
+  // classification carried up to 28% discretisation bias at the low-porosity
+  // end. generateRSA draws positions as rng()*nx and radii proportional to
+  // `radius`, so doubling both reproduces the same geometry on a finer grid.
+  it('is mesh-converged: doubling resolution barely moves D_eff', () => {
+    const at = (k: number) => {
+      const ms = generateRSA({
+        nx: 96 * k,
+        ny: 60 * k,
+        solidFraction: 0.5,
+        radius: 4 * k,
+        spread: 0.25,
+        rng: mulberry32(20260815),
+      });
+      return { eps: ms.porosity, tr: solveTransport(ms, 50000) };
+    };
+    const coarse = at(1);
+    const fine = at(2);
+    expect(coarse.tr.converged).toBe(true);
+    expect(fine.tr.converged).toBe(true);
+    expect(coarse.eps).toBeCloseTo(fine.eps, 2);
+    const drift = Math.abs(coarse.tr.deffRatio - fine.tr.deffRatio) / fine.tr.deffRatio;
+    expect(drift).toBeLessThan(0.03);
+  });
+
+  it('sub-cell sampling: fractions are consistent and porosity is area-based', () => {
+    const ms = generateRSA({
+      nx: 64,
+      ny: 48,
+      solidFraction: 0.4,
+      radius: 6,
+      spread: 0.2,
+      rng: mulberry32(11),
+    });
+    let sum = 0;
+    for (let i = 0; i < ms.phi.length; i++) {
+      expect(ms.phi[i]).toBeGreaterThanOrEqual(0);
+      expect(ms.phi[i]).toBeLessThanOrEqual(1);
+      expect(ms.kx[i]).toBeGreaterThanOrEqual(0);
+      expect(ms.kx[i]).toBeLessThanOrEqual(1);
+      expect(ms.ky[i]).toBeGreaterThanOrEqual(0);
+      expect(ms.ky[i]).toBeLessThanOrEqual(1);
+      // An open face needs pore on both sides. The converse does not hold: a
+      // disk clipping a cell's far corner lowers phi while leaving the shared
+      // face fully open, so k is an aperture, not a function of cell fractions.
+      const x = i % ms.nx;
+      if (ms.kx[i] > 0) {
+        expect(ms.phi[i]).toBeGreaterThan(0);
+        expect(ms.phi[i + 1]).toBeGreaterThan(0);
+        expect(x).toBeLessThan(ms.nx - 1);
+      }
+      if (ms.ky[i] > 0) {
+        expect(ms.phi[i]).toBeGreaterThan(0);
+        expect(ms.phi[i + ms.nx]).toBeGreaterThan(0);
+      }
+      sum += ms.phi[i];
+      expect(ms.pore[i]).toBe(ms.phi[i] > 0 ? 1 : 0);
+    }
+    // porosity is the mean pore fraction, not a count of surviving cells
+    expect(sum / ms.phi.length).toBeCloseTo(ms.porosity, 12);
+    // partial cells exist at all — otherwise this is still a binary mask
+    expect([...ms.phi].some((v) => v > 0 && v < 1)).toBe(true);
+  });
+
+  // RSA rejects overlaps, so disks are at worst tangent and the pore space stays
+  // connected. Under binary classification the grid sealed sub-cell gaps and
+  // reported no percolating path for structures that in fact conduct.
+  it('does not report a blocked path for a packing RSA can produce', () => {
+    for (const radius of [4, 8, 14]) {
+      for (const spread of [0, 0.5]) {
+        const ms = generateRSA({
+          nx: 128,
+          ny: 80,
+          solidFraction: 0.65,
+          radius,
+          spread,
+          rng: mulberry32(7919),
+        });
+        const tr = solveTransport(ms);
+        expect(tr.blocked).toBe(false);
+        expect(tr.deffRatio).toBeGreaterThan(0.01);
+      }
+    }
+  });
+
+  it('flags RSA saturation instead of silently missing the target porosity', () => {
+    // 0.05 porosity is far below the RSA jamming limit for disks.
+    const jammed = generateRSA({
+      nx: 96,
+      ny: 72,
+      solidFraction: 0.95,
+      radius: 7,
+      spread: 0,
+      rng: mulberry32(3),
+    });
+    expect(jammed.saturated).toBe(true);
+    expect(jammed.porosity).toBeGreaterThan(0.3); // nowhere near the 0.05 asked for
+
+    const reachable = generateRSA({
+      nx: 96,
+      ny: 72,
+      solidFraction: 0.2,
+      radius: 7,
+      spread: 0,
+      rng: mulberry32(3),
+    });
+    expect(reachable.saturated).toBe(false);
   });
 });
 

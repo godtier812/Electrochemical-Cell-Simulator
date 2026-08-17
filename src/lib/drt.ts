@@ -5,7 +5,11 @@ import type { C } from './complex';
  * Distribution of relaxation times by Tikhonov-regularised non-negative
  * least squares.
  *
- * Model:  Z(ω) ≈ R_∞ + Σ_k γ_k / (1 + iωτ_k)
+ * Model:  Z(ω) ≈ R_∞ + Σ_k g_k / (1 + iωτ_k),  fitted for residues g_k
+ *
+ * The returned `gamma` is g_k / dlnTau — a density in ln τ, not the residues.
+ * Anything reconstructing Z from it must put the measure back: multiply by
+ * `dlnTau` before summing.
  * Fit:    minimise ‖A x − b‖² + λ²‖L γ‖²  subject to x ≥ 0,
  * where x = [R_∞, γ_1 … γ_n], b stacks Re and Im of the measured spectrum,
  * and L is a second-difference operator (smoothness prior on γ only).
@@ -15,7 +19,27 @@ import type { C } from './complex';
  */
 export interface DRTResult {
   tau: Float64Array;
+  /**
+   * Distribution of relaxation times as a **density in ln τ**, in the same
+   * units as Z. Integrate it to get a resistance:
+   *
+   *   R = ∫ γ(τ) dlnτ  ≈  Σ_k γ_k · dlnTau
+   *
+   * The fit itself produces one residue per τ bin. Those are divided by dlnTau
+   * before being returned, which is the standard DRT convention: it makes the
+   * area under the plotted curve the resistance the peak represents, and makes
+   * that area independent of the grid. Refining nTau from 30 to 240 moves the
+   * integral from 25.14 to 25.02 against a true 25.
+   *
+   * Peak *height* is a different matter and is not grid-independent either way.
+   * The true distribution for a single RC arc is a delta, so its density is
+   * unbounded and a finer grid simply resolves a taller, narrower spike — the
+   * density peak grows 3.2x over that same nTau range while the area holds.
+   * Read areas, not heights.
+   */
   gamma: Float64Array;
+  /** Spacing of the log-spaced τ grid, ln τ_{k+1} − ln τ_k. Constant by construction. */
+  dlnTau: number;
   Rinf: number;
   /** relative rms misfit of the reconstruction */
   misfit: number;
@@ -98,5 +122,13 @@ export function computeDRT(
     err += (re - Z[i].re) ** 2 + (im - Z[i].im) ** 2;
     ref += Z[i].re ** 2 + Z[i].im ** 2;
   }
-  return { tau, gamma, Rinf, misfit: Math.sqrt(err / (ref || 1)) };
+
+  // The fit is in residues, and so is the misfit loop above — the model at the
+  // top of this file sums γ_k/(1+iωτ_k) with no measure. Convert to a density
+  // in ln τ only now, on the way out. The grid is log-spaced, so the spacing is
+  // a single constant and this is one division.
+  const dlnTau = nTau > 1 ? Math.log(tauHi / tauLo) / (nTau - 1) : 1;
+  for (let k = 0; k < nTau; k++) gamma[k] /= dlnTau;
+
+  return { tau, gamma, dlnTau, Rinf, misfit: Math.sqrt(err / (ref || 1)) };
 }

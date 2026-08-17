@@ -20,7 +20,8 @@ update rule at build time.
 | Piece | Status |
 | --- | --- |
 | Website with interactive demos — Butler–Volmer, PNP double layer, phase-field dendrites, EIS + live DRT inversion, microstructure tortuosity, single-particle discharge | **Shipped** — an in-browser solver, in TypeScript, computed client-side |
-| In-browser solver kernels — Scharfetter–Gummel + damped Newton PNP, Lawson–Hanson NNLS, Tikhonov DRT, block-tridiagonal solves, RSA + CG tortuosity, explicit phase field, single-particle discharge — covered by unit tests in `tests/` | **Shipped** (`src/lib/`, `tests/`) |
+| In-browser solver kernels — Scharfetter–Gummel + damped Newton PNP, Lawson–Hanson NNLS, Tikhonov DRT, block-tridiagonal solves, RSA + CG tortuosity, single-particle discharge — covered by unit tests in `tests/` | **Shipped** (`src/lib/`, `tests/`) |
+| Explicit phase field (`src/lib/phasefield.ts`) — the kernel behind the hero animation and the dendrite demo | **Shipped, untested** — no unit tests cover it, nor `complex.ts` or `colormaps.ts` |
 | Live validation page: Gouy–Chapman, Cottrell, MMS convergence order, Warburg 45°, DRT recovery — each with its error metric computed in-browser | **Shipped** |
 | Python solver package (`voltaire-echem`) | **Planned** — no Python code in this repository yet |
 | PyBaMM P2D comparison | **Not yet run** |

@@ -699,6 +699,36 @@ fieldset.panel {
   font-variant-numeric: tabular-nums;
 }
 
+/* Grouped readouts. Opt-in modifier: a panel that reports more than a handful
+   of values reads as an undifferentiated list when they all sit in one wrap
+   container. D5 uses it to keep what was measured, what it is being compared
+   against, and what was generated in separate labelled rows. Panels without
+   the modifier are unaffected. */
+.panel-readouts.is-grouped {
+  flex-direction: column;
+  gap: var(--s2);
+}
+
+.panel-readouts.is-grouped .readout-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1) var(--s5);
+}
+
+/* A row whose values are all inapplicable is hidden entirely rather than shown
+   as a line of em dashes, so `hidden` has to beat the flex display above. */
+.panel-readouts.is-grouped .readout-row[hidden] {
+  display: none;
+}
+
+.panel-readouts.is-grouped .readout-label {
+  flex: 0 0 4.5rem;
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 /* sliders: instrument styling */
 input[type='range'] {
   appearance: none;
@@ -776,9 +806,12 @@ select {
   inset: 0;
 }
 
-.demo-stage canvas {
-  touch-action: none;
-}
+/* No touch-action override on demo canvases, deliberately. These are read, not
+   dragged: the only pointer handler on any of them is D4's pointermove for
+   hover-linking, which needs nothing. Suppressing touch gestures here meant a
+   swipe starting on a demo could not scroll the page, which strands a phone
+   reader on D2 — its mobile stage is taller than it is wide and fills most of
+   the viewport. Add touch-action only to a canvas that actually handles a drag. */
 
 .demo-grid {
   display: grid;

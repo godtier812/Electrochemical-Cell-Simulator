@@ -100,8 +100,10 @@ export function init(shell: Shell): void {
       for (let k = 0; k < lastDrt.tau.length; k++) {
         const wt = omega[i] * lastDrt.tau[k];
         const d = 1 + wt * wt;
-        re += lastDrt.gamma[k] / d;
-        im -= (lastDrt.gamma[k] * wt) / d;
+        // gamma is a density in ln τ, so the measure goes back in here
+        const g = lastDrt.gamma[k] * lastDrt.dlnTau;
+        re += g / d;
+        im -= (g * wt) / d;
       }
       fitRe[i] = re;
       fitIm[i] = -im;

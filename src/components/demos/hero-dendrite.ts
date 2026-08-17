@@ -23,13 +23,16 @@ const HERO_PARAMS: PFParams = {
 
 export function initHero(container: HTMLElement): void {
   if (prefersReducedMotion()) return; // poster stays
-  const canvas = document.createElement('canvas');
-  canvas.className = 'hero-canvas';
-  canvas.setAttribute('aria-hidden', 'true');
+  const seedCanvas = document.createElement('canvas');
+  seedCanvas.className = 'hero-canvas';
+  seedCanvas.setAttribute('aria-hidden', 'true');
   let engine: PFEngine | null = null;
-  engine = createEngine(canvas, [576, 288], [224, 112]);
+  engine = createEngine(seedCanvas, [576, 288], [224, 112]);
   if (!engine) return; // poster stays
 
+  // A CPU fallback swaps the element; this one is not yet in the DOM, so the
+  // swap has no parent to act on and the engine's canvas is what to insert.
+  const canvas = engine.canvas;
   container.insertBefore(canvas, container.firstChild);
   engine.seed(5);
 

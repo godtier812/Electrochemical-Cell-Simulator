@@ -137,8 +137,8 @@ drt.plot()                        # peaks separate CT from diffusion`;
       <h1>VOLTAIRE</h1>
       <p class="hero-tagline">
         From the double layer to capacity fade. A multiphysics solver for ion transport,
-        interfacial kinetics, degradation, and thermal behaviour in electrochemical cells —
-        with autodiff Jacobians shared across Newton, impedance, and inverse design.
+        interfacial kinetics, degradation, and thermal behaviour in electrochemical cells,
+        with interactive demos that compute in your browser.
       </p>
       <p class="hero-note">
         The background is not a video: it is the phase-field electrodeposition model computing
@@ -212,13 +212,18 @@ drt.plot()                        # peaks separate CT from diffusion`;
     <section aria-labelledby="spine-head">
       <span class="overline">Architecture</span>
       <h2 id="spine-head">One Jacobian, three consumers</h2>
+      <StatusBadge status="planned" label="design for the Python package" />
       <p class="prose">
         Most simulation codes write their linearisation three times: once for the nonlinear
-        solver, once for small-signal impedance, once (if ever) for sensitivities. Voltaire
-        assembles a single residual R(u, p) and differentiates it once. Newton, the
-        frequency-domain EIS solve, and the adjoint all read the same matrix — so if the
-        physics is right in one place, it is right in all three. The
-        <a href={withBase('/numerics/')}>numerics page</a> walks through the whole spine.
+        solver, once for small-signal impedance, once (if ever) for sensitivities. Assembling
+        a single residual R(u, p) and differentiating it once — so that Newton, the
+        frequency-domain EIS solve, and the adjoint all read the same matrix — is the design
+        of the Python package <code>voltaire-echem</code>, which has no code written yet.
+        This site does not run it. The solver on this page is a different, narrower thing:
+        it assembles the PNP Jacobian analytically, block by block, and there is no automatic
+        differentiation and no adjoint anywhere in this repository. The
+        <a href={withBase('/numerics/')}>numerics page</a> walks through the intended spine
+        and marks the same boundary.
       </p>
       <JacobianDiagram />
     </section>

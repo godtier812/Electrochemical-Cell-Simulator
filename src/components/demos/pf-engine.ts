@@ -27,6 +27,13 @@ export interface PFMetrics {
 
 export abstract class PFEngine {
   abstract readonly info: PFEngineInfo;
+  /**
+   * The element actually being drawn to. Not necessarily the one handed to
+   * `createEngine` — see the note there — so callers that reveal, fade, or
+   * insert the canvas must read it from here rather than keeping their own
+   * reference.
+   */
+  abstract readonly canvas: HTMLCanvasElement;
   abstract seed(nuclei: number): void;
   abstract step(params: PFParams, substeps: number): void;
   abstract render(showC: boolean): void;
@@ -34,18 +41,44 @@ export abstract class PFEngine {
   abstract dispose(): void;
 }
 
-/** Try WebGL2 first, fall back to CPU. Returns null only if canvas 2D also fails. */
+/**
+ * Replace a canvas with an equivalent element that has never had a context.
+ *
+ * A canvas is bound to whichever context type it is first given for the life of
+ * the element: after a successful `getContext('webgl2')`, `getContext('2d')` on
+ * that same element returns null forever. `GPUEngine` acquires the WebGL2
+ * context before nearly all of its failure paths — missing float render
+ * targets, shader compile, link, incomplete framebuffer — so retrying the CPU
+ * backend on the same element could only ever fail. Missing float render
+ * targets is the common case on older Android/ANGLE, which is precisely the
+ * hardware the fallback exists for.
+ */
+function freshCanvasLike(canvas: HTMLCanvasElement): HTMLCanvasElement {
+  const fresh = document.createElement('canvas');
+  for (const attr of Array.from(canvas.attributes)) {
+    fresh.setAttribute(attr.name, attr.value);
+  }
+  fresh.style.cssText = canvas.style.cssText;
+  // The hero builds its canvas before inserting it, so there may be no parent.
+  canvas.parentNode?.replaceChild(fresh, canvas);
+  return fresh;
+}
+
+/**
+ * Try WebGL2 first, fall back to CPU. Returns null only if canvas 2D also
+ * fails. The engine that comes back owns its own canvas — read `engine.canvas`,
+ * because a fallback swaps the element.
+ */
 export function createEngine(
   canvas: HTMLCanvasElement,
   gpuRes: [number, number],
   cpuRes: [number, number]
 ): PFEngine | null {
   try {
-    const gpu = new GPUEngine(canvas, gpuRes[0], gpuRes[1]);
-    return gpu;
+    return new GPUEngine(canvas, gpuRes[0], gpuRes[1]);
   } catch {
     try {
-      return new CPUEngine(canvas, cpuRes[0], cpuRes[1]);
+      return new CPUEngine(freshCanvasLike(canvas), cpuRes[0], cpuRes[1]);
     } catch {
       return null;
     }
@@ -54,6 +87,7 @@ export function createEngine(
 
 class GPUEngine extends PFEngine {
   readonly info: PFEngineInfo;
+  readonly canvas: HTMLCanvasElement;
   private gl: WebGL2RenderingContext;
   private stepProg: WebGLProgram;
   private dispProg: WebGLProgram;
@@ -85,6 +119,7 @@ class GPUEngine extends PFEngine {
     if (!gl.getExtension('EXT_color_buffer_float')) {
       throw new Error('float render targets unavailable');
     }
+    this.canvas = canvas;
     this.gl = gl;
     this.nx = nx;
     this.ny = ny;
@@ -304,6 +339,7 @@ void main() {
 
 class CPUEngine extends PFEngine {
   readonly info: PFEngineInfo;
+  readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private off: HTMLCanvasElement;
   private offCtx: CanvasRenderingContext2D;
@@ -319,6 +355,7 @@ class CPUEngine extends PFEngine {
     super();
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D canvas unavailable');
+    this.canvas = canvas;
     this.ctx = ctx;
     this.nx = nx;
     this.ny = ny;

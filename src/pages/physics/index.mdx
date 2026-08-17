@@ -30,6 +30,18 @@ Porous electrodes are not homogeneous slabs, and the transport equations above n
 
 <Equation id="eq-deff" latex="D_{\mathrm{eff}} = \frac{\varepsilon}{\tau} D" caption="Effective diffusivity in a porous electrode. Voltaire computes the tortuosity from a Laplace solve on the generated microstructure." />
 
+The demo reports two references beside the measurement, because the packing it generates is two-dimensional and the correlation most people reach for is not. The 2D result for insulating circular inclusions is
+
+<Equation id="eq-maxwell-2d" latex="\frac{D_{\mathrm{eff}}}{D} = \frac{\varepsilon}{2-\varepsilon} = \frac{1-f}{1+f}, \qquad f = 1-\varepsilon" caption="The 2D Maxwell-Garnett result, written in porosity and in solid fraction. The two forms are the same expression, not an approximation of one another." />
+
+Both forms appear in the literature and they are algebraically identical under $f = 1-\varepsilon$; the demo plots the $\varepsilon$ form so that every quantity in its readout is expressed in the same variable. It is also the Hashin–Shtrikman upper bound when one phase is insulating, so a measured $D_{\mathrm{eff}}/D$ has to fall below it.
+
+The geometry is sampled below the grid: each cell carries the fraction of its area that is pore, and each face the fraction that is open, rather than being rounded to wholly solid or wholly open. That distinction is not cosmetic. Classifying whole cells rounds every particle boundary to the grid, and the resulting staircase throttles exactly the narrow necks that set the transport — measured against a refinement sweep, it cost 1.8% at $\varepsilon = 0.85$ and **28% at $\varepsilon = 0.52$**, the error growing as the necks tightened. Sub-cell sampling holds that under 2% across the whole range for no measurable extra time.
+
+It also removed a state the demo used to be able to show. Insertion rejects overlaps, so particles are at worst tangent and the pore space is always connected; a report of *no percolating path* could therefore only ever have been the grid sealing a gap narrower than one cell. It happened: across a 135-configuration sweep the whole-cell version reported three blocked structures that in fact conduct at 14–17% of free space. Sub-cell sampling reports none. The check remains in the code, because a generator that allowed particles to overlap could block a channel for real.
+
+Bruggeman's $\varepsilon^{1.5}$ is shown alongside it as the correlation in common use, not as the applicable one. It is fitted to three-dimensional sphere packings, and for $\varepsilon > (3-\sqrt{5})/2 \approx 0.382$ it sits *above* the 2D bound — a value no two-dimensional two-phase geometry can attain. Watching the measurement fall away from both curves as packing density rises is the point of the demo; watching $\varepsilon^{1.5}$ cross a bound it cannot satisfy is why the second reference is there.
+
 ## Kinetics
 
 <StatusBadge status="shipped" label="browser demo" />

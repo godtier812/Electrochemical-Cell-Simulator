@@ -29,11 +29,14 @@ export function init(shell: Shell): void {
     backend: $<HTMLOutputElement>('#d3-backend'),
   };
 
-  const canvas = createCanvas(
+  const stageCanvas = createCanvas(
     shell,
     'Metal dendrites growing upward from a flat electrode, rendered with the viridis colormap; branch shape responds to the anisotropy and overpotential controls'
   );
-  const engine = createEngine(canvas, [448, 252], [192, 108]);
+  const engine = createEngine(stageCanvas, [448, 252], [192, 108]);
+  // Falling back to the CPU backend swaps the element, so take the canvas from
+  // the engine rather than reusing the one handed in.
+  const canvas = engine?.canvas ?? stageCanvas;
   if (!engine) {
     showMessage(
       shell,
