@@ -15,7 +15,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Gates the build: regenerating the posters from source must reproduce what is
+  # committed. Runs first so a stale tree fails before anything is deployed.
+  posters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Tracked posters match what the source generates
+        run: ./scripts/check-posters.sh
+
   build:
+    needs: posters
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

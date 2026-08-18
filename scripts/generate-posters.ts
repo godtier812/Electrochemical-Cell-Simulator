@@ -21,8 +21,14 @@ import { generateRSA, mulberry32, solveTransport } from '../src/lib/microstructu
 import { simulateDischarge } from '../src/lib/spm';
 
 const ROOT = join(import.meta.dirname, '..');
-const POSTERS = join(ROOT, 'public', 'posters');
-const GALLERY = join(ROOT, 'public', 'gallery');
+/**
+ * Where the generated artefacts land. Defaults to the tracked `public/`, and
+ * VOLTAIRE_POSTER_OUT redirects the whole tree elsewhere so CI can regenerate
+ * into a scratch directory and compare, without dirtying the working tree.
+ */
+const OUT = process.env.VOLTAIRE_POSTER_OUT || join(ROOT, 'public');
+const POSTERS = join(OUT, 'posters');
+const GALLERY = join(OUT, 'gallery');
 mkdirSync(POSTERS, { recursive: true });
 mkdirSync(GALLERY, { recursive: true });
 
@@ -273,7 +279,7 @@ function stampText(
     }
   }
   stampText(rgb, W, 'VOLTAIRE', 72, 90, 14, [0xf2, 0xf5, 0xf8]);
-  writeFileSync(join(ROOT, 'public', 'og.png'), encodePNG(rgb, W, H));
+  writeFileSync(join(OUT, 'og.png'), encodePNG(rgb, W, H));
   console.log('og.png written');
 }
 

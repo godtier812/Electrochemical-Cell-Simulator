@@ -80,13 +80,20 @@ npm run build     # static site in dist/, then the Pagefind search index
 npm run posters   # regenerate posters/gallery/OG cards from the physics (seeded)
 ```
 
-`npm run posters` is **not** run by CI, and its output is committed to
-`public/posters/` and `public/gallery/`. If you change a poster input — the
-physics in `src/lib/`, the generator in `scripts/generate-posters.ts`, or a page
-title that appears on a social card — re-run it and commit the regenerated
-images, or the demo fallbacks and Open Graph previews go stale. The generator is
-seeded, so identical inputs produce byte-identical files and a no-op run leaves
-nothing to commit.
+The generated images are committed to `public/posters/` and `public/gallery/`.
+If you change a poster input — the physics in `src/lib/`, the generator in
+`scripts/generate-posters.ts`, or a page title that appears on a social card —
+re-run `npm run posters` and commit the result, or the demo fallbacks and Open
+Graph previews go stale. The generator is seeded, so identical inputs produce
+byte-identical files and a no-op run leaves nothing to commit.
+
+CI enforces this rather than trusting the instruction above, which was missed
+once already: `scripts/check-posters.sh` regenerates into a temp directory and
+fails the build if any committed artefact differs, naming the offending files.
+It generates twice and requires the two passes to agree first, so a loss of
+reproducibility is reported as itself rather than as a flaky build. Set
+`VOLTAIRE_POSTER_OUT` to redirect the generator's output tree if you want to
+inspect a run without touching `public/`.
 
 Deployment is GitHub Actions → GitHub Pages on push to `main`
 (`.github/workflows/deploy.yml`).
