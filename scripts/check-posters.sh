@@ -10,9 +10,19 @@
 #
 # The check is only sound if generation is bit-reproducible, so it asserts that
 # directly rather than assuming it: generate twice into separate directories and
-# require the two to agree before comparing either against the tree. If that
-# ever stops holding, this fails with a specific message instead of turning into
-# an intermittently red build.
+# require the two to agree before comparing either against the tree.
+#
+# LOCAL ONLY — run this on the machine that generated the committed images.
+# Reproducibility holds per-machine but NOT across platforms, so this cannot
+# gate CI as written. Math.sin, exp, atan2 and hypot are not required by
+# ECMAScript to be correctly rounded, and phasefield.ts amplifies that through
+# fract(sin(x) * 43758.5453): a last-bit difference in sin becomes a completely
+# different noise sample, and thousands of steps later, a different dendrite.
+# Measured on ubuntu CI against images generated on arm64 macOS: all 27 PNGs
+# touched by the phase-field kernel differ, every SVG matches exactly, because
+# svgplot rounds coordinates to one decimal. Making this CI-able needs the
+# generator to avoid platform-dependent transcendentals on any path that feeds
+# a committed pixel — an integer hash instead of sin(), for a start.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
