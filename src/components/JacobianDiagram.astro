@@ -12,10 +12,10 @@
   >
     <title id="jac-title">One Jacobian, three consumers</title>
     <desc id="jac-desc">
-      The residual R of u and p is differentiated once by automatic differentiation to give the
-      Jacobian J. That single matrix feeds three consumers: the damped Newton solver for steady
-      states, the frequency-domain impedance solve, and the adjoint equation for design
-      sensitivities.
+      The architecture planned for the Python package, not something this site runs. The
+      residual R of u and p is differentiated once to give the Jacobian J, and that single
+      matrix feeds three consumers: the damped Newton solver for steady states, the
+      frequency-domain impedance solve, and the adjoint equation for design sensitivities.
     </desc>
 
     <defs>
@@ -33,7 +33,7 @@
 
     <!-- differentiation arrow -->
     <line x1="190" y1="170" x2="280" y2="170" class="jac-edge" marker-end="url(#jac-arrow)"></line>
-    <text x="235" y="156" class="jac-label" text-anchor="middle">differentiate</text>
+    <text x="235" y="156" class="jac-label" text-anchor="middle">linearise</text>
 
     <!-- Jacobian box -->
     <g class="jac-box jac-box-accent">
@@ -110,7 +110,9 @@
 
   .jac-label {
     font-family: var(--font-mono);
-    font-size: 11.5px;
+    /* 10.5 not 11.5: the widest consumer label is 25 characters in a 185px box,
+       and at 11.5px it touched both borders. */
+    font-size: 10.5px;
     letter-spacing: 0.05em;
     fill: var(--fg-muted);
   }
