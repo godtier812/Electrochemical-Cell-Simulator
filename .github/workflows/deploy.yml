@@ -15,13 +15,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # No poster-staleness gate here yet. scripts/check-posters.sh works, but the
-  # generator is only reproducible on one machine, not across platforms: the
-  # phase-field kernel amplifies Math.sin through fract(sin(x) * 43758.5453),
-  # and that function is not required to be correctly rounded, so ubuntu CI and
-  # an arm64 laptop produce different dendrite pixels from identical source.
-  # Gating on byte equality therefore fails every run. See the script's header.
+  # Gates the build: regenerating the posters must reproduce the committed
+  # images. Compared by decoded pixels rather than file bytes, because zlib
+  # emits different compressed output on different Node builds while the pixels
+  # are identical. Runs first, so a stale tree fails before anything deploys.
+  posters:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Committed posters match what the source generates
+        run: ./scripts/check-posters.sh
+
   build:
+    needs: posters
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -87,18 +87,20 @@ re-run `npm run posters` and commit the result, or the demo fallbacks and Open
 Graph previews go stale. The generator is seeded, so identical inputs produce
 byte-identical files and a no-op run leaves nothing to commit.
 
-`scripts/check-posters.sh` checks this locally: it regenerates into a temp
-directory (via `VOLTAIRE_POSTER_OUT`, which redirects the generator's whole
-output tree) and reports any committed artefact that differs. Run it on the
-machine that generated the images.
+CI enforces this rather than trusting the instruction above, which was missed
+twice: `scripts/check-posters.sh` regenerates into a temp directory (via
+`VOLTAIRE_POSTER_OUT`, which redirects the generator's whole output tree) and
+fails the build if any committed artefact differs, naming the offending files.
+It generates twice and requires the two passes to agree first, so a genuine
+loss of reproducibility is reported as itself rather than as a flaky build.
 
-It is **not** wired into CI, and cannot be as written. Generation is
-reproducible on a given machine but not across platforms: `Math.sin`, `exp`,
-`atan2` and `hypot` are not required to be correctly rounded, and the
-phase-field noise hash amplifies a last-bit difference through
-`fract(sin(x) * 43758.5453)` into an entirely different field. Every
-phase-field PNG therefore differs between an arm64 laptop and ubuntu CI, while
-the SVG plots — whose coordinates are rounded to one decimal — match exactly.
+Images are compared by **decoded pixels**, not file bytes. `scripts/png.ts`
+deflates its IDAT through `node:zlib`, a native library whose compressed output
+differs between Node builds even when every pixel is identical — generating
+under Node 22 and Node 26 on one machine yields 27 files that differ byte for
+byte and none that differ by a pixel. `scripts/artifact-digest.mjs` hashes the
+inflated scanlines instead, which asks the question actually worth asking and
+is stable across Node versions.
 
 Deployment is GitHub Actions → GitHub Pages on push to `main`
 (`.github/workflows/deploy.yml`).

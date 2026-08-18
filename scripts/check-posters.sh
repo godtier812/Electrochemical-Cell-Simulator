@@ -1,63 +1,45 @@
 #!/usr/bin/env bash
 #
-# Fails if the tracked poster/gallery artefacts are stale, i.e. if regenerating
-# them from the current source would produce different bytes.
+# Fails if the committed poster/gallery artefacts are stale — if regenerating
+# them from the current source would produce different images.
 #
 # The README asks a human to run `npm run posters` and commit the result when
-# the inputs change. That instruction was missed once already (ca926d5 changed
-# the DRT normalisation and the microstructure rasteriser, and the derived
-# images went out stale), which is why this exists.
+# the inputs change. That was missed once already (ca926d5 changed the DRT
+# normalisation and the microstructure rasteriser, and the derived images went
+# out stale), which is why this is enforced rather than requested.
 #
-# The check is only sound if generation is bit-reproducible, so it asserts that
-# directly rather than assuming it: generate twice into separate directories and
-# require the two to agree before comparing either against the tree.
+# Images are compared by decoded pixels, not file bytes. png.ts deflates IDAT
+# through node:zlib, a native library whose output differs between Node builds,
+# so a byte comparison reports a difference every time the Node version moves
+# while every pixel is identical. Measured: generating under Node 22 and Node 26
+# on the same machine gives 27 files that differ byte-for-byte and zero that
+# differ by a pixel. See scripts/artifact-digest.mjs.
 #
-# LOCAL ONLY — run this on the machine that generated the committed images.
-# Reproducibility holds per-machine but NOT across platforms, so this cannot
-# gate CI as written. Math.sin, exp, atan2 and hypot are not required by
-# ECMAScript to be correctly rounded, and phasefield.ts amplifies that through
-# fract(sin(x) * 43758.5453): a last-bit difference in sin becomes a completely
-# different noise sample, and thousands of steps later, a different dendrite.
-# Measured on ubuntu CI against images generated on arm64 macOS: all 27 PNGs
-# touched by the phase-field kernel differ, every SVG matches exactly, because
-# svgplot rounds coordinates to one decimal. Making this CI-able needs the
-# generator to avoid platform-dependent transcendentals on any path that feeds
-# a committed pixel — an integer hash instead of sin(), for a start.
+# Reproducibility of the physics itself is asserted rather than assumed: two
+# passes into separate directories must agree before either is compared against
+# the tree, so a genuine loss of determinism reports as itself instead of as an
+# intermittently red build.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-if command -v sha256sum >/dev/null 2>&1; then
-  hash_cmd() { sha256sum "$1" | cut -d' ' -f1; }
-else
-  hash_cmd() { shasum -a 256 "$1" | cut -d' ' -f1; }
-fi
-
-# relative path + hash for every file under a root, sorted
-manifest() {
-  local root=$1
-  ( cd "$root" && find . -type f ! -name '.DS_Store' | sort | while read -r f; do
-      printf '%s  %s\n' "${f#./}" "$(cd "$root" && hash_cmd "$f")"
-    done )
-}
+digest() { node scripts/artifact-digest.mjs "$1"; }
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-gen_a="$tmp/a"
-gen_b="$tmp/b"
 
 echo "Regenerating posters (pass 1)..."
-VOLTAIRE_POSTER_OUT="$gen_a" npx tsx scripts/generate-posters.ts >/dev/null
+VOLTAIRE_POSTER_OUT="$tmp/a" npx tsx scripts/generate-posters.ts >/dev/null
 echo "Regenerating posters (pass 2)..."
-VOLTAIRE_POSTER_OUT="$gen_b" npx tsx scripts/generate-posters.ts >/dev/null
+VOLTAIRE_POSTER_OUT="$tmp/b" npx tsx scripts/generate-posters.ts >/dev/null
 
-manifest "$gen_a" > "$tmp/a.txt"
-manifest "$gen_b" > "$tmp/b.txt"
+digest "$tmp/a" > "$tmp/a.txt"
+digest "$tmp/b" > "$tmp/b.txt"
 
 if ! diff -q "$tmp/a.txt" "$tmp/b.txt" >/dev/null; then
   echo
   echo "FAIL: poster generation is not deterministic."
-  echo "Two runs of the same source produced different bytes:"
+  echo "Two runs of the same source produced different images:"
   diff "$tmp/a.txt" "$tmp/b.txt" | sed 's/^/  /'
   echo
   echo "This check cannot verify staleness until generation is reproducible."
@@ -65,19 +47,18 @@ if ! diff -q "$tmp/a.txt" "$tmp/b.txt" >/dev/null; then
   exit 1
 fi
 
-# Compare the generated tree against the tracked one. Only paths the generator
-# actually writes are considered, so hand-authored files under public/ (favicon,
-# robots.txt) are neither required nor flagged.
+# Compare against the tracked tree, considering only paths the generator writes.
+# Hand-authored files under public/ (favicon.svg, robots.txt) are neither
+# required nor flagged.
 tracked="$tmp/tracked"
-mkdir -p "$tracked"
-( cd "$gen_a" && find . -type f | sed 's|^\./||' ) | while read -r rel; do
+while read -r rel _; do
   if [ -f "public/$rel" ]; then
     mkdir -p "$tracked/$(dirname "$rel")"
     cp "public/$rel" "$tracked/$rel"
   fi
-done
-
-manifest "$tracked" > "$tmp/tracked.txt"
+done < "$tmp/a.txt"
+mkdir -p "$tracked"
+digest "$tracked" > "$tmp/tracked.txt"
 
 if diff -q "$tmp/a.txt" "$tmp/tracked.txt" >/dev/null; then
   echo "OK: $(wc -l < "$tmp/a.txt" | tr -d ' ') generated artefacts match the tracked tree."
@@ -87,10 +68,10 @@ fi
 echo
 echo "FAIL: tracked posters are stale."
 echo
-echo "These files differ from what the current source generates:"
-join -j 1 <(cut -d' ' -f1,3 "$tmp/a.txt" | sort) <(cut -d' ' -f1,3 "$tmp/tracked.txt" | sort) 2>/dev/null \
+echo "These differ from what the current source generates:"
+join -j 1 <(sort "$tmp/a.txt") <(sort "$tmp/tracked.txt") \
   | awk '$2 != $3 { print "  changed: public/" $1 }'
-comm -23 <(cut -d' ' -f1 "$tmp/a.txt" | sort) <(cut -d' ' -f1 "$tmp/tracked.txt" | sort) \
+comm -23 <(awk '{print $1}' "$tmp/a.txt" | sort) <(awk '{print $1}' "$tmp/tracked.txt" | sort) \
   | sed 's|^|  missing: public/|'
 echo
 echo "Run 'npm run posters' and commit the result."
