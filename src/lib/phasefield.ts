@@ -415,10 +415,19 @@ uniform sampler2D uState;
 uniform sampler2D uLutXi;
 uniform sampler2D uLutC;
 uniform float uShowC;
+/**
+ * Cover fit. The canvas is sized to its CSS box, so its aspect rarely matches
+ * the simulation grid's, and mapping the field straight across it stretches the
+ * dendrites. uFit shrinks the sampled range on whichever axis has to give,
+ * cropping like object-fit: cover rather than distorting — which is also how
+ * the poster underneath is fitted, so the two line up when they cross-fade.
+ */
+uniform vec2 uFit;
 in vec2 vUV;
 out vec4 fragColor;
 void main() {
-  vec2 s = texture(uState, vUV).rg;
+  vec2 uv = clamp((vUV - 0.5) * uFit + 0.5, 0.0, 1.0);
+  vec2 s = texture(uState, uv).rg;
   vec3 xiCol = texture(uLutXi, vec2(clamp(s.x, 0.0, 1.0), 0.5)).rgb;
   vec3 cCol = texture(uLutC, vec2(clamp(s.y, 0.0, 1.0), 0.5)).rgb;
   // overlay mode: metal keeps the ξ ramp, electrolyte shows C

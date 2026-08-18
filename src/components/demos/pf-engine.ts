@@ -55,6 +55,20 @@ export abstract class PFEngine {
 }
 
 /**
+ * Fraction of the field to sample on each axis so it covers a box of the given
+ * aspect without distortion: the wider axis is used whole, the other is cropped.
+ * Returns [1,1] when the aspects already agree.
+ */
+function coverFit(fieldAspect: number, boxAspect: number): [number, number] {
+  if (!isFinite(fieldAspect) || !isFinite(boxAspect) || fieldAspect <= 0 || boxAspect <= 0) {
+    return [1, 1];
+  }
+  return boxAspect > fieldAspect
+    ? [1, fieldAspect / boxAspect]
+    : [boxAspect / fieldAspect, 1];
+}
+
+/**
  * Replace a canvas with an equivalent element that has never had a context.
  *
  * A canvas is bound to whichever context type it is first given for the life of
@@ -304,6 +318,8 @@ void main() {
     gl.uniform1i(gl.getUniformLocation(this.dispProg, 'uLutXi'), 1);
     gl.uniform1i(gl.getUniformLocation(this.dispProg, 'uLutC'), 2);
     gl.uniform1f(gl.getUniformLocation(this.dispProg, 'uShowC'), showC ? 1 : 0);
+    const [fitX, fitY] = coverFit(this.nx / this.ny, w / h);
+    gl.uniform2f(gl.getUniformLocation(this.dispProg, 'uFit'), fitX, fitY);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.tex[this.cur]);
     gl.activeTexture(gl.TEXTURE1);
@@ -444,7 +460,11 @@ class CPUEngine extends PFEngine {
       canvas.height = h;
     }
     this.ctx.imageSmoothingEnabled = true;
-    this.ctx.drawImage(this.off, 0, 0, w, h);
+    // Same cover fit as the shader, applied to the source rectangle.
+    const [fitX, fitY] = coverFit(this.nx / this.ny, w / h);
+    const sw = this.nx * fitX;
+    const sh = this.ny * fitY;
+    this.ctx.drawImage(this.off, (this.nx - sw) / 2, (this.ny - sh) / 2, sw, sh, 0, 0, w, h);
   }
 
   metrics(): PFMetrics {

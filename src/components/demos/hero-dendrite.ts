@@ -27,7 +27,11 @@ export function initHero(container: HTMLElement): void {
   seedCanvas.className = 'hero-canvas';
   seedCanvas.setAttribute('aria-hidden', 'true');
   let engine: PFEngine | null = null;
-  engine = createEngine(seedCanvas, [576, 288], [224, 112]);
+  // 768x384 rather than 576x288: on a 1440px-wide hero at dpr 2 the old field
+  // was magnified 5x per axis, which reads soft. This brings it to 3.75x for
+  // 1.8x the cell count. The CPU fallback stays where it is; it is already the
+  // slow path and is only reached when WebGL2 is unavailable.
+  engine = createEngine(seedCanvas, [768, 384], [224, 112]);
   if (!engine) return; // poster stays
 
   // A CPU fallback swaps the element; this one is not yet in the DOM, so the
