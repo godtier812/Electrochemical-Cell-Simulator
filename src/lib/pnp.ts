@@ -435,8 +435,45 @@ export function gcCapacitance(epsR: number, T: number, c0: number, psi0: number)
  * which the observed order of accuracy follows. ε̂ is fixed at 0.05 so the
  * problem is coupled but not boundary-layer dominated at the coarsest mesh.
  */
-export function mmsConvergence(Ns: number[]): { N: number; h: number; error: number }[] {
-  const epsHat = 0.05;
+export interface MMSRow {
+  N: number;
+  /**
+   * The largest cell in the mesh, not 1/(N−1).
+   *
+   * These are the same number on a uniform mesh and very different on a graded
+   * one, where refining N barely moves the coarse end. Reporting 1/(N−1) and
+   * calling it h is what made this study appear to lose an order of accuracy on
+   * graded meshes: the observed order is a log ratio of errors over a log ratio
+   * of spacings, and feeding it a spacing that did not actually halve deflates
+   * the result. Measured against the real h_max the scheme holds second order.
+   */
+  h: number;
+  /**
+   * Mesh-weighted L2 error, sqrt(Σ h̄ᵢ eᵢ² / Σ h̄ᵢ).
+   *
+   * An unweighted RMS over nodes is a different quantity on a graded mesh: it
+   * counts every node equally, and a graded mesh deliberately puts most of its
+   * nodes in the thin layer near the electrode, so the norm reports mostly on
+   * the region that is already best resolved.
+   */
+  error: number;
+}
+
+/**
+ * Convergence study by the method of manufactured solutions.
+ *
+ * `ratio` grades the mesh geometrically, 1 being uniform. Pass the value a
+ * shipped configuration actually produces to measure the scheme where it runs;
+ * `gradedMesh` derives that ratio from λ̂ and N.
+ *
+ * Both configurations impose Dirichlet conditions on all three fields, because
+ * a manufactured solution has to: the exact profiles are prescribed at the
+ * boundary nodes. The blocking, zero-flux electrode the demos run is therefore
+ * not exercised here, and nothing in this study should be read as covering it.
+ */
+export function mmsConvergence(Ns: number[], opts: { epsHat?: number; ratio?: number } = {}): MMSRow[] {
+  const epsHat = opts.epsHat ?? 0.05;
+  const ratio = opts.ratio ?? 1;
   const PI = Math.PI;
   const cpE = (x: number) => 1 + 0.4 * Math.cos(PI * x);
   const cpE1 = (x: number) => -0.4 * PI * Math.sin(PI * x);
@@ -463,18 +500,43 @@ export function mmsConvergence(Ns: number[]): { N: number; h: number; error: num
   };
 
   return Ns.map((N) => {
-    const xHat = new Float64Array(N);
-    for (let i = 0; i < N; i++) xHat[i] = i / (N - 1);
+    const xHat = geometricMesh(N, ratio);
     const init = {
       cPlus: new Float64Array(N).fill(1),
       cMinus: new Float64Array(N).fill(1),
       psi: new Float64Array(N),
     };
     const sol = newtonSolve(xHat, epsHat, 0, init, mms);
-    let e2 = 0;
+    let num = 0;
+    let den = 0;
+    let hMax = 0;
     for (let i = 0; i < N; i++) {
-      e2 += (sol.psi[i] - psE(xHat[i])) ** 2;
+      const hl = i > 0 ? xHat[i] - xHat[i - 1] : 0;
+      const hr = i < N - 1 ? xHat[i + 1] - xHat[i] : 0;
+      const hBar = (hl + hr) / 2;
+      const e = sol.psi[i] - psE(xHat[i]);
+      num += hBar * e * e;
+      den += hBar;
+      hMax = Math.max(hMax, hr);
     }
-    return { N, h: 1 / (N - 1), error: Math.sqrt(e2 / N) };
+    return { N, h: hMax, error: Math.sqrt(num / den) };
   });
+}
+
+/** Geometric mesh on [0,1] with a prescribed growth ratio; 1 is uniform. */
+function geometricMesh(N: number, ratio: number): Float64Array {
+  const n = N - 1;
+  const x = new Float64Array(N);
+  if (Math.abs(ratio - 1) < 1e-12) {
+    for (let i = 0; i < N; i++) x[i] = i / n;
+    return x;
+  }
+  let h = (ratio - 1) / (Math.pow(ratio, n) - 1);
+  x[0] = 0;
+  for (let i = 1; i < N; i++) {
+    x[i] = x[i - 1] + h;
+    h *= ratio;
+  }
+  for (let i = 1; i < N; i++) x[i] /= x[N - 1];
+  return x;
 }

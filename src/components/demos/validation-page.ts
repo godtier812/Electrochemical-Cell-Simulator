@@ -112,31 +112,58 @@ export function initValidationPage(root: HTMLElement): void {
     const canvas = root.querySelector<HTMLCanvasElement>('#vp-mms');
     const tbody = root.querySelector<HTMLTableSectionElement>('#vp-mms-table');
     if (!canvas || !tbody) return null;
-    const rows = mmsConvergence([21, 41, 81, 161, 321]);
-    const orders: (number | null)[] = [null];
-    for (let i = 1; i < rows.length; i++) {
-      orders.push(Math.log(rows[i - 1].error / rows[i].error) / Math.log(rows[i - 1].h / rows[i].h));
-    }
-    tbody.innerHTML = rows
-      .map(
-        (r, i) =>
-          `<tr><td class="num">${r.N}</td><td class="num">${r.h.toExponential(2)}</td><td class="num">${r.error.toExponential(3)}</td><td class="num">${orders[i] ? orders[i]!.toFixed(2) : '—'}</td></tr>`
+    const Ns = [21, 41, 81, 161, 321];
+    // Two configurations: the smooth uniform case, and the graded mesh at the
+    // epsHat a shipped demo actually runs, so the page reports the scheme where
+    // it lives rather than only where it is easiest to measure.
+    const cases = [
+      { label: 'uniform', rows: mmsConvergence(Ns), color: cNum },
+      { label: 'graded r=1.0084, ε̂=2.6e-4', rows: mmsConvergence(Ns, { ratio: 1.0084, epsHat: 2.571e-4 }), color: cRef },
+    ];
+    const orderPairs = cases.map((c) => {
+      const o: (number | null)[] = [null];
+      for (let i = 1; i < c.rows.length; i++) {
+        o.push(Math.log(c.rows[i - 1].error / c.rows[i].error) / Math.log(c.rows[i - 1].h / c.rows[i].h));
+      }
+      return o;
+    });
+    tbody.innerHTML = cases
+      .map((c, ci) =>
+        c.rows
+          .map(
+            (r, i) =>
+              `<tr><td>${i === 0 ? c.label : ''}</td><td class="num">${r.N}</td><td class="num">${r.h.toExponential(2)}</td><td class="num">${r.error.toExponential(3)}</td><td class="num">${orderPairs[ci][i] ? orderPairs[ci][i]!.toFixed(2) : '—'}</td></tr>`
+          )
+          .join('')
       )
       .join('');
-    const h = Float64Array.from(rows, (r) => r.h);
-    const e = Float64Array.from(rows, (r) => r.error);
-    const ref = Float64Array.from(h, (hi) => e[e.length - 1] * Math.pow(hi / h[h.length - 1], 2));
-    new Plot(canvas, { xScale: 'log', yScale: 'log', xLabel: 'h', yLabel: 'L₂ error (ψ)', legend: 'tl' }).draw([
-      { x: h, y: e, color: cNum, marker: 3, width: 1.75, label: 'measured' },
-      { x: h, y: ref, color: cRef, dash: [5, 4], label: 'slope 2 reference' },
+    const series = cases.map((c) => ({
+      x: Float64Array.from(c.rows, (r) => r.h),
+      y: Float64Array.from(c.rows, (r) => r.error),
+      color: c.color,
+      marker: 3,
+      width: 1.75,
+      label: c.label,
+    }));
+    const h0 = series[0].x;
+    const e0 = series[0].y;
+    const ref = Float64Array.from(h0, (hi) => e0[e0.length - 1] * Math.pow(hi / h0[h0.length - 1], 2));
+    new Plot(canvas, { xScale: 'log', yScale: 'log', xLabel: 'h_max', yLabel: 'mesh-weighted L₂ error (ψ)', legend: 'tl' }).draw([
+      ...series,
+      { x: h0, y: ref, color: cRef, dash: [5, 4], label: 'slope 2 reference' },
     ]);
-    const finest = orders[orders.length - 1]!;
-    set('vp-mms-order', `observed order on the finest pair: ${finest.toFixed(2)}`);
+    const finest = orderPairs[0][orderPairs[0].length - 1]!;
+    const finestGraded = orderPairs[1][orderPairs[1].length - 1]!;
+    set(
+      'vp-mms-order',
+      `observed order on the finest pair: ${finest.toFixed(2)} uniform, ${finestGraded.toFixed(2)} graded. Both are measured against the largest cell in the mesh and a mesh-weighted norm; measuring against 1/(N−1) and an unweighted norm makes the graded case appear to fall below first order, which is an artefact of those two choices and not a property of the scheme.`
+    );
 
     // tolerance: tests/physics.test.ts — finest observed order in [1.8, 2.4]
-    return finest > 1.8 && finest < 2.4
+    const bad = [finest, finestGraded].filter((o) => !(o > 1.8 && o < 2.4));
+    return bad.length === 0
       ? { name: 'Manufactured solutions', ok: true, order: finest }
-      : { name: 'Manufactured solutions', ok: false, order: finest, reason: `observed order ${finest.toFixed(2)}, expected between 1.8 and 2.4` };
+      : { name: 'Manufactured solutions', ok: false, order: finest, reason: `observed order ${bad.map((o) => o.toFixed(2)).join(' and ')}, expected between 1.8 and 2.4` };
   });
 
   // 4 — Warburg 45°

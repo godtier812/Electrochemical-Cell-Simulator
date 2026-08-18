@@ -20,8 +20,11 @@ const run = cottrellStep({ D: 1e-9, cStar: 1, A: 1e-4,
 
 const mmsSnippet = `import { mmsConvergence } from './lib/pnp';
 
-// uniform meshes, Dirichlet data from the manufactured fields
-const rows = mmsConvergence([21, 41, 81, 161, 321]);
+// Dirichlet data from the manufactured fields, in both configurations
+const uniform = mmsConvergence([21, 41, 81, 161, 321]);
+const graded = mmsConvergence([21, 41, 81, 161, 321],
+                              { ratio: 1.0084, epsHat: 2.571e-4 });
+// h is the largest cell; error is the mesh-weighted L2 norm
 // order = log(e1/e2) / log(h1/h2) between successive rows`;
 
 const warburgSnippet = `import { impedance, omegaGrid } from './lib/eis';
@@ -119,13 +122,38 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
         design claim for the Scharfetter–Gummel scheme on smooth solutions; the observed order
         is measured below, live, on five meshes.
       </p>
+      <p class="prose">
+        Two configurations are reported. A uniform mesh is the clean case, but it is not what
+        the demos run: they use a mesh graded towards the electrode, and at a screening
+        parameter four orders of magnitude smaller. The second row uses the growth ratio and
+        ε̂ that the double-layer demo actually produces, so the number characterises the
+        scheme where it lives rather than only where it is easiest to measure.
+      </p>
+      <p class="prose">
+        Both rows measure against <em>h</em><sub>max</sub>, the largest cell in the mesh, in a
+        mesh-weighted L₂ norm. That matters more than it sounds: an earlier reading of this
+        study on graded meshes appeared to show the order collapsing to 0.5–0.85, and that was
+        an artefact of two choices, not a property of the scheme. Reporting <em>h</em> as
+        1/(N−1) assumes refinement halves the cells, which on a graded mesh it does not — at
+        ratio 1.0233, raising N from 41 to 321 stretches the coarse-to-fine ratio from 2 to
+        1552 while the largest cell barely moves — and an unweighted RMS over nodes reports
+        mostly on the near-wall layer, where a graded mesh has deliberately put most of its
+        nodes. Corrected on both counts, the scheme holds second order in both configurations.
+      </p>
+      <p class="prose">
+        One limitation, stated rather than implied: a manufactured solution prescribes the
+        exact fields at the boundary nodes, so both configurations here impose Dirichlet
+        conditions on all three unknowns. The blocking, zero-flux electrode the demos run is
+        <strong>not</strong> exercised by this study, and nothing below should be read as
+        covering it.
+      </p>
       <div class="vp-stage"><canvas id="vp-mms" role="img" aria-label="Convergence plot on log axes: L2 error falling with mesh spacing parallel to a slope-2 reference line"></canvas></div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th class="num">N</th><th class="num">h</th><th class="num">L₂ error (ψ)</th><th class="num">observed order</th></tr>
+            <tr><th>mesh</th><th class="num">N</th><th class="num">h<sub>max</sub></th><th class="num">weighted L₂ error (ψ)</th><th class="num">observed order</th></tr>
           </thead>
-          <tbody id="vp-mms-table"><tr><td colspan="4">computing…</td></tr></tbody>
+          <tbody id="vp-mms-table"><tr><td colspan="5">computing…</td></tr></tbody>
         </table>
       </div>
       <p class="vp-metric" id="vp-mms-order">computing…</p>

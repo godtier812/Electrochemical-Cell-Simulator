@@ -70,15 +70,51 @@ describe('PNP double layer', () => {
     expect(sol.cPlus[0]).toBeGreaterThan(100);
   });
 
-  it('MMS shows ~2nd order spatial convergence', () => {
-    const rows = mmsConvergence([26, 51, 101, 201]);
-    const orders: number[] = [];
-    for (let i = 1; i < rows.length; i++) {
-      orders.push(Math.log(rows[i - 1].error / rows[i].error) / Math.log(rows[i - 1].h / rows[i].h));
-    }
-    const finest = orders[orders.length - 1];
+  const finestOrder = (rows: { h: number; error: number }[]): number => {
+    const i = rows.length - 1;
+    return Math.log(rows[i - 1].error / rows[i].error) / Math.log(rows[i - 1].h / rows[i].h);
+  };
+
+  it('MMS shows ~2nd order spatial convergence on a uniform mesh', () => {
+    const finest = finestOrder(mmsConvergence([26, 51, 101, 201]));
     expect(finest).toBeGreaterThan(1.8);
     expect(finest).toBeLessThan(2.4);
+  });
+
+  /**
+   * The demos do not run a uniform mesh at epsHat = 0.05; they run a mesh graded
+   * towards the electrode at epsHat four orders of magnitude smaller. Measuring
+   * only the easy configuration would leave the shipped one unclaimed.
+   */
+  it('MMS holds ~2nd order on the graded mesh the demos actually run', () => {
+    const finest = finestOrder(
+      mmsConvergence([26, 51, 101, 201], { ratio: 1.0084, epsHat: 2.571e-4 })
+    );
+    expect(finest).toBeGreaterThan(1.8);
+    expect(finest).toBeLessThan(2.4);
+  });
+
+  /**
+   * Pins the two reporting choices, because getting either wrong is what made
+   * this study appear to lose an order on graded meshes. h must be the largest
+   * cell, not 1/(N-1) — on a graded mesh those differ by a lot — and the error
+   * must be mesh-weighted rather than an unweighted RMS over nodes.
+   */
+  it('reports h as the largest cell, which is not 1/(N-1) once graded', () => {
+    const graded = { ratio: 1.0084, epsHat: 2.571e-4 };
+    const gaps = [51, 101, 201].map((N) => {
+      const uniform = mmsConvergence([N])[0];
+      // on a uniform mesh the two measures coincide exactly
+      expect(uniform.h).toBeCloseTo(1 / (N - 1), 12);
+      const g = mmsConvergence([N], graded)[0];
+      expect(g.h).toBeGreaterThan(1 / (N - 1));
+      return g.h * (N - 1);
+    });
+    // And the gap widens with refinement: raising N shrinks the largest cell of
+    // a graded mesh more slowly than it shrinks 1/(N-1). That is exactly why
+    // using 1/(N-1) as the spacing deflates the observed order.
+    expect(gaps[1]).toBeGreaterThan(gaps[0]);
+    expect(gaps[2]).toBeGreaterThan(gaps[1]);
   });
 });
 
