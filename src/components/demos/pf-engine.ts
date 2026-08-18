@@ -23,6 +23,19 @@ export interface PFEngineInfo {
 export interface PFMetrics {
   solidFraction: number;
   roughness: number;
+  /**
+   * Fraction of interior cells clamped on the last step, or undefined when the
+   * backend cannot measure it.
+   *
+   * Only the CPU backend reports this. Counting it on the GPU would mean a
+   * readback, and the only readback path that exists is the half-resolution
+   * metric pass — which thresholds a downsampled, sometimes interpolated copy
+   * of the state and is already wrong for the readouts it feeds. A stability
+   * warning built on that would be a guess dressed as a measurement, so the
+   * GPU path goes without and relies on cflLimit, which needs no readback
+   * because it is a function of the parameters alone.
+   */
+  clampedFraction?: number;
 }
 
 export abstract class PFEngine {
@@ -350,6 +363,8 @@ class CPUEngine extends PFEngine {
   private ny: number;
   private frame = 0;
   private field: Float32Array;
+  /** Worst clamp fraction across the substeps of the last rendered frame. */
+  private clampedFraction = 0;
 
   constructor(canvas: HTMLCanvasElement, nx: number, ny: number) {
     super();
@@ -377,14 +392,17 @@ class CPUEngine extends PFEngine {
   }
 
   step(P: PFParams, substeps: number): void {
-    // CPU backend runs fewer, larger effective steps to stay interactive
+    // CPU backend runs fewer steps per frame, at the same dt, to stay interactive
     const n = Math.max(1, Math.round(substeps / 2));
+    const interior = this.nx * Math.max(1, this.ny - 2);
+    let worst = 0;
     for (let s = 0; s < n; s++) {
-      cpuStep(this.a, this.b, this.nx, this.ny, P, this.frame++);
+      worst = Math.max(worst, cpuStep(this.a, this.b, this.nx, this.ny, P, this.frame++) / interior);
       const t = this.a;
       this.a = this.b;
       this.b = t;
     }
+    this.clampedFraction = worst;
   }
 
   render(showC: boolean): void {
@@ -431,7 +449,11 @@ class CPUEngine extends PFEngine {
 
   metrics(): PFMetrics {
     const m = surfaceMetrics(this.a, this.nx, this.ny);
-    return { solidFraction: m.solidFraction, roughness: m.roughness };
+    return {
+      solidFraction: m.solidFraction,
+      roughness: m.roughness,
+      clampedFraction: this.clampedFraction,
+    };
   }
 
   dispose(): void {

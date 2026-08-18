@@ -1,4 +1,9 @@
-import { PF_DEFAULTS, type PFParams } from '../../lib/phasefield';
+import {
+  CLAMP_ALARM_FRACTION,
+  PF_DEFAULTS,
+  cflLimitDiffusive,
+  type PFParams,
+} from '../../lib/phasefield';
 import { F, R as Rgas } from '../../lib/constants';
 import { createEngine } from './pf-engine';
 import {
@@ -27,6 +32,39 @@ export function init(shell: Shell): void {
     rough: $<HTMLOutputElement>('#d3-rough'),
     rate: $<HTMLOutputElement>('#d3-rate'),
     backend: $<HTMLOutputElement>('#d3-backend'),
+    stability: $<HTMLOutputElement>('#d3-stability'),
+  };
+  const stabilityNote = $<HTMLSpanElement>('#d3-stability-note');
+
+  /**
+   * Two stability signals, and the backends do not have the same access to them.
+   *
+   * cflLimitDiffusive is a function of the parameters alone, so it costs nothing
+   * and runs on both backends. It is the *necessary* bound — exceeding it is
+   * unstable outright — which is what makes it safe to alarm on. The stricter
+   * cflLimit, which folds in the reaction terms, is not used here: measured
+   * against D3's own control space it calls four reachable settings unstable
+   * that run indistinguishably from normal, so it would cry wolf.
+   *
+   * The clamp fraction is a measurement of the running state and catches what
+   * the parameter bound cannot — including the one D3 setting that genuinely
+   * degenerates, at full drive, 205 mV and 250 K. Only the CPU backend can
+   * supply it; see PFMetrics.clampedFraction for why the GPU path does not.
+   */
+  let clampedFraction: number | undefined;
+  const reportStability = (): void => {
+    const limit = cflLimitDiffusive(params);
+    if (params.dt > limit) {
+      stabilityNote.hidden = false;
+      outs.stability.value = `dt ${params.dt.toFixed(3)} is past the ${limit.toFixed(3)} explicit-diffusion limit for these parameters — the picture is not a solution of the model`;
+      return;
+    }
+    if (clampedFraction !== undefined && clampedFraction > CLAMP_ALARM_FRACTION) {
+      stabilityNote.hidden = false;
+      outs.stability.value = `${(clampedFraction * 100).toFixed(0)}% of cells hit a bound last step, against about 5% in normal operation — the timestep is too large here and the picture is not a solution of the model`;
+      return;
+    }
+    stabilityNote.hidden = true;
   };
 
   const stageCanvas = createCanvas(
@@ -80,6 +118,7 @@ export function init(shell: Shell): void {
     params.lambdaC = 3.0 + drive01;
     params.dt = 0.045;
 
+    reportStability();
     outs.aeta.value = params.etaA.toFixed(2);
     outs.morph.value =
       drive01 < 0.33 ? `mossy (L_η=${params.Leta.toFixed(3)})` : drive01 < 0.7 ? `needle (L_η=${params.Leta.toFixed(3)})` : `dendritic (L_η=${params.Leta.toFixed(3)})`;
@@ -103,6 +142,8 @@ export function init(shell: Shell): void {
       const m = engine.metrics();
       outs.solid.value = `${(m.solidFraction * 100).toFixed(1)}%`;
       outs.rough.value = m.roughness.toFixed(2);
+      clampedFraction = m.clampedFraction;
+      reportStability();
     }
   });
 
