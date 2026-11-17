@@ -30,6 +30,44 @@ function chunk(type: string, data: Uint8Array): Uint8Array {
   return out;
 }
 
+function paeth(a: number, b: number, c: number): number {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+}
+
+/**
+ * Filter one scanline with each of the five PNG filters and keep the one whose
+ * output has the smallest sum of absolute values (as signed bytes) — the
+ * heuristic libpng uses. Smooth fields compress several times better filtered
+ * than raw. Integer arithmetic only, so the choice is the same on every
+ * platform and the output stays reproducible.
+ */
+function filterRow(row: Uint8Array, prev: Uint8Array | null, bpp: number, out: Uint8Array): void {
+  const n = row.length;
+  const cand = new Uint8Array(n);
+  let bestScore = Infinity;
+  for (let type = 0; type <= 4; type++) {
+    let score = 0;
+    for (let i = 0; i < n; i++) {
+      const a = i >= bpp ? row[i - bpp] : 0;
+      const b = prev ? prev[i] : 0;
+      const c = prev && i >= bpp ? prev[i - bpp] : 0;
+      const pred = type === 0 ? 0 : type === 1 ? a : type === 2 ? b : type === 3 ? (a + b) >> 1 : paeth(a, b, c);
+      const v = (row[i] - pred) & 0xff;
+      cand[i] = v;
+      score += v < 128 ? v : 256 - v;
+    }
+    if (score < bestScore) {
+      bestScore = score;
+      out[0] = type;
+      out.set(cand, 1);
+    }
+  }
+}
+
 /** rgb: length nx*ny*3, row-major, top row first. */
 export function encodePNG(rgb: Uint8Array, nx: number, ny: number): Uint8Array {
   const ihdr = new Uint8Array(13);
@@ -38,10 +76,12 @@ export function encodePNG(rgb: Uint8Array, nx: number, ny: number): Uint8Array {
   dv.setUint32(4, ny);
   ihdr[8] = 8; // bit depth
   ihdr[9] = 2; // colour type: truecolour
-  const raw = new Uint8Array(ny * (nx * 3 + 1));
+  const stride = nx * 3;
+  const raw = new Uint8Array(ny * (stride + 1));
   for (let y = 0; y < ny; y++) {
-    raw[y * (nx * 3 + 1)] = 0; // filter: none
-    raw.set(rgb.subarray(y * nx * 3, (y + 1) * nx * 3), y * (nx * 3 + 1) + 1);
+    const row = rgb.subarray(y * stride, (y + 1) * stride);
+    const prev = y > 0 ? rgb.subarray((y - 1) * stride, y * stride) : null;
+    filterRow(row, prev, 3, raw.subarray(y * (stride + 1), (y + 1) * (stride + 1)));
   }
   const idat = deflateSync(raw, { level: 9 });
   const sig = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);

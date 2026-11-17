@@ -25,4 +25,9 @@
 <text x="340" y="394" fill="#8a949e" text-anchor="middle">discharged capacity / A h</text>
 <text transform="translate(12 194) rotate(-90)" fill="#8a949e" text-anchor="middle">cell voltage / V</text>
 <text x="52" y="16" fill="#8a949e" font-size="11" letter-spacing="1">DISCHARGE  NMC811|graphite SPM  1.00C  T=298 K  R=6 um</text>
+<rect x="62" y="312" width="128" height="40" fill="none" stroke="#8a949e33"/>
+<line x1="70" y1="324" x2="88" y2="324" stroke="rgb(214, 85, 109)" stroke-width="1.5" stroke-dasharray="5 4"/>
+<text x="94" y="327.5" fill="#8a949e">open circuit</text>
+<line x1="70" y1="340" x2="88" y2="340" stroke="rgb(37, 132, 142)" stroke-width="2.5"/>
+<text x="94" y="343.5" fill="#8a949e">terminal, 1C</text>
 </svg>

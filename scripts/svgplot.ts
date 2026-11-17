@@ -9,6 +9,8 @@ export interface SvgSeries {
   color: string;
   width?: number;
   dash?: string;
+  /** Name in the legend; a plot with no labelled series draws no legend. */
+  label?: string;
 }
 
 export interface SvgPlotOpts {
@@ -20,6 +22,8 @@ export interface SvgPlotOpts {
   title?: string;
   xRange?: [number, number];
   yRange?: [number, number];
+  /** Corner for the legend, inside the frame. Pick the one the data leaves empty. */
+  legend?: 'tl' | 'tr' | 'bl' | 'br';
 }
 
 const AXIS = '#8a949e';
@@ -126,6 +130,22 @@ export function svgPlot(o: SvgPlotOpts): string {
   }
   if (o.title) {
     parts.push(`<text x="${ml}" y="16" fill="${AXIS}" font-size="11" letter-spacing="1">${o.title}</text>`);
+  }
+  const labelled = o.series.filter((s) => s.label);
+  if (labelled.length > 0) {
+    const corner = o.legend ?? 'tl';
+    const w = 18 + 7 * Math.max(...labelled.map((s) => s.label!.length)) + 26;
+    const h = labelled.length * 16 + 8;
+    const lx = corner.endsWith('l') ? ml + 10 : ml + pw - 10 - w;
+    const ly = corner.startsWith('t') ? mt + 10 : mt + ph - 10 - h;
+    parts.push(`<rect x="${lx}" y="${ly}" width="${w}" height="${h}" fill="none" stroke="${GRID}"/>`);
+    labelled.forEach((s, i) => {
+      const y = ly + 12 + i * 16;
+      parts.push(
+        `<line x1="${lx + 8}" y1="${y}" x2="${lx + 26}" y2="${y}" stroke="${s.color}" stroke-width="${s.width ?? 2}"${s.dash ? ` stroke-dasharray="${s.dash}"` : ''}/>`
+      );
+      parts.push(`<text x="${lx + 32}" y="${y + 3.5}" fill="${AXIS}">${s.label}</text>`);
+    });
   }
   parts.push('</svg>');
   return parts.join('\n');

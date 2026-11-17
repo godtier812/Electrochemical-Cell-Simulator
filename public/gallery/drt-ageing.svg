@@ -22,4 +22,11 @@
 <text x="380" y="394" fill="#8a949e" text-anchor="middle">log10 tau / s</text>
 <text transform="translate(12 194) rotate(-90)" fill="#8a949e" text-anchor="middle">gamma / ohm cm2</text>
 <text x="52" y="16" fill="#8a949e" font-size="11" letter-spacing="1">DRT vs SEI AGE  (fresh / 1x / 2.5x)  TIKHONOV-NNLS</text>
+<rect x="62" y="36" width="100" height="56" fill="none" stroke="#8a949e33"/>
+<line x1="70" y1="48" x2="88" y2="48" stroke="rgb(37, 132, 142)" stroke-width="2"/>
+<text x="94" y="51.5" fill="#8a949e">fresh</text>
+<line x1="70" y1="64" x2="88" y2="64" stroke="rgb(93, 200, 99)" stroke-width="2"/>
+<text x="94" y="67.5" fill="#8a949e">SEI 1x</text>
+<line x1="70" y1="80" x2="88" y2="80" stroke="rgb(214, 85, 109)" stroke-width="2"/>
+<text x="94" y="83.5" fill="#8a949e">SEI 2.5x</text>
 </svg>
