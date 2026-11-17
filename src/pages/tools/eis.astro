@@ -1,0 +1,356 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import DemoShell from '../../components/DemoShell.astro';
+import Control from '../../components/demos/Control.astro';
+import { withBase } from '../../lib/url';
+---
+
+<BaseLayout
+  title="EIS / DRT analyser"
+  description="Paste or drop an impedance spectrum and get its Nyquist and Bode plots, its distribution of relaxation times, and a table of peaks with resistances and time constants. Computed entirely in your browser."
+  section="/tools/"
+  ogImage="posters/og-tools-eis.png"
+>
+  <div class="page" id="eis-page">
+    <article class="prose">
+      <span class="overline">Tool</span>
+      <h1>EIS / DRT analyser</h1>
+      <p>
+        Paste an impedance spectrum, or drop a file on the box, and this page inverts it to a
+        distribution of relaxation times: which processes are in the cell, at what timescale, and
+        how much resistance each one carries. It is the same Tikhonov-regularised non-negative
+        least-squares inversion as the <a href={withBase('/demos/#demo-impedance')}>impedance demo</a>,
+        pointed at your data instead of a built-in circuit.
+      </p>
+      <p class="tool-privacy">
+        Everything is computed in this tab. Your data is not uploaded: there is no server behind
+        this site to upload it to.
+      </p>
+    </article>
+
+    <section class="panel eis-input" aria-labelledby="eis-input-h">
+      <h2 class="overline" id="eis-input-h">1 · Data</h2>
+      <label class="visually-hidden" for="eis-input">Impedance data: frequency, real part, imaginary part</label>
+      <textarea
+        id="eis-input"
+        spellcheck="false"
+        rows="7"
+        placeholder="f / Hz, Z′ / Ω, Z″ / Ω — one row per frequency. Comma, tab, semicolon or space separated; a header row is optional."
+      ></textarea>
+      <div class="eis-input-row">
+        <label class="tool-btn eis-file">
+          choose a file
+          <input type="file" id="eis-file" accept=".csv,.tsv,.txt,.dat,.z,text/*" />
+        </label>
+        <button class="tool-btn" type="button" id="eis-example">load the example</button>
+        <button class="tool-btn" type="button" id="eis-clear">clear</button>
+        <span class="eis-source" id="eis-source"></span>
+      </div>
+      <p class="eis-status" id="eis-status" role="status" aria-live="polite">Loading…</p>
+      <details class="eis-columns">
+        <summary>Columns were read wrong?</summary>
+        <div class="eis-columns-grid">
+          <label>frequency <select id="eis-col-f"></select></label>
+          <label>real part Z′ <select id="eis-col-re"></select></label>
+          <label>imaginary part <select id="eis-col-im"></select></label>
+          <label class="eis-check"><input type="checkbox" id="eis-negated" /> that column holds −Z″</label>
+        </div>
+      </details>
+    </section>
+
+    <DemoShell
+      id="tool-eis"
+      code="2"
+      title="Spectrum and DRT"
+      poster="d4-impedance.svg"
+      alt="Nyquist plot, Bode magnitude and phase, and the distribution of relaxation times for an impedance spectrum"
+      aspect="16/10"
+      stack={true}
+      caption="Points are your data; the dashed curve is the spectrum rebuilt from the DRT. In the DRT panel, the dotted lines bound the measured window and each numbered line is a peak in the table below."
+    >
+      <fieldset class="panel" slot="panel" disabled>
+        <legend>inversion</legend>
+        <div class="control-cols">
+          <Control id="eis-lambda" label="λ (Tikhonov)" min={1e-5} max={10} value={1e-2} scale="log" />
+          <Control id="eis-ntau" label="τ bins" min={30} max={120} value={60} step={10} />
+        </div>
+        <div class="switch-row">
+          <label><input type="checkbox" id="eis-drop-inductive" checked /> exclude inductive points (Im Z &gt; 0)</label>
+        </div>
+      </fieldset>
+    </DemoShell>
+
+    <section class="eis-results" aria-labelledby="eis-peaks-h">
+      <div class="eis-results-head">
+        <h2 id="eis-peaks-h">Peaks</h2>
+        <button class="tool-btn" type="button" id="eis-export-peaks">export table as csv</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th class="num">τ</th>
+              <th class="num">f = 1/(2πτ)</th>
+              <th class="num">R (area)</th>
+              <th class="num">C = τ/R</th>
+              <th>share of Σ R</th>
+            </tr>
+          </thead>
+          <tbody id="eis-peaks"><tr><td colspan="6">Computing…</td></tr></tbody>
+        </table>
+      </div>
+      <p class="eis-summary" id="eis-summary"></p>
+    </section>
+
+    <section class="eis-sweep" aria-labelledby="eis-sweep-h">
+      <div class="eis-results-head">
+        <h2 id="eis-sweep-h">Choosing λ</h2>
+        <button class="tool-btn" type="button" id="eis-sweep-png">png</button>
+      </div>
+      <p class="prose">
+        There is no neutral choice of λ. Too small and noise turns into sharp spikes that look
+        like processes; too large and separate processes merge into one hump. What can be checked
+        is stability: a peak that is really in the data survives a decade or more of λ. The plots
+        below repeat the inversion over four decades. Look for the range where the peak count sits
+        still while the misfit has not yet started to climb.
+      </p>
+      <div class="demo-stage eis-sweep-stage split-stage-host">
+        <div class="split-stage" id="eis-sweep-stage"></div>
+      </div>
+      <div class="eis-suggest">
+        <button class="tool-btn" type="button" id="eis-suggest" disabled>use the centre of the stable range</button>
+        <span id="eis-suggest-out" role="status"></span>
+      </div>
+      <p class="eis-caveat">
+        The suggestion is a heuristic for where to start, not a claim that the value is correct.
+      </p>
+    </section>
+
+    <section class="prose eis-limits" aria-labelledby="eis-limits-h">
+      <h2 id="eis-limits-h">What this does and does not do</h2>
+      <ul>
+        <li>
+          <strong>Read areas, not heights.</strong> γ is a density in ln τ. The area under a peak is
+          the resistance of that process and does not depend on the τ grid; the height does, and a
+          sharp process gets taller as you add bins.
+        </li>
+        <li>
+          <strong>Capacitive processes only.</strong> The model is R<sub>∞</sub> plus a non-negative
+          sum of RC relaxations, every one of which has Im Z ≤ 0. Inductive points cannot be
+          represented, so they are excluded by default and shown in a different colour.
+        </li>
+        <li>
+          <strong>Diffusion is a band, not a peak.</strong> A Warburg element has no single
+          relaxation time. It appears as a broad band, often running off the slow end of the window.
+        </li>
+        <li>
+          <strong>Peaks outside the measured window are extrapolation.</strong> The τ grid extends a
+          decade past your data at each end. Peaks there are flagged in the table.
+        </li>
+        <li>
+          <strong>No data-quality test.</strong> This page does not run a Kramers–Kronig check. If the
+          cell drifted during the measurement, the DRT will faithfully invert the drift.
+        </li>
+        <li>
+          <strong>Units pass through.</strong> Frequencies are read as Hz and impedances as Ω. If
+          yours are Ω·cm², the resistances are Ω·cm² and the capacitances F/cm².
+        </li>
+      </ul>
+      <p>
+        The method is written up on the <a href={withBase('/physics/impedance/')}>impedance page</a>,
+        and its recovery of a known circuit is checked live on the
+        <a href={withBase('/validation/')}>validation page</a>.
+      </p>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  .tool-privacy {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+    border-left: 2px solid var(--accent);
+    padding-left: var(--s3);
+  }
+
+  .eis-input {
+    margin-top: var(--s6);
+  }
+
+  .eis-input > .overline {
+    display: block;
+    margin-bottom: var(--s3);
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    resize: vertical;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius);
+    padding: var(--s3);
+  }
+
+  textarea[data-drop] {
+    border-color: var(--accent);
+    border-style: dashed;
+  }
+
+  .eis-input-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2);
+    margin-top: var(--s3);
+  }
+
+  /* The native file input is kept (it is what makes the label keyboard
+     reachable) and visually collapsed into the button-styled label. */
+  .eis-file {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .eis-file input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .eis-file:focus-within {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  .eis-source {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+  }
+
+  .eis-status {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--badge-shipped-fg);
+    margin-top: var(--s3);
+  }
+
+  .eis-status[data-bad] {
+    color: var(--check-fail-fg);
+  }
+
+  .eis-columns {
+    margin-top: var(--s3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .eis-columns summary {
+    color: var(--fg-muted);
+    cursor: pointer;
+    width: fit-content;
+  }
+
+  .eis-columns-grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3) var(--s5);
+    margin-top: var(--s3);
+  }
+
+  .eis-columns-grid label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+  }
+
+  .eis-results,
+  .eis-sweep,
+  .eis-limits {
+    margin-top: var(--s7);
+  }
+
+  .eis-results-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    margin-bottom: var(--s3);
+  }
+
+  /* The site's table headers are small caps, which turns τ into Τ and π into Π. */
+  .eis-results th {
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: var(--text-sm);
+  }
+
+  .eis-results :global(tr.is-extrapolated td) {
+    color: var(--fg-muted);
+  }
+
+  .eis-summary,
+  .eis-caveat {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+  }
+
+  .eis-sweep .prose {
+    margin-bottom: var(--s4);
+  }
+
+  .eis-sweep-stage {
+    aspect-ratio: 3/1;
+  }
+
+  .eis-suggest {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s3);
+    margin: var(--s3) 0 var(--s2);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  @media (max-width: 700px) {
+    .eis-sweep-stage {
+      aspect-ratio: 3/4;
+    }
+
+    :global(#tool-eis .demo-stage) {
+      aspect-ratio: 9/16 !important;
+    }
+  }
+</style>
+
+<script>
+  import { getShell } from '../../components/demos/runtime';
+  import { init } from '../../components/tools/eis-analyser';
+
+  const shell = getShell('tool-eis');
+  const page = document.getElementById('eis-page');
+  if (shell && page) {
+    try {
+      init(shell, page);
+    } catch (err) {
+      const status = document.getElementById('eis-status');
+      if (status) {
+        status.textContent = 'The analyser failed to start. Reload the page to retry.';
+        status.setAttribute('data-bad', '');
+      }
+      console.error('[voltaire:tool-eis]', err);
+    }
+  }
+</script>

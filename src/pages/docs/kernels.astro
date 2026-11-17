@@ -1,0 +1,280 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { KERNELS, type KernelModule } from '../../lib/kernel-docs';
+import { DEMOS, demoAccent } from '../../lib/demos';
+import { withBase } from '../../lib/url';
+import { REPO_PUBLIC, SITE } from '../../lib/site';
+
+/**
+ * Which test files exercise a module is read off the test sources at build
+ * time rather than written down, so it cannot claim coverage that is not there.
+ */
+const testSources = import.meta.glob<string>('../../../tests/*.test.ts', {
+  query: '?raw',
+  import: 'default',
+  eager: true,
+});
+const testsFor = (m: KernelModule): string[] => {
+  const stem = m.file.replace(/\.ts$/, '');
+  return Object.entries(testSources)
+    .filter(([, src]) => new RegExp(`from '\\.\\./src/lib/${stem}'`).test(src))
+    .map(([path]) => `tests/${path.split('/').pop()}`)
+    .sort();
+};
+
+const slug = (m: KernelModule) => m.file.replace(/\.ts$/, '');
+const kernels = KERNELS.filter((m) => !m.supporting);
+const supporting = KERNELS.filter((m) => m.supporting);
+
+const headings = [
+  { depth: 2, slug: 'conventions', text: 'Conventions' },
+  { depth: 2, slug: 'kernels', text: 'Physics kernels' },
+  ...kernels.map((m) => ({ depth: 3, slug: slug(m), text: m.title })),
+  { depth: 2, slug: 'supporting', text: 'Supporting code' },
+  ...supporting.map((m) => ({ depth: 3, slug: slug(m), text: m.title })),
+];
+
+/** "D4" -> a link to that demo, wearing its ramp colour; anything else is plain text. */
+const demo = (code: string) => DEMOS.find((d) => d.code === code);
+const sourceHref = (file: string) => `${SITE.github}/blob/main/src/lib/${file}`;
+---
+
+<DocsLayout
+  title="Kernel reference"
+  description="Every numerical module the demos and tools run, with its exported functions, units, and what tests and checks cover it."
+  nav="docs"
+  ogImage="posters/og-docs.png"
+  headings={headings}
+>
+  <h2 id="conventions">Conventions</h2>
+  <p>
+    Everything that computes on this site lives in <code>src/lib/</code>, as plain TypeScript
+    modules with no dependencies and no DOM access. The demos and tools only draw what these
+    return. That separation is what makes them testable: each module below lists the test
+    files that import it, worked out from the test sources when the site is built rather than
+    written by hand, and the live checks on the <a href={withBase('/validation/')}>validation
+    page</a> that exercise it.
+  </p>
+  <ul>
+    <li>Units are SI unless a name or a module's conventions say otherwise.</li>
+    <li>Arrays are <code>Float64Array</code> (the phase field uses <code>Float32Array</code>, matching the GPU textures).</li>
+    <li>Complex numbers are <code>{'{ re, im }'}</code> objects from <code>complex.ts</code>.</li>
+    <li>Anything random takes an <code>rng</code> argument, so figures can be seeded and reproduced.</li>
+  </ul>
+  <p class="kernel-note">
+    {
+      REPO_PUBLIC
+        ? 'Each module name links to its source.'
+        : 'The repository is private for now, so the source is not linked yet. The signatures below are checked against it by a unit test on every build.'
+    }
+  </p>
+
+  <h2 id="kernels">Physics kernels</h2>
+  {
+    [kernels, supporting].map((group, gi) => (
+      <>
+        {gi === 1 && (
+          <>
+            <h2 id="supporting">Supporting code</h2>
+            <p>The numerical plumbing and presentation code the kernels and demos share.</p>
+          </>
+        )}
+        {group.map((m) => {
+          const tests = testsFor(m);
+          return (
+            <section class="kernel" aria-labelledby={slug(m)}>
+              <h3 id={slug(m)}>
+                {m.title}{' '}
+                {REPO_PUBLIC ? (
+                  <a class="kernel-file" href={sourceHref(m.file)} rel="noopener">
+                    {m.file}
+                  </a>
+                ) : (
+                  <span class="kernel-file">{m.file}</span>
+                )}
+              </h3>
+              <p>{m.purpose}</p>
+              {m.conventions && <p class="kernel-conv">{m.conventions}</p>}
+              <dl class="kernel-meta">
+                <div>
+                  <dt>used by</dt>
+                  <dd>
+                    {m.usedBy.map((u) => {
+                      const d = demo(u);
+                      if (!d) return <span class="kernel-chip kernel-tag">{u}</span>;
+                      const a = demoAccent(u);
+                      return (
+                        <a class="kernel-chip" href={withBase(`/demos/#${d.id}`)} style={`--demo-accent:${a.bg};--demo-accent-fg:${a.fg}`}>
+                          <span class="demo-code">{u}</span> {d.name}
+                        </a>
+                      );
+                    })}
+                  </dd>
+                </div>
+                <div>
+                  <dt>tests</dt>
+                  <dd>
+                    {tests.length > 0 ? (
+                      tests.map((t) => <code>{t}</code>)
+                    ) : (
+                      <span class="kernel-none">no test file imports this module directly; it is exercised only through the modules that use it</span>
+                    )}
+                  </dd>
+                </div>
+                {m.validation && (
+                  <div>
+                    <dt>live check</dt>
+                    <dd>
+                      {m.validation.map((v) => (
+                        <a href={withBase(`/validation/#${v.anchor}`)}>{v.label}</a>
+                      ))}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+              <dl class="kernel-exports">
+                {m.exports.map((e) => (
+                  <div>
+                    <dt>
+                      <code>{e.signature}</code>
+                    </dt>
+                    <dd>{e.summary}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          );
+        })}
+      </>
+    ))
+  }
+</DocsLayout>
+
+<style>
+  .kernel-note {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+  }
+
+  .kernel {
+    margin-top: var(--s6);
+    padding-top: var(--s4);
+    border-top: 1px solid var(--line);
+  }
+
+  .kernel > * + * {
+    margin-top: var(--s3);
+  }
+
+  .kernel h3 {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--s1) var(--s3);
+    scroll-margin-top: 5rem;
+  }
+
+  .kernel-file {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 400;
+    color: var(--fg-muted);
+  }
+
+  .kernel-conv {
+    font-size: 0.95rem;
+    color: var(--fg-muted);
+    border-left: 2px solid var(--line-strong);
+    padding-left: var(--s3);
+  }
+
+  .kernel-meta {
+    margin: var(--s3) 0 0;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    display: grid;
+    gap: var(--s2);
+  }
+
+  .kernel-meta > div {
+    display: grid;
+    grid-template-columns: 6.5rem 1fr;
+    gap: var(--s3);
+    align-items: baseline;
+  }
+
+  .kernel-meta dt {
+    color: var(--fg-muted);
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .kernel-meta dd {
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+  }
+
+  .kernel-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    color: var(--fg);
+    text-decoration: none;
+  }
+
+  a.kernel-chip:hover {
+    color: var(--accent);
+  }
+
+  .kernel-tag {
+    padding: 0.05em var(--s2);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    color: var(--fg-muted);
+  }
+
+  .kernel-none {
+    color: var(--fg-muted);
+  }
+
+  .kernel-exports {
+    margin: var(--s4) 0 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+  }
+
+  .kernel-exports > div {
+    padding: var(--s3) var(--s4);
+  }
+
+  .kernel-exports > div + div {
+    border-top: 1px solid var(--line);
+  }
+
+  .kernel-exports dt code {
+    background: none;
+    padding: 0;
+    font-size: var(--text-sm);
+    color: var(--accent);
+    word-break: break-word;
+  }
+
+  .kernel-exports dd {
+    margin: var(--s1) 0 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  @media (max-width: 600px) {
+    .kernel-meta > div {
+      grid-template-columns: 1fr;
+      gap: var(--s1);
+    }
+  }
+</style>

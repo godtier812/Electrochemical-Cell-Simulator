@@ -1,0 +1,61 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Run it locally
+description: Building the site, running the tests, and regenerating the figures — the commands, the repository layout, and what CI checks.
+nav: docs
+ogImage: posters/og-docs.png
+---
+import RepoNote from '../../components/RepoNote.astro';
+
+## Access
+
+<RepoNote kind="installIntro" />
+
+The site needs Node 22 or newer and npm. Python 3 is used only by the link checker.
+
+## Commands
+
+```bash
+npm install
+npm test          # the unit tests, in tests/
+npm run dev       # a live-reloading server at localhost:4321/Electrochemical-Cell-Simulator/
+npm run build     # the static site in dist/, then its search index
+npm run preview   # serve dist/ as it will be deployed
+npm run check     # type-check the pages and components
+npm run posters   # regenerate every generated figure from the physics (a few minutes)
+python3 scripts/check-links.py   # after a build: every internal link and #fragment resolves
+```
+
+## Where things are
+
+```text
+src/lib/                the numerical kernels: no DOM, no dependencies, all tested
+src/components/demos/   one Astro component and one module per demo, plus the shared runtime
+src/components/tools/   the EIS / DRT analyser
+src/pages/              every page, as Astro or MDX
+scripts/                the figure generator and the build-time checks
+tests/                  unit tests for the kernels, the tools and the docs
+public/posters/         generated: demo fallbacks, social cards, the landing-page frame
+public/gallery/         generated: the gallery figures
+```
+
+The [kernel reference](/Electrochemical-Cell-Simulator/docs/kernels/) documents `src/lib/`
+module by module.
+
+## Generated figures
+
+The images in `public/posters/` and `public/gallery/` are computed by the same kernels the demos
+run, by a seeded generator, so identical inputs give identical images. They are committed. If
+you change anything they depend on — a kernel, the generator, or a page title that appears on a
+social card — run `npm run posters` and commit what changes.
+
+CI holds you to that. `scripts/check-posters.sh` regenerates every image into a scratch
+directory, twice, and fails the build if the two runs disagree or if any committed image
+differs from what the source now produces. Images are compared by decoded pixels rather than
+file bytes, because the PNG compressor's output varies between Node builds even when every
+pixel is the same.
+
+## Deployment
+
+A push to `main` runs the figure check, the unit tests and the build, and deploys the result to
+GitHub Pages. Nothing is deployed if any step fails.

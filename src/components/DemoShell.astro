@@ -1,9 +1,19 @@
 ---
 import { withBase } from '../lib/url';
+import { demoAccent } from '../lib/demos';
+
+interface Preset {
+  /** Button text: what to look for, not just what gets set. */
+  label: string;
+  /** Control id (or radio group name) to value. */
+  state: Record<string, string | number>;
+}
 
 interface Props {
   /** Demo identifier, used as element id and by the demo module. */
   id: string;
+  /** Panel code, e.g. "D4". Sets the demo's ramp stop. */
+  code: string;
   title: string;
   /** CSS aspect-ratio for the stage, e.g. "16/9". Reserves space, no CLS. */
   aspect?: string;
@@ -11,16 +21,32 @@ interface Props {
   poster: string;
   /** Text alternative describing what the canvas shows. */
   alt: string;
+  /** One or two sentences: what the picture is. The model write-up goes in the `notes` slot. */
   caption: string;
   /** Render stage full width with the panel below instead of beside. */
   stack?: boolean;
+  /** "Try this" buttons that move the controls to an instructive state. */
+  presets?: Preset[];
 }
 
-const { id, title, aspect = '16/9', poster, alt, caption, stack = false } = Astro.props;
+const { id, code, title, aspect = '16/9', poster, alt, caption, stack = false, presets = [] } = Astro.props;
+const accent = demoAccent(code);
+const hasNotes = Astro.slots.has('notes');
 ---
 
-<figure class="demo" id={id} data-demo={id}>
-  <h3 class="demo-title">{title}</h3>
+<figure class="demo" id={id} data-demo={id} style={`--demo-accent:${accent.bg};--demo-accent-fg:${accent.fg}`}>
+  <div class="demo-head">
+    <h3 class="demo-title"><span class="demo-code">{code}</span>{title}</h3>
+    {/* Hidden until the demo's script has wired it: without JavaScript none of
+        these buttons could do anything. */}
+    <div class="demo-tools" role="toolbar" aria-label={`${title}: tools`} hidden>
+      <button class="tool-btn" type="button" data-action="reset">reset</button>
+      <button class="tool-btn" type="button" data-action="hold" title="Keep the current curve on screen to compare against" hidden>hold</button>
+      <button class="tool-btn" type="button" data-action="link" title="Copy a link that reopens the demo with these settings">copy link</button>
+      <button class="tool-btn" type="button" data-action="csv" title="Download the plotted data" hidden>csv</button>
+      <button class="tool-btn" type="button" data-action="png" title="Save the figure as an image">png</button>
+    </div>
+  </div>
   <div class={stack ? 'demo-stack' : 'demo-grid'}>
     <div class="demo-stage" style={`aspect-ratio: ${aspect}`}>
       <img class="poster" src={withBase(`posters/${poster}`)} alt={alt} decoding="async" />
@@ -32,14 +58,33 @@ const { id, title, aspect = '16/9', poster, alt, caption, stack = false } = Astr
     {caption}
     <noscript> JavaScript is disabled, so a precomputed frame is shown instead of the live model.</noscript>
   </figcaption>
+  {
+    presets.length > 0 && (
+      <div class="demo-presets">
+        <span class="overline">Try this</span>
+        {presets.map((p) => (
+          <button
+            class="preset-btn"
+            type="button"
+            disabled
+            data-preset={JSON.stringify(
+              Object.fromEntries(Object.entries(p.state).map(([k, v]) => [k, String(v)]))
+            )}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+    )
+  }
+  {
+    hasNotes && (
+      <details class="demo-notes">
+        <summary>Model and assumptions</summary>
+        <div class="demo-notes-body">
+          <slot name="notes" />
+        </div>
+      </details>
+    )
+  }
 </figure>
-
-<style>
-  .demo-title {
-    margin-bottom: var(--s3);
-  }
-
-  .demo-stack > :global(.panel) {
-    margin-top: var(--s4);
-  }
-</style>

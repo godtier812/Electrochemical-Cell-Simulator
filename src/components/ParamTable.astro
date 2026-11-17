@@ -1,0 +1,134 @@
+---
+/**
+ * Every control a demo link can set, read straight from the demo components'
+ * markup at build time — so this table cannot list a parameter, range or
+ * default that the demos do not actually have.
+ */
+import { DEMOS, demoAccent } from '../lib/demos';
+import { withBase } from '../lib/url';
+
+const sources = import.meta.glob<string>('./demos/D*.astro', { query: '?raw', import: 'default', eager: true });
+
+interface Row {
+  key: string;
+  label: string;
+  values: string;
+  initial: string;
+}
+
+const attr = (tag: string, name: string): string | undefined => {
+  const m = tag.match(new RegExp(`\\b${name}=(?:"([^"]*)"|\\{([^}]*)\\})`));
+  return m ? (m[1] ?? m[2]) : undefined;
+};
+
+const fmt = (raw: string | undefined) => (raw === undefined ? '' : String(Number(raw)));
+
+function rowsFor(src: string): Row[] {
+  const rows: Row[] = [];
+  for (const m of src.matchAll(/<Control\s[^>]*?\/>/gs)) {
+    const tag = m[0];
+    const scale = attr(tag, 'scale');
+    rows.push({
+      key: attr(tag, 'id')!,
+      label: attr(tag, 'label')!,
+      values: `${fmt(attr(tag, 'min'))} to ${fmt(attr(tag, 'max'))}${scale === 'log' ? ', log scale' : ''}${attr(tag, 'step') ? `, step ${fmt(attr(tag, 'step'))}` : ''}`,
+      initial: fmt(attr(tag, 'value')),
+    });
+  }
+  // plain sliders, checkboxes and radio groups that are not half of a Control
+  for (const m of src.matchAll(/<label[^>]*>\s*([^<]*?)\s*<\/label>\s*<input type="range" id="([^"]+)" min="([^"]+)" max="([^"]+)" step="([^"]+)" value="([^"]+)"/gs)) {
+    rows.push({ key: m[2], label: m[1], values: `${m[3]} to ${m[4]}, step ${m[5]}`, initial: m[6] });
+  }
+  for (const m of src.matchAll(/<label><input type="checkbox" id="([^"]+)"( checked)? \/>\s*([^<]+?)\s*<\/label>/gs)) {
+    rows.push({ key: m[1], label: m[3], values: '0 or 1', initial: m[2] ? '1' : '0' });
+  }
+  const radios = new Map<string, { values: string[]; initial: string }>();
+  for (const m of src.matchAll(/<input type="radio" name="([^"]+)" value="([^"]+)"( checked)? \/>/g)) {
+    const r = radios.get(m[1]) ?? { values: [], initial: '' };
+    r.values.push(m[2]);
+    if (m[3]) r.initial = m[2];
+    radios.set(m[1], r);
+  }
+  radios.forEach((r, key) => rows.push({ key, label: 'mode', values: r.values.join(' or '), initial: r.initial }));
+  return rows;
+}
+
+const demos = DEMOS.map((d) => {
+  const file = Object.keys(sources).find((p) => p.split('/').pop()!.startsWith(d.code));
+  return { ...d, rows: file ? rowsFor(sources[file]) : [], accent: demoAccent(d.code) };
+});
+---
+
+{
+  demos.map((d) => (
+    <section class="param-demo" style={`--demo-accent:${d.accent.bg};--demo-accent-fg:${d.accent.fg}`}>
+      <h3 class="param-head">
+        <span class="demo-code">{d.code}</span>
+        <a href={withBase(`/demos/#${d.id}`)}>{d.name}</a>
+        <code class="param-anchor">#{d.id}</code>
+      </h3>
+      <div class="table-wrap">
+        <table class="param-table">
+          <thead>
+            <tr>
+              <th>key</th>
+              <th>control</th>
+              <th>accepts</th>
+              <th class="num">starts at</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.rows.map((r) => (
+              <tr>
+                <td><code>{r.key}</code></td>
+                <td>{r.label}</td>
+                <td>{r.values}</td>
+                <td class="num">{r.initial}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  ))
+}
+
+<style>
+  .param-demo {
+    margin-top: var(--s5);
+  }
+
+  .param-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s2) var(--s3);
+    font-size: var(--text-base);
+    margin: 0;
+  }
+
+  .param-anchor {
+    font-size: var(--text-xs);
+    color: var(--fg-muted);
+  }
+
+  .param-table th {
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+
+  .param-table td {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .param-table td code {
+    background: none;
+    padding: 0;
+    color: var(--accent);
+  }
+
+  .table-wrap {
+    margin: var(--s2) 0 0;
+  }
+</style>

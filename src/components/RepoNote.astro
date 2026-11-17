@@ -14,6 +14,7 @@
  */
 import { REPO_PUBLIC, SITE } from '../lib/site';
 import ObfuscatedEmail from './ObfuscatedEmail.astro';
+import { withBase } from '../lib/url';
 
 interface Props {
   kind:
@@ -26,7 +27,7 @@ interface Props {
     | 'packageRepo' // status of the Python package's repository
     | 'statusOfRecord' // how the roadmap is kept honest
     | 'follow' // what the roadmap's follow section points at
-    | 'installIntro'; // preamble to the from-source install steps
+    | 'installIntro'; // preamble to the local build steps on /docs/local/
 }
 
 const { kind } = Astro.props;
@@ -119,7 +120,7 @@ const issues = `${SITE.github}/issues`;
         The <a href={issues} rel="noopener">issue tracker</a> is the source of truth for status; this
         page is the readable summary of it. Both are checked against something other than my own
         judgement in one place — the{' '}
-        <a href="/Electrochemical-Cell-Simulator/validation/">validation page</a>, where the analytic
+        <a href={withBase('/validation/')}>validation page</a>, where the analytic
         comparisons recompute in your browser on every visit, so a broken claim breaks visibly.
       </>
     ) : (
@@ -128,7 +129,7 @@ const issues = `${SITE.github}/issues`;
         tracker yet and no source to read. That makes this page the status of record: the badges
         above are what I believe is true, and they are updated as items move. The one place they are
         checked against something other than my own judgement is the{' '}
-        <a href="/Electrochemical-Cell-Simulator/validation/">validation page</a>, where the analytic
+        <a href={withBase('/validation/')}>validation page</a>, where the analytic
         comparisons recompute in your browser on every visit — a broken claim breaks visibly there.
       </>
     ))
@@ -150,11 +151,14 @@ const issues = `${SITE.github}/issues`;
 }{
   kind === 'installIntro' &&
     (REPO_PUBLIC ? (
-      <>The supported route is an editable install into a fresh virtual environment.</>
+      <>
+        Clone the <a href={repo} rel="noopener">repository</a> and everything on this site builds
+        and tests locally with Node.
+      </>
     ) : (
       <>
-        When the repository is public, the supported route will be an editable install into a fresh
-        virtual environment.
+        The repository is private for now, so these steps work only with access to it. They are
+        written down so that they are already true on the day it opens.
       </>
     ))
 }

@@ -9,6 +9,7 @@ ogImage: posters/og-microstructure.png
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import D5Microstructure from '../../components/demos/D5Microstructure.astro';
 
 # Physics
 
@@ -26,7 +27,7 @@ Ion motion in the electrolyte starts from the dilute-solution Nernst–Planck fl
 
 <StatusBadge status="shipped" label="browser demo" />
 
-Porous electrodes are not homogeneous slabs, and the transport equations above need effective properties that reflect real geometry. Voltaire generates particle packings by random sequential adsorption, then computes tortuosity by solving Laplace's equation across the actual structure instead of assuming a Bruggeman exponent. The result feeds directly into the homogenised transport model: porosity dilutes the available volume, tortuosity lengthens every diffusion path. The [microstructure demo](/Electrochemical-Cell-Simulator/demos/#demo-microstructure) runs the full generate-then-solve pipeline in the browser, so you can watch the fitted tortuosity depart from the Bruggeman prediction as packing density rises.
+Porous electrodes are not homogeneous slabs, and the transport equations above need effective properties that reflect real geometry. Voltaire generates particle packings by random sequential adsorption, then computes tortuosity by solving Laplace's equation across the actual structure instead of assuming a Bruggeman exponent. The result feeds directly into the homogenised transport model: porosity dilutes the available volume, tortuosity lengthens every diffusion path. The [microstructure demo](#demo-microstructure) below runs the full generate-then-solve pipeline in the browser, so you can watch the fitted tortuosity depart from the Bruggeman prediction as packing density rises.
 
 <Equation id="eq-deff" latex="D_{\mathrm{eff}} = \frac{\varepsilon}{\tau} D" caption="Effective diffusivity in a porous electrode. Voltaire computes the tortuosity from a Laplace solve on the generated microstructure." />
 
@@ -41,6 +42,8 @@ The geometry is sampled below the grid: each cell carries the fraction of its ar
 It also removed a state the demo used to be able to show. Insertion rejects overlaps, so particles are at worst tangent and the pore space is always connected; a report of *no percolating path* could therefore only ever have been the grid sealing a gap narrower than one cell. It happened: across a 135-configuration sweep the whole-cell version reported three blocked structures that in fact conduct at 14–17% of free space. Sub-cell sampling reports none. The check remains in the code, because a generator that allowed particles to overlap could block a channel for real.
 
 Bruggeman's $\varepsilon^{1.5}$ is shown alongside it as the correlation in common use, not as the applicable one. It is fitted to three-dimensional sphere packings, and for $\varepsilon > (3-\sqrt{5})/2 \approx 0.382$ it sits *above* the 2D bound — a value no two-dimensional two-phase geometry can attain. Watching the measurement fall away from both curves as packing density rises is the point of the demo; watching $\varepsilon^{1.5}$ cross a bound it cannot satisfy is why the second reference is there.
+
+<D5Microstructure />
 
 ## Kinetics
 

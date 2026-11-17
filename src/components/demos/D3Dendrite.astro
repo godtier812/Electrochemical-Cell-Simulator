@@ -5,37 +5,43 @@ import Control from './Control.astro';
 
 <DemoShell
   id="demo-dendrite"
-  title="D3 · Phase-field dendrite"
+  code="D3"
+  title="Phase-field dendrite"
   poster="d3-dendrite.png"
   alt="Metal dendrites in yellow and green growing upward from a flat electrode into purple electrolyte, computed by the phase-field model"
   aspect="16/9"
-  stack={true}
-  caption="Electrochemically driven Allen–Cahn phase field with Kobayashi anisotropy, running as a WebGL2 fragment shader on ping-pong float textures (CPU fallback at reduced resolution). ξ = 1 is metal, ξ = 0 electrolyte; the concentration field co-evolves and throttles growth where the electrolyte depletes. Length and time are nondimensional lattice units; the morphology sequence mossy → needle → dendritic tracks the L_σ/L_η ratio. The overpotential control sets the physical cathodic overpotential as a magnitude in millivolts — what a potentiostat actually applies — so dragging it right means more drive and faster growth. The dimensionless group that enters the Butler–Volmer exponentials, aη = Fη/RT, is derived from it and reported in the readouts; because it carries T in its denominator, it changes when you move the temperature even though the applied millivolts do not."
+  caption="Metal (yellow) plating upward from a flat electrode into electrolyte (purple), running live as a fragment shader. The run starts a few thousand steps in, so the deposit is already visible; reseed to watch it from the flat electrode."
+  presets={[
+    { label: 'Low drive: compact, mossy growth', state: { 'd3-morph': 15, 'd3-eta': 90 } },
+    { label: 'Six-fold crystal: different branch angles', state: { 'd3-omega': 6, 'd3-delta': 0.025 } },
+    { label: 'No anisotropy: δ = 0', state: { 'd3-delta': 0 } },
+    { label: 'Show the depleted electrolyte', state: { 'd3-showc': 1 } },
+  ]}
 >
   <fieldset class="panel" slot="panel" disabled>
     <legend>deposition cell</legend>
-    <div class="d4-controls">
-      {/* The physical overpotential a potentiostat would apply, as a positive
-          magnitude so the slider is monotonic. The sign is applied once, and the
-          dimensionless aη is derived from it, in d3-dendrite.ts. */}
-      <Control id="d3-eta" label="cathodic |η| / mV" min={50} max={205} value={154} step={1} />
-      <Control id="d3-delta" label="anisotropy δ" min={0} max={0.06} value={0.051} step={0.001} />
-      {/* Morphology stays slider-only: its readout is a regime name, and a
-          typed L_η would be a number most readers cannot place. */}
-      <div class="control-row">
-        <label for="d3-morph">morphology L_σ/L_η</label>
-        <input type="range" id="d3-morph" min="0" max="100" step="1" value="75" />
-        <output class="readout" id="d3-morph-out" for="d3-morph">dendritic</output>
-      </div>
-      <Control id="d3-T" label="temperature / K" min={250} max={350} value={298} step={1} />
-      <Control id="d3-nuc" label="nucleation sites" min={1} max={8} value={3} step={1} />
+    {/* The physical overpotential a potentiostat would apply, as a positive
+        magnitude so the slider is monotonic. The sign is applied once, and the
+        dimensionless aη is derived from it, in d3-dendrite.ts. */}
+    <Control id="d3-eta" label="cathodic |η| / mV" min={50} max={205} value={154} step={1} />
+    <Control id="d3-delta" label="anisotropy δ" min={0} max={0.06} value={0.051} step={0.001} />
+    {/* Morphology stays slider-only: its readout is a regime name, and a
+        typed L_η would be a number most readers cannot place. */}
+    <div class="control-row">
+      <label for="d3-morph">morphology L_σ/L_η</label>
+      <input type="range" id="d3-morph" min="0" max="100" step="1" value="75" />
+      <output class="readout" id="d3-morph-out" for="d3-morph">dendritic</output>
     </div>
+    <Control id="d3-T" label="temperature / K" min={250} max={350} value={298} step={1} />
+    <Control id="d3-nuc" label="nucleation sites" min={1} max={8} value={3} step={1} />
     <div class="switch-row" role="radiogroup" aria-label="Anisotropy mode">
       <label><input type="radio" name="d3-omega" value="4" checked /> ω = 4</label>
       <label><input type="radio" name="d3-omega" value="6" /> ω = 6</label>
-      <label><input type="checkbox" id="d3-showc" /> concentration overlay</label>
-      <button class="copy-btn" type="button" id="d3-pause" aria-pressed="false">pause</button>
-      <button class="copy-btn" type="button" id="d3-reset">seed / reset</button>
+      <label><input type="checkbox" id="d3-showc" /> concentration</label>
+    </div>
+    <div class="switch-row">
+      <button class="tool-btn" type="button" id="d3-pause" aria-pressed="false">pause</button>
+      <button class="tool-btn" type="button" id="d3-reset">reseed from flat</button>
     </div>
     <div class="panel-readouts">
       <span>aη = Fη/RT <output id="d3-aeta">—</output></span>
@@ -48,6 +54,35 @@ import Control from './Control.astro';
       >
     </div>
   </fieldset>
+  <Fragment slot="notes">
+    <p>
+      An electrochemically driven Allen–Cahn phase field with Kobayashi anisotropy. ξ = 1 is metal
+      and ξ = 0 electrolyte; the ion concentration co-evolves and throttles growth where the
+      electrolyte depletes. It runs as a WebGL2 fragment shader on ping-pong float textures, with a
+      CPU fallback at reduced resolution.
+    </p>
+    <ul>
+      <li>
+        Length and time are nondimensional lattice units. The picture is a morphology, not a
+        prediction of micrometres or seconds.
+      </li>
+      <li>
+        The morphology control moves the L<sub>σ</sub>/L<sub>η</sub> ratio through the sequence
+        mossy → needle → dendritic.
+      </li>
+      <li>
+        The overpotential control is the physical cathodic overpotential as a magnitude in
+        millivolts, which is what a potentiostat applies: drag right for more drive. The group that
+        enters the Butler–Volmer exponentials, aη = Fη/RT, is derived from it and shown in the
+        readouts. It carries T in its denominator, so it moves with temperature even though the
+        applied millivolts do not.
+      </li>
+      <li>
+        Explicit time stepping has a stability limit. If a setting crosses it, the readouts say so
+        rather than letting an unstable picture pass as a solution.
+      </li>
+    </ul>
+  </Fragment>
 </DemoShell>
 
 <script>

@@ -64,3 +64,24 @@ export function warburgAsymptote(sigma: number, omega: number): C {
   const m = sigma / Math.sqrt(omega);
   return c(m, -m);
 }
+
+/**
+ * Synthetic measurement noise: independent Gaussian errors on the real and
+ * imaginary parts, each with standard deviation `rel`·|Z| at that frequency —
+ * the proportional error model usually assumed for a frequency response
+ * analyser. `rng` is a uniform (0,1) generator; pass a seeded one and the same
+ * settings always give the same spectrum, so changing the regularisation
+ * strength changes the inversion and nothing else.
+ */
+export function addNoise(Z: C[], rel: number, rng: () => number): C[] {
+  if (!(rel > 0)) return Z;
+  const gauss = (): number => {
+    let u = 0;
+    while (u === 0) u = rng();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rng());
+  };
+  return Z.map((z) => {
+    const s = rel * Math.hypot(z.re, z.im);
+    return c(z.re + s * gauss(), z.im + s * gauss());
+  });
+}

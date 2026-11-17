@@ -5,16 +5,22 @@ import Control from './Control.astro';
 
 <DemoShell
   id="demo-impedance"
-  title="D4 · Impedance — Nyquist, Bode, DRT"
+  code="D4"
+  title="Impedance — Nyquist, Bode, DRT"
   poster="d4-impedance.svg"
   alt="Nyquist plot with two semicircles and a Warburg tail, Bode magnitude and phase plots, and the distribution of relaxation times showing separated peaks"
   aspect="16/10"
   stack={true}
-  caption="Equivalent-circuit spectrum R_Ω + [R_SEI ∥ C_SEI] + [C_dl ∥ (R_ct + Z_W)] with a finite-length Warburg, over 10 mHz–100 kHz. The DRT γ(τ) is inverted live by Tikhonov-regularised non-negative least squares on ~60 log-spaced relaxation times; drag the λ slider to watch over- and under-smoothing. The Nyquist panel keeps equal axis scaling. Hovering the DRT marks the corresponding frequency on the Nyquist curve. The Warburg tail appears in the DRT as a broad band of τ — expected for a diffusion element, which has no single relaxation time."
+  caption="An equivalent-circuit spectrum from 10 mHz to 100 kHz, and its distribution of relaxation times γ(τ), inverted live. Hover the DRT to mark the matching frequency on the Nyquist curve."
+  presets={[
+    { label: 'Aged cell: a second arc grows in', state: { 'd4-age': 200 } },
+    { label: 'Noisy data, λ too small: false spikes', state: { 'd4-noise': 2, 'd4-lambda': 0.0001 } },
+    { label: 'λ too large: two processes merge into one', state: { 'd4-age': 200, 'd4-noise': 0, 'd4-lambda': 1 } },
+  ]}
 >
   <fieldset class="panel" slot="panel" disabled>
     <legend>equivalent circuit · frequency response analyser</legend>
-    <div class="d4-controls">
+    <div class="control-cols">
       <Control id="d4-rohm" label="R_Ω / Ω cm²" min={0} max={50} value={10} step={0.1} />
       <Control id="d4-rct" label="R_ct / Ω cm²" min={1} max={100} value={25} scale="log" />
       <Control id="d4-cdl" label="C_dl / F cm⁻²" min={1e-6} max={1e-3} value={2e-5} scale="log" />
@@ -26,67 +32,44 @@ import Control from './Control.astro';
         <input type="range" id="d4-age" min="0" max="300" step="5" value="0" />
         <output class="readout" id="d4-age-out" for="d4-age">fresh</output>
       </div>
+      <Control id="d4-noise" label="noise / % of |Z|" min={0} max={5} value={0} step={0.1} />
       <Control id="d4-lambda" label="DRT λ (Tikhonov)" min={1e-4} max={1} value={1e-2} scale="log" />
     </div>
     <div class="switch-row">
-      <button class="copy-btn" type="button" id="d4-reset">reset</button>
+      <button class="tool-btn" type="button" id="d4-analyse">open this spectrum in the analyser →</button>
     </div>
     <div class="panel-readouts">
       <span>DRT misfit <output id="d4-misfit">—</output></span>
+      <span>Σ R from DRT <output id="d4-rsum">—</output></span>
       <span>cursor <output id="d4-hover">—</output></span>
     </div>
   </fieldset>
+  <Fragment slot="notes">
+    <p>
+      The circuit is R<sub>Ω</sub> + [R<sub>SEI</sub> ∥ C<sub>SEI</sub>] + [C<sub>dl</sub> ∥
+      (R<sub>ct</sub> + Z<sub>W</sub>)] with a finite-length Warburg. The DRT is recovered by
+      Tikhonov-regularised non-negative least squares on about 60 log-spaced relaxation times.
+    </p>
+    <ul>
+      <li>
+        γ is a density in ln τ: the <em>area</em> under a peak is the resistance of that process.
+        Peak height depends on the grid and should not be read as a quantity.
+      </li>
+      <li>
+        The Warburg tail has no single relaxation time, so it appears as a broad band of τ. That is
+        expected, not an artefact.
+      </li>
+      <li>
+        The noise control adds seeded Gaussian error proportional to |Z|. With clean data almost any
+        λ looks fine; it takes noise to see why the choice matters.
+      </li>
+      <li>The Nyquist panel keeps equal axis scaling, so a semicircle is a semicircle.</li>
+    </ul>
+  </Fragment>
 </DemoShell>
 
 <style is:global>
-  .d4-grid {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-columns: 1.25fr 1fr;
-    grid-template-rows: 1fr 1fr 1fr;
-    gap: 2px;
-    background: var(--surface);
-  }
-
-  .d4-grid .d4-cell {
-    position: relative;
-    min-height: 0;
-  }
-
-  .d4-grid .d4-nyquist {
-    grid-row: 1 / 4;
-  }
-
-  .d4-grid canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .d4-controls {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    column-gap: var(--s5);
-  }
-
-  @media (max-width: 900px) {
-    .d4-controls {
-      grid-template-columns: 1fr;
-    }
-  }
-
   @media (max-width: 700px) {
-    .d4-grid {
-      grid-template-columns: 1fr;
-      grid-template-rows: 1.4fr 1fr 1fr 1fr;
-    }
-
-    .d4-grid .d4-nyquist {
-      grid-row: auto;
-    }
-
     #demo-impedance .demo-stage {
       aspect-ratio: 9/16 !important;
     }

@@ -64,19 +64,40 @@ function runPF(
   return { nx, ny, frames };
 }
 
-function pfToRGB(
+/**
+ * The field sampled k times per cell by bilinear interpolation, then coloured.
+ * A phase field is smooth by construction — the interface is a few cells wide
+ * — so interpolating it is faithful to the model, and it is what the live
+ * demo's display shader does too. Repeating each cell as a k×k block, as these
+ * figures used to, drew the simulation grid rather than the field on it.
+ * Same orientation as pfToRGB: the electrode at the bottom.
+ */
+function pfToRGBSmooth(
   state: Float32Array,
   nx: number,
   ny: number,
   channel: 0 | 1,
-  map: 'viridis' | 'inferno'
+  map: 'viridis' | 'inferno',
+  k: number
 ): Uint8Array {
-  const rgb = new Uint8Array(nx * ny * 3);
-  for (let y = 0; y < ny; y++) {
-    for (let x = 0; x < nx; x++) {
-      const v = state[((ny - 1 - y) * nx + x) * 2 + channel];
+  const W = nx * k;
+  const H = ny * k;
+  const rgb = new Uint8Array(W * H * 3);
+  const at = (x: number, y: number) => state[((ny - 1 - y) * nx + x) * 2 + channel];
+  for (let Y = 0; Y < H; Y++) {
+    const fy = Math.min(ny - 1, Math.max(0, (Y + 0.5) / k - 0.5));
+    const y0 = Math.floor(fy);
+    const y1 = Math.min(ny - 1, y0 + 1);
+    const ty = fy - y0;
+    for (let X = 0; X < W; X++) {
+      const fx = Math.min(nx - 1, Math.max(0, (X + 0.5) / k - 0.5));
+      const x0 = Math.floor(fx);
+      const x1 = Math.min(nx - 1, x0 + 1);
+      const tx = fx - x0;
+      const v =
+        (at(x0, y0) * (1 - tx) + at(x1, y0) * tx) * (1 - ty) + (at(x0, y1) * (1 - tx) + at(x1, y1) * tx) * ty;
       const [r, g, b] = sample(map, Math.max(0, Math.min(1, v)));
-      const j = (y * nx + x) * 3;
+      const j = (Y * W + X) * 3;
       rgb[j] = r;
       rgb[j + 1] = g;
       rgb[j + 2] = b;
@@ -84,6 +105,9 @@ function pfToRGB(
   }
   return rgb;
 }
+
+/** Upsampling factor for the phase-field figures. */
+const PF_K = 3;
 
 function scaleNearest(rgb: Uint8Array, nx: number, ny: number, k: number): Uint8Array {
   const out = new Uint8Array(nx * k * ny * k * 3);
@@ -119,11 +143,11 @@ console.timeEnd('phase-field hero run');
 const heroFinal = hero.frames.get(4400)!;
 writeFileSync(
   join(POSTERS, 'hero.png'),
-  encodePNG(scaleNearest(pfToRGB(heroFinal, 352, 176, 0, 'viridis'), 352, 176, 2), 704, 352)
+  encodePNG(pfToRGBSmooth(heroFinal, 352, 176, 0, 'viridis', PF_K), 352 * PF_K, 176 * PF_K)
 );
 writeFileSync(
   join(POSTERS, 'd3-dendrite.png'),
-  encodePNG(scaleNearest(pfToRGB(hero.frames.get(3500)!, 352, 176, 0, 'viridis'), 352, 176, 2), 704, 352)
+  encodePNG(pfToRGBSmooth(hero.frames.get(3500)!, 352, 176, 0, 'viridis', PF_K), 352 * PF_K, 176 * PF_K)
 );
 for (const [step, label] of [
   [1500, 't1'],
@@ -133,12 +157,12 @@ for (const [step, label] of [
 ] as const) {
   writeFileSync(
     join(GALLERY, `dendrite-${label}.png`),
-    encodePNG(scaleNearest(pfToRGB(hero.frames.get(step)!, 352, 176, 0, 'viridis'), 352, 176, 2), 704, 352)
+    encodePNG(pfToRGBSmooth(hero.frames.get(step)!, 352, 176, 0, 'viridis', PF_K), 352 * PF_K, 176 * PF_K)
   );
 }
 writeFileSync(
   join(GALLERY, 'dendrite-concentration.png'),
-  encodePNG(scaleNearest(pfToRGB(heroFinal, 352, 176, 1, 'inferno'), 352, 176, 2), 704, 352)
+  encodePNG(pfToRGBSmooth(heroFinal, 352, 176, 1, 'inferno', PF_K), 352 * PF_K, 176 * PF_K)
 );
 console.log('hero + dendrite gallery written');
 
@@ -147,13 +171,13 @@ const NEEDLE_P: PFParams = { ...PF_DEFAULTS, Leta: 0.05, D: 1.0, lambdaC: 2.5, W
 const needles = runPF(288, 160, NEEDLE_P, 4200, [4200], 11, 3);
 writeFileSync(
   join(GALLERY, 'needles.png'),
-  encodePNG(scaleNearest(pfToRGB(needles.frames.get(4200)!, 288, 160, 0, 'viridis'), 288, 160, 2), 576, 320)
+  encodePNG(pfToRGBSmooth(needles.frames.get(4200)!, 288, 160, 0, 'viridis', PF_K), 288 * PF_K, 160 * PF_K)
 );
 const SIX_P: PFParams = { ...HERO_P, omegaMode: 6, delta: 0.025 };
 const six = runPF(288, 160, SIX_P, 4200, [4200], 9, 4);
 writeFileSync(
   join(GALLERY, 'dendrite-6fold.png'),
-  encodePNG(scaleNearest(pfToRGB(six.frames.get(4200)!, 288, 160, 0, 'viridis'), 288, 160, 2), 576, 320)
+  encodePNG(pfToRGBSmooth(six.frames.get(4200)!, 288, 160, 0, 'viridis', PF_K), 288 * PF_K, 160 * PF_K)
 );
 console.timeEnd('needle + 6-fold runs');
 
@@ -250,16 +274,17 @@ function stampText(
     rgb[i * 3 + 1] = 0x0b;
     rgb[i * 3 + 2] = 0x36;
   }
-  // hero frame scaled 3.4x -> 1197x598, centred at bottom
-  const frame = pfToRGB(heroFinal, 352, 176, 0, 'viridis');
+  // hero frame at 3.4x -> 1197x598, centred at bottom, sampled from a smooth 4x render
+  const FK = 4;
+  const frame = pfToRGBSmooth(heroFinal, 352, 176, 0, 'viridis', FK);
   const k = 3.4;
   for (let y = 0; y < H; y++) {
-    const sy = Math.floor((y - (H - 176 * k)) / k);
-    if (sy < 0 || sy >= 176) continue;
+    const sy = Math.floor(((y - (H - 176 * k)) / k) * FK);
+    if (sy < 0 || sy >= 176 * FK) continue;
     for (let x = 0; x < W; x++) {
-      const sx = Math.floor(x / k);
-      if (sx >= 352) continue;
-      const si = (sy * 352 + sx) * 3;
+      const sx = Math.floor((x / k) * FK);
+      if (sx >= 352 * FK) continue;
+      const si = (sy * 352 * FK + sx) * 3;
       const di = (y * W + x) * 3;
       // darken the top of the sim so the wordmark stays legible
       const fade = Math.min(1, Math.max(0.35, (y - 40) / 300));
@@ -374,6 +399,7 @@ function stampText(
       y: Array.from(d.gamma),
       color: [C1, C2, CR][i],
       width: 2,
+      label: ['fresh', 'SEI 1x', 'SEI 2.5x'][i],
     };
   });
   writeFileSync(
@@ -397,20 +423,20 @@ function microPNG(porosity: number, seed: number): { rgb: Uint8Array; nx: number
   const ms = generateRSA({ nx, ny, solidFraction: 1 - porosity, radius: 8, spread: 0.25, rng: mulberry32(seed) });
   const tr = solveTransport(ms);
   const rgb = new Uint8Array(nx * ny * 3);
+  // Coloured the way the live demo colours it: each cell blended between the
+  // field and the particle tone by its pore fraction, so a cell the particle
+  // boundary cuts through is drawn part solid — the same sub-cell geometry
+  // the solver uses — instead of being rounded to wholly one or the other.
+  const SOLID = [0x2a, 0x32, 0x3d];
   for (let y = 0; y < ny; y++) {
     for (let x = 0; x < nx; x++) {
       const i = y * nx + x;
       const j = i * 3;
-      if (!ms.pore[i]) {
-        rgb[j] = 0x2a;
-        rgb[j + 1] = 0x32;
-        rgb[j + 2] = 0x3d;
-      } else {
-        const [r, g, b] = sample('viridis', isNaN(tr.u[i]) ? 0 : tr.u[i]);
-        rgb[j] = r;
-        rgb[j + 1] = g;
-        rgb[j + 2] = b;
-      }
+      const a = ms.phi[i];
+      const [r, g, b] = sample('viridis', isNaN(tr.u[i]) ? 0 : tr.u[i]);
+      rgb[j] = r * a + SOLID[0] * (1 - a);
+      rgb[j + 1] = g * a + SOLID[1] * (1 - a);
+      rgb[j + 2] = b * a + SOLID[2] * (1 - a);
     }
   }
   return { rgb, nx, ny, eps: ms.porosity, deff: tr.deffRatio };
@@ -444,13 +470,14 @@ function microPNG(porosity: number, seed: number): { rgb: Uint8Array; nx: number
       height: 400,
       title: 'DISCHARGE  NMC811|graphite SPM  1.00C  T=298 K  R=6 um',
       series: [
-        { x: run.q.subarray(0, run.n), y: run.ocv.subarray(0, run.n), color: CR, width: 1.5, dash: '5 4' },
-        { x: run.q.subarray(0, run.n), y: run.v.subarray(0, run.n), color: C1, width: 2.5 },
+        { x: run.q.subarray(0, run.n), y: run.ocv.subarray(0, run.n), color: CR, width: 1.5, dash: '5 4', label: 'open circuit' },
+        { x: run.q.subarray(0, run.n), y: run.v.subarray(0, run.n), color: C1, width: 2.5, label: 'terminal, 1C' },
       ],
       xLabel: 'discharged capacity / A h',
       yLabel: 'cell voltage / V',
       xRange: [0, run.capacityNominal * 1.05],
       yRange: [2.4, 4.3],
+      legend: 'bl',
     })
   );
   console.log(
@@ -607,17 +634,17 @@ function ogPlot(rgb: Uint8Array, series: OgSeries[], logX = false, logY = false)
   // these cards cost no extra simulation time.
   {
     const rgb = ogBase();
-    ogField(rgb, pfToRGB(hero.frames.get(5000)!, 352, 176, 0, 'viridis'), 352, 176);
+    ogField(rgb, pfToRGBSmooth(hero.frames.get(5000)!, 352, 176, 0, 'viridis', 4), 352 * 4, 176 * 4);
     ogFinish(rgb, 'Demos', 'og-demos.png');
   }
   {
     const rgb = ogBase();
-    ogField(rgb, pfToRGB(six.frames.get(4200)!, 288, 160, 0, 'viridis'), 288, 160);
+    ogField(rgb, pfToRGBSmooth(six.frames.get(4200)!, 288, 160, 0, 'viridis', 4), 288 * 4, 160 * 4);
     ogFinish(rgb, 'Dendrites', 'og-physics-dendrites.png');
   }
   {
     const rgb = ogBase();
-    ogField(rgb, pfToRGB(heroFinal, 352, 176, 1, 'inferno'), 352, 176);
+    ogField(rgb, pfToRGBSmooth(heroFinal, 352, 176, 1, 'inferno', 4), 352 * 4, 176 * 4);
     ogFinish(rgb, 'Gallery', 'og-gallery.png');
   }
   {
@@ -711,8 +738,20 @@ function ogPlot(rgb: Uint8Array, series: OgSeries[], logX = false, logY = false)
     ogFinish(rgb, 'Documentation', 'og-docs.png');
   }
 
+  // The DRT of the impedance demo's circuit, for the analyser.
+  {
+    const p: CircuitParams = { Rohm: 10, Rct: 25, Cdl: 2e-5, Rd: 30, tauD: 2, Rsei: 15, Csei: 2e-3, age: 1.5 };
+    const omega = omegaGrid(0.01, 1e5, 60);
+    const d = computeDRT(omega, Array.from(omega, (w) => impedance(w, p)), { nTau: 60, lambda: 1e-2 });
+    const rgb = ogBase();
+    ogPlot(rgb, [{ x: Array.from(d.tau), y: Array.from(d.gamma), t: 0.45 }], true);
+    ogFinish(rgb, 'EIS / DRT analyser', 'og-tools-eis.png');
+  }
+
   // Pages with no field or curve of their own get a titled card.
   for (const [title, file] of [
+    ['Tools', 'og-tools.png'],
+    ['Bench calculators', 'og-tools-calculators.png'],
     ['Thermal', 'og-physics-thermal.png'],
     ['Degradation', 'og-physics-degradation.png'],
     ['Roadmap', 'og-roadmap.png'],

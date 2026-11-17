@@ -25,7 +25,21 @@ interface CheckResult {
   reason?: string;
   /** Observed order of accuracy; only the MMS check reports one. */
   order?: number;
+  /** What was measured, for the scoreboard. Absent if the check never got that far. */
+  measured?: string;
+  /** The bound it is held to: the same one the unit test asserts. */
+  tolerance?: string;
+  /** Element id of the write-up, so the scoreboard row can link to it. */
+  anchor?: string;
 }
+
+const ANCHORS: Record<string, string> = {
+  'Gouy–Chapman': 'check-gc',
+  'Cottrell step': 'check-cottrell',
+  'Manufactured solutions': 'check-mms',
+  'Warburg 45° limit': 'check-warburg',
+  'DRT recovery': 'check-drt',
+};
 
 export function initValidationPage(root: HTMLElement): void {
   // Every plot on this page is one computed curve against one analytic
@@ -47,9 +61,9 @@ export function initValidationPage(root: HTMLElement): void {
   const check = (name: string, fn: () => CheckResult | null) => {
     try {
       const r = fn();
-      results.push(r ?? { name, ok: false, reason: 'did not run' });
+      results.push({ anchor: ANCHORS[name], ...(r ?? { name, ok: false, reason: 'did not run' }) });
     } catch (err) {
-      results.push({ name, ok: false, reason: 'threw an error' });
+      results.push({ name, ok: false, reason: 'threw an error', anchor: ANCHORS[name] });
       console.error(`[voltaire:validation] ${name}`, err);
     }
   };
@@ -78,11 +92,12 @@ export function initValidationPage(root: HTMLElement): void {
     set('vp-gc-err', `max |ψ_num − ψ_GC| = ${(maxErr * 25.7).toFixed(3)} mV over the first half of the gap (${sol.newtonIterations} Newton iterations, ‖R‖ = ${sol.residualNorm.toExponential(1)})`);
 
     // tolerance: tests/physics.test.ts — maxErr < 2% of ψ₀, and Newton converged
-    if (!sol.converged) return { name: 'Gouy–Chapman', ok: false, reason: 'Newton did not converge' };
     const rel = maxErr / psi0;
+    const score = { measured: `max profile error ${(rel * 100).toFixed(2)}% of ψ₀`, tolerance: 'under 2% of ψ₀, Newton converged' };
+    if (!sol.converged) return { name: 'Gouy–Chapman', ok: false, reason: 'Newton did not converge', ...score };
     return rel < 0.02
-      ? { name: 'Gouy–Chapman', ok: true }
-      : { name: 'Gouy–Chapman', ok: false, reason: `profile error ${(rel * 100).toFixed(1)}% of ψ₀, tolerance 2%` };
+      ? { name: 'Gouy–Chapman', ok: true, ...score }
+      : { name: 'Gouy–Chapman', ok: false, reason: `profile error ${(rel * 100).toFixed(1)}% of ψ₀, tolerance 2%`, ...score };
   });
 
   // 2 — Cottrell
@@ -102,9 +117,10 @@ export function initValidationPage(root: HTMLElement): void {
     set('vp-cottrell-err', `max relative error ${(worst * 100).toFixed(2)}% for 0.05 s ≤ t ≤ 2 s (early points carry step-response discretisation error; late points feel the far wall)`);
 
     // tolerance: tests/physics.test.ts — under 2% across the same time window
+    const score = { measured: `max relative error ${(worst * 100).toFixed(2)}%`, tolerance: 'under 2% for 0.05 s ≤ t ≤ 2 s' };
     return worst < 0.02
-      ? { name: 'Cottrell step', ok: true }
-      : { name: 'Cottrell step', ok: false, reason: `max error ${(worst * 100).toFixed(1)}%, tolerance 2%` };
+      ? { name: 'Cottrell step', ok: true, ...score }
+      : { name: 'Cottrell step', ok: false, reason: `max error ${(worst * 100).toFixed(1)}%, tolerance 2%`, ...score };
   });
 
   // 3 — MMS convergence
@@ -148,7 +164,7 @@ export function initValidationPage(root: HTMLElement): void {
     const h0 = series[0].x;
     const e0 = series[0].y;
     const ref = Float64Array.from(h0, (hi) => e0[e0.length - 1] * Math.pow(hi / h0[h0.length - 1], 2));
-    new Plot(canvas, { xScale: 'log', yScale: 'log', xLabel: 'h_max', yLabel: 'mesh-weighted L₂ error (ψ)', legend: 'tl' }).draw([
+    new Plot(canvas, { xScale: 'log', yScale: 'log', xLabel: 'h_max', yLabel: 'L₂ error (ψ)', legend: 'tl' }).draw([
       ...series,
       { x: h0, y: ref, color: cRef, dash: [5, 4], label: 'slope 2 reference' },
     ]);
@@ -161,9 +177,13 @@ export function initValidationPage(root: HTMLElement): void {
 
     // tolerance: tests/physics.test.ts — finest observed order in [1.8, 2.4]
     const bad = [finest, finestGraded].filter((o) => !(o > 1.8 && o < 2.4));
+    const score = {
+      measured: `order ${finest.toFixed(2)} uniform, ${finestGraded.toFixed(2)} graded`,
+      tolerance: 'between 1.8 and 2.4 (design: 2)',
+    };
     return bad.length === 0
-      ? { name: 'Manufactured solutions', ok: true, order: finest }
-      : { name: 'Manufactured solutions', ok: false, order: finest, reason: `observed order ${bad.map((o) => o.toFixed(2)).join(' and ')}, expected between 1.8 and 2.4` };
+      ? { name: 'Manufactured solutions', ok: true, order: finest, ...score }
+      : { name: 'Manufactured solutions', ok: false, order: finest, reason: `observed order ${bad.map((o) => o.toFixed(2)).join(' and ')}, expected between 1.8 and 2.4`, ...score };
   });
 
   // 4 — Warburg 45°
@@ -197,9 +217,10 @@ export function initValidationPage(root: HTMLElement): void {
     set('vp-warburg-err', `phase at ω ≫ 1/τ_d: ${angle.toFixed(2)}° (semi-infinite limit: 45°)`);
 
     // tolerance: tests/physics.test.ts — phase within 40°–50° deep in the semi-infinite regime
+    const score = { measured: `high-frequency phase ${angle.toFixed(2)}°`, tolerance: 'between 40° and 50° (limit: 45°)' };
     return angle > 40 && angle < 50
-      ? { name: 'Warburg 45° limit', ok: true }
-      : { name: 'Warburg 45° limit', ok: false, reason: `phase ${angle.toFixed(1)}°, expected between 40° and 50°` };
+      ? { name: 'Warburg 45° limit', ok: true, ...score }
+      : { name: 'Warburg 45° limit', ok: false, reason: `phase ${angle.toFixed(1)}°, expected between 40° and 50°`, ...score };
   });
 
   // 5 — DRT recovery of a known circuit
@@ -235,13 +256,52 @@ export function initValidationPage(root: HTMLElement): void {
     // R_ct, and the peak within 0.35 decades of the true RC time constant
     const areaOff = Math.abs(area - p.Rct) / p.Rct;
     const decades = Math.abs(Math.log10(peakTau / tauTrue));
-    if (drt.misfit >= 0.02) return { name: 'DRT recovery', ok: false, reason: `misfit ${(drt.misfit * 100).toFixed(1)}%, tolerance 2%` };
-    if (areaOff >= 0.1) return { name: 'DRT recovery', ok: false, reason: `∫γ dlnτ off by ${(areaOff * 100).toFixed(1)}%, tolerance 10%` };
-    if (decades >= 0.35) return { name: 'DRT recovery', ok: false, reason: `peak off by ${decades.toFixed(2)} decades, tolerance 0.35` };
-    return { name: 'DRT recovery', ok: true };
+    const score = {
+      measured: `area ${(areaOff * 100).toFixed(1)}% off, peak ${decades.toFixed(2)} decades off, misfit ${(drt.misfit * 100).toFixed(2)}%`,
+      tolerance: 'area within 10%, peak within 0.35 decades, misfit under 2%',
+    };
+    if (drt.misfit >= 0.02) return { name: 'DRT recovery', ok: false, reason: `misfit ${(drt.misfit * 100).toFixed(1)}%, tolerance 2%`, ...score };
+    if (areaOff >= 0.1) return { name: 'DRT recovery', ok: false, reason: `∫γ dlnτ off by ${(areaOff * 100).toFixed(1)}%, tolerance 10%`, ...score };
+    if (decades >= 0.35) return { name: 'DRT recovery', ok: false, reason: `peak off by ${decades.toFixed(2)} decades, tolerance 0.35`, ...score };
+    return { name: 'DRT recovery', ok: true, ...score };
   });
 
   renderSummary(root, results);
+  renderScoreboard(root, results);
+}
+
+/**
+ * One row per check: what was measured, what it is held to, and the verdict.
+ * Built with DOM calls rather than a template string because the measured
+ * text is computed, and nothing computed should be parsed as markup.
+ */
+function renderScoreboard(root: HTMLElement, results: CheckResult[]): void {
+  const body = root.querySelector<HTMLTableSectionElement>('#vp-score');
+  if (!body) return;
+  body.replaceChildren(
+    ...results.map((r) => {
+      const tr = document.createElement('tr');
+      tr.dataset.state = r.ok ? 'pass' : 'fail';
+      const name = document.createElement('td');
+      if (r.anchor) {
+        const a = document.createElement('a');
+        a.href = `#${r.anchor}`;
+        a.textContent = r.name;
+        name.appendChild(a);
+      } else {
+        name.textContent = r.name;
+      }
+      const measured = document.createElement('td');
+      measured.textContent = r.measured ?? r.reason ?? '—';
+      const tolerance = document.createElement('td');
+      tolerance.textContent = r.tolerance ?? '—';
+      const verdict = document.createElement('td');
+      verdict.className = 'vp-verdict';
+      verdict.textContent = r.ok ? 'pass' : 'fail';
+      tr.append(name, measured, tolerance, verdict);
+      return tr;
+    })
+  );
 }
 
 /**

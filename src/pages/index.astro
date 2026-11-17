@@ -2,10 +2,10 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import JacobianDiagram from '../components/JacobianDiagram.astro';
 import StatusBadge from '../components/StatusBadge.astro';
-import CodeBlock from '../components/CodeBlock.astro';
-import D1ButlerVolmer from '../components/demos/D1ButlerVolmer.astro';
+import DemoIndex from '../components/DemoIndex.astro';
 import D4Impedance from '../components/demos/D4Impedance.astro';
 import { SITE, REPO_PUBLIC } from '../lib/site';
+import { DEMO_COUNT } from '../lib/demos';
 import { withBase } from '../lib/url';
 
 const jsonLd = {
@@ -17,110 +17,114 @@ const jsonLd = {
   author: { '@type': 'Person', name: SITE.author },
   // Only advertise the repository once it is actually reachable.
   ...(REPO_PUBLIC ? { codeRepository: SITE.github } : {}),
-  programmingLanguage: ['Python', 'TypeScript'],
+  programmingLanguage: ['TypeScript'],
   license: 'https://opensource.org/licenses/MIT',
   url: new URL(withBase('/'), Astro.site).href,
 };
 
-interface Capability {
+/**
+ * The numbers in the status line are counted from the source at build time
+ * rather than typed in, so they cannot go stale the way "five demos" once did.
+ */
+const testFiles = import.meta.glob<string>('../../tests/*.test.ts', { query: '?raw', import: 'default', eager: true });
+const TEST_COUNT = Object.values(testFiles).reduce((n, src) => n + (src.match(/^\s*it\(/gm)?.length ?? 0), 0);
+const validationSrc = Object.values(
+  import.meta.glob<string>('../components/demos/validation-page.ts', { query: '?raw', import: 'default', eager: true })
+)[0];
+const CHECK_COUNT = validationSrc.match(/^\s*check\('/gm)?.length ?? 0;
+
+interface Module {
   title: string;
   href: string;
-  status: 'shipped' | 'in-progress' | 'planned' | 'research';
-  label?: string;
   blurb: string;
   glyph: string; // inline SVG path data drawn from the domain
+  /** Demo code, for modules that run today. */
+  demo?: string;
+  status?: 'planned' | 'research';
 }
 
-const capabilities: Capability[] = [
+const live: Module[] = [
   {
     title: 'Ion transport',
     href: '/physics/transport/',
-    status: 'shipped',
-    label: 'browser demo',
-    blurb: 'Nernst–Planck to concentrated-solution theory, and full PNP where the double layer matters.',
+    demo: 'D2',
+    blurb: 'Poisson–Nernst–Planck with the double layer resolved, landing on the Gouy–Chapman profile.',
     glyph: 'M3 8h16m-4-4 4 4-4 4M3 16h10m-3-3 3 3-3 3',
   },
   {
     title: 'Interfacial kinetics',
     href: '/physics/kinetics/',
-    status: 'shipped',
-    label: 'browser demo',
-    blurb: 'Butler–Volmer boundary conditions with Tafel and linear limits handled exactly in the Jacobian.',
+    demo: 'D1',
+    blurb: 'Butler–Volmer current against overpotential, with its linear and Tafel limits.',
     glyph: 'M3 18c8 0 8-2 10-6s2-6 8-6M3 12h4m6-8v4',
-  },
-  {
-    title: 'SEI & degradation',
-    href: '/physics/degradation/',
-    status: 'planned',
-    label: 'solver: planned',
-    blurb: 'Film growth, lithium inventory loss, and the stress–fracture–SEI loop behind capacity fade.',
-    glyph: 'M4 20V8m0 8h16M8 20V12m12-6-6 6m6-2v-4h-4',
-  },
-  {
-    title: 'Microstructure',
-    href: '/physics/transport/',
-    status: 'shipped',
-    label: 'browser demo',
-    blurb: 'Stochastic electrode packings, computed tortuosity, and where Bruggeman ε^1.5 misleads.',
-    glyph: 'M7 7a3 3 0 1 0 .1 0M16 9a2.5 2.5 0 1 0 .1 0M9 16.5a2.5 2.5 0 1 0 .1 0M16.5 16a2 2 0 1 0 .1 0',
   },
   {
     title: 'Dendrites',
     href: '/physics/dendrites/',
-    status: 'shipped',
-    label: 'browser demo',
+    demo: 'D3',
     blurb: 'Phase-field electrodeposition with crystalline anisotropy; branching emerges, no front tracking.',
     glyph: 'M12 21V9m0 0L7 4m5 5 5-5M7 4v3m10-3v3m-5 5-3-2m3 2 3-2',
+  },
+  {
+    title: 'Impedance & DRT',
+    href: '/physics/impedance/',
+    demo: 'D4',
+    blurb: 'Spectra inverted to relaxation times by regularised non-negative least squares.',
+    glyph: 'M3 18a7 7 0 0 1 14 0M17 18c0-2 1.5-4 4-4m-18 4h18',
+  },
+  {
+    title: 'Microstructure',
+    href: '/physics/#microstructure',
+    demo: 'D5',
+    blurb: 'Random electrode packings, measured tortuosity, and where Bruggeman ε^1.5 misleads.',
+    glyph: 'M7 7a3 3 0 1 0 .1 0M16 9a2.5 2.5 0 1 0 .1 0M9 16.5a2.5 2.5 0 1 0 .1 0M16.5 16a2 2 0 1 0 .1 0',
+  },
+  {
+    title: 'Cell discharge',
+    href: '/demos/#demo-discharge',
+    demo: 'D6',
+    blurb: 'Single-particle galvanostatic discharge of an NMC811 | graphite cell.',
+    glyph: 'M4 5v14h16M7 8c4 0 5 2 8 3s4 3 4 6',
+  },
+];
+
+const planned: Module[] = [
+  {
+    title: 'SEI & degradation',
+    href: '/physics/degradation/',
+    status: 'planned',
+    blurb: 'Film growth, lithium inventory loss, and the stress–fracture–SEI loop behind capacity fade.',
+    glyph: 'M4 20V8m0 8h16M8 20V12m12-6-6 6m6-2v-4h-4',
   },
   {
     title: 'Thermal',
     href: '/physics/thermal/',
     status: 'planned',
-    label: 'solver: planned',
-    blurb: 'Joule, reaction, and entropic heat feeding back through Arrhenius transport — runaway is representable.',
+    blurb: 'Joule, reaction, and entropic heat feeding back through Arrhenius transport.',
     glyph: 'M10 4v10a3 3 0 1 0 4 0V4a2 2 0 0 0-4 0Zm2 5v8',
-  },
-  {
-    title: 'Impedance & DRT',
-    href: '/physics/impedance/',
-    status: 'shipped',
-    label: 'browser demo',
-    blurb: 'Frequency-domain EIS from the Jacobian, then relaxation-time inversion by regularised NNLS.',
-    glyph: 'M3 18a7 7 0 0 1 14 0M17 18c0-2 1.5-4 4-4m-18 4h18',
   },
   {
     title: 'Gas evolution',
     href: '/roadmap/',
     status: 'planned',
-    blurb: 'Void-fraction transport, bubble departure, coverage blockage and the buoyancy convection loop.',
+    blurb: 'Void-fraction transport, bubble departure, coverage blockage and buoyancy convection.',
     glyph: 'M8 18a2 2 0 1 0 .1 0m6-3a3 3 0 1 0 .1 0M11 7a2 2 0 1 0 .1 0m-6 14h14',
   },
   {
     title: 'ML surrogates',
     href: '/roadmap/',
     status: 'research',
-    blurb: 'PINN and DeepONet surrogates trained on the solver, exported to ONNX for in-browser sweeps.',
+    blurb: 'PINN and DeepONet surrogates trained on the solver, exported to ONNX.',
     glyph: 'M5 6a2 2 0 1 0 .1 0m-.1 12a2 2 0 1 0 .1 0M19 12a2 2 0 1 0 .1 0M7 7l10 4M7 18l10-5',
   },
   {
     title: 'Inverse design',
     href: '/roadmap/',
     status: 'research',
-    blurb: 'Adjoint gradients from the shared Jacobian plus Bayesian optimisation against cell-level targets.',
+    blurb: 'Adjoint gradients from the shared Jacobian plus Bayesian optimisation.',
     glyph: 'M12 12a4 4 0 1 0 .1 0m-.1-8a8 8 0 1 0 .1 0M12 12h.01M12 2v4m0 12v4M2 12h4m12 0h4',
   },
 ];
-
-const quickstart = `import voltaire as vt
-
-cell = vt.Cell.from_preset("graphite-nmc-1d")
-result = cell.discharge(c_rate=1.0, t_end="1h")
-result.plot("voltage")            # V vs capacity
-
-spec = cell.impedance(f_min=0.01, f_max=1e5, n=50)
-spec.plot("nyquist")              # one linear solve per frequency
-drt = spec.drt(lambda_reg=1e-2)
-drt.plot()                        # peaks separate CT from diffusion`;
 ---
 
 <BaseLayout title={SITE.name} jsonLd={jsonLd}>
@@ -134,112 +138,89 @@ drt.plot()                        # peaks separate CT from diffusion`;
     />
     <div class="hero-veil" aria-hidden="true"></div>
     <div class="hero-inner">
-      <h1>VOLTAIRE</h1>
+      <p class="hero-kicker">Electrochemical cell simulation, in your browser</p>
+      <h1>From the double layer to capacity fade.</h1>
       <p class="hero-tagline">
-        From the double layer to capacity fade. A multiphysics solver for ion transport,
-        interfacial kinetics, degradation, and thermal behaviour in electrochemical cells,
-        with interactive demos that compute in your browser.
-      </p>
-      <p class="hero-note">
-        The background is not a video: it is the phase-field electrodeposition model computing
-        live in your browser right now.
+        {DEMO_COUNT} live models of ion transport, kinetics, impedance and dendrite growth, an
+        analyser for your own impedance data, and analytic checks that rerun every time the page
+        loads. No install, no server.
       </p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href={withBase('/physics/')}>Read the physics</a>
-        <a class="btn hero-btn-ghost" href={withBase('/demos/')}>Run the demos</a>
+        <a class="btn btn-primary" href={withBase('/demos/')}>Run the demos</a>
+        <a class="btn hero-btn-ghost" href={withBase('/tools/eis/')}>Analyse a spectrum</a>
+        <a class="btn hero-btn-ghost" href={withBase('/physics/')}>Read the physics</a>
       </div>
-      <p class="hero-note hero-source">
-        {
-          REPO_PUBLIC
-            ? 'Source on GitHub, MIT licensed.'
-            : 'Source is not public yet — the repository opens when the solver core is further along.'
-        }
-      </p>
+    </div>
+    {/* The instrument readout from the design wireframe: the claim that the
+        background is a live solve is shown by its numbers, not asserted in a
+        sentence. Hidden until the script has something true to put in it. */}
+    <div class="hero-readout" hidden>
+      <span class="hero-readout-title">phase field · <span class="hero-live">live</span></span>
+      <dl>
+        <div><dt>rate</dt><dd id="hero-rate">—</dd></div>
+        <div><dt>solid</dt><dd id="hero-solid">—</dd></div>
+        <div><dt>backend</dt><dd id="hero-backend">—</dd></div>
+      </dl>
+      <button class="hero-pause" type="button" id="hero-pause" aria-pressed="false" hidden>pause</button>
     </div>
   </section>
 
+  <div class="status-line" role="list" aria-label="What exists today">
+    <div class="status-inner">
+      <span role="listitem"><strong>{DEMO_COUNT}</strong> live models</span>
+      <span role="listitem"><strong>{CHECK_COUNT}</strong> analytic checks, rerun on every visit</span>
+      <span role="listitem"><strong>{TEST_COUNT}</strong> unit tests, run on every push</span>
+      <span role="listitem" class="status-planned">Python package: planned, not written</span>
+    </div>
+  </div>
+
   <div class="page">
-    <section class="pitch">
-      <p>
-        Battery and electrolyser models usually live in two camps: quick equivalent circuits
-        that cannot say why a cell fades, and heavyweight research codes that take a group and
-        a cluster to run. Voltaire is being built in the gap — one residual for transport,
-        kinetics, heat, mechanics and degradation, differentiated once, so the same Jacobian
-        drives time stepping, impedance spectra and design gradients. That Python solver is
-        planned and does not exist yet. What runs today is an in-browser solver — the demos on
-        this page are TypeScript implementations of the same governing equations, computed
-        entirely on your machine, at demo scale on fixed configurations rather than as a
-        general-purpose package. No server sits behind them.
-      </p>
-    </section>
-
-    <hr class="ramp" />
-
-    <section aria-labelledby="cap-head">
-      <span class="overline">Modules</span>
-      <h2 id="cap-head">What it models</h2>
-      <div class="card-grid">
-        {
-          capabilities.map((cap) => (
-            <article class="card">
-              <svg
-                class="glyph"
-                width="28"
-                height="28"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.6"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d={cap.glyph} />
-              </svg>
-              <h3>
-                <a href={withBase(cap.href)}>{cap.title}</a>
-              </h3>
-              <p>{cap.blurb}</p>
-              <StatusBadge status={cap.status} label={cap.label} />
-            </article>
-          ))
-        }
+    <section aria-labelledby="start-head" class="first-section">
+      <span class="overline">Start here</span>
+      <h2 id="start-head">What you can do on this site</h2>
+      <div class="tool-grid">
+        <a class="tool-card" href={withBase('/demos/')}>
+          <span class="overline">Explore a model</span>
+          <h3>Live demos</h3>
+          <p>
+            Drag a parameter and watch the solution move. Hold a curve to compare, export what is
+            plotted, or copy a link that reopens the demo exactly as you left it.
+          </p>
+          <span class="tool-go">run the demos →</span>
+        </a>
+        <a class="tool-card" href={withBase('/tools/eis/')}>
+          <span class="overline">Analyse your data</span>
+          <h3>EIS / DRT analyser</h3>
+          <p>
+            Paste an impedance spectrum and get its distribution of relaxation times: which
+            processes are in your cell, at what timescale, with how much resistance each.
+          </p>
+          <span class="tool-go">open the analyser →</span>
+        </a>
+        <a class="tool-card" href={withBase('/tools/calculators/')}>
+          <span class="overline">Look something up</span>
+          <h3>Bench calculators</h3>
+          <p>
+            Debye length, Tafel slope, Sand's time, diffusion time and the rest of the numbers
+            that usually get worked out in a notebook margin, with the formula shown.
+          </p>
+          <span class="tool-go">open the calculators →</span>
+        </a>
       </div>
-    </section>
-
-    <hr class="ramp" />
-
-    <section aria-labelledby="spine-head">
-      <span class="overline">Architecture</span>
-      <h2 id="spine-head">One Jacobian, three consumers</h2>
-      <StatusBadge status="planned" label="design for the Python package" />
-      <p class="prose">
-        Most simulation codes write their linearisation three times: once for the nonlinear
-        solver, once for small-signal impedance, once (if ever) for sensitivities. Assembling
-        a single residual R(u, p) and differentiating it once — so that Newton, the
-        frequency-domain EIS solve, and the adjoint all read the same matrix — is the design
-        of the Python package <code>voltaire-echem</code>, which has no code written yet.
-        This site does not run it. The solver on this page is a different, narrower thing:
-        it assembles the PNP Jacobian analytically, block by block, and there is no automatic
-        differentiation and no adjoint anywhere in this repository. The
-        <a href={withBase('/numerics/')}>numerics page</a> walks through the intended spine
-        and marks the same boundary.
-      </p>
-      <JacobianDiagram />
     </section>
 
     <hr class="ramp" />
 
     <section aria-labelledby="demo-head">
       <span class="overline">Live</span>
-      <h2 id="demo-head">Two of the demos</h2>
-      <p class="prose">
-        Everything below is computed in your browser as you move the sliders — no server, no
-        prerendered frames. The full set, including the phase-field dendrite and the
-        double-layer Newton solver, lives on the <a href={withBase('/demos/')}>demos page</a>.
+      <h2 id="demo-head">One of the {DEMO_COUNT} demos</h2>
+      <p class="prose section-lede">
+        Computed in this tab as you move the sliders. Try the presets under the plot, then hand the
+        spectrum to the analyser.
       </p>
-      <D1ButlerVolmer />
       <D4Impedance />
+      <h3 class="index-head">All {DEMO_COUNT}</h3>
+      <DemoIndex />
     </section>
 
     <hr class="ramp" />
@@ -247,7 +228,7 @@ drt.plot()                        # peaks separate CT from diffusion`;
     <section aria-labelledby="val-head" id="validation-strip">
       <span class="overline">Evidence</span>
       <h2 id="val-head">Validation, computed in front of you</h2>
-      <p class="prose">
+      <p class="prose section-lede">
         Three of these four checks run live in this tab the moment they scroll into view; the
         panels state their own error. The fourth is labelled for what it is.
         Full details on the <a href={withBase('/validation/')}>validation page</a>.
@@ -289,20 +270,79 @@ drt.plot()                        # peaks separate CT from diffusion`;
 
     <hr class="ramp" />
 
-    <section aria-labelledby="qs-head">
-      <span class="overline">Quickstart</span>
-      <h2 id="qs-head">The target interface <StatusBadge status="planned" /></h2>
-      <p class="prose">
-        The Python package is planned and unwritten; this is the interface it is being
-        built to, and it may shift before release. What you can run today are the demos above —
-        same equations, in TypeScript. Install notes live in the
-        <a href={withBase('/docs/')}>docs</a>.
-      </p>
-      <CodeBlock code={quickstart} lang="python" label="quickstart.py — target API" />
-      <p class="prose expected-output">
-        Expected output: a voltage-vs-capacity discharge curve, a Nyquist arc with a Warburg
-        tail, and a DRT with charge-transfer and diffusion peaks separated by timescale.
-      </p>
+    <section aria-labelledby="cap-head">
+      <span class="overline">Modules</span>
+      <h2 id="cap-head">What it models</h2>
+      <h3 class="group-head"><StatusBadge status="shipped" label="runs in your browser" /></h3>
+      <div class="card-grid cols-3">
+        {
+          live.map((m) => (
+            <article class="card card-live">
+              <svg class="glyph" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d={m.glyph} />
+              </svg>
+              <h4>
+                <a class="card-link" href={withBase(m.href)}>{m.title}</a>
+              </h4>
+              <p>{m.blurb}</p>
+              <span class="card-demo">demo {m.demo}</span>
+            </article>
+          ))
+        }
+      </div>
+      <h3 class="group-head"><StatusBadge status="planned" label="planned, not built" /></h3>
+      <div class="card-grid cols-5">
+        {
+          planned.map((m) => (
+            <article class="card card-planned">
+              <svg class="glyph" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d={m.glyph} />
+              </svg>
+              <h4>
+                <a class="card-link" href={withBase(m.href)}>{m.title}</a>
+              </h4>
+              <p>{m.blurb}</p>
+              {m.status === 'research' && <StatusBadge status="research" />}
+            </article>
+          ))
+        }
+      </div>
+    </section>
+
+    <hr class="ramp" />
+
+    <section aria-labelledby="spine-head">
+      <span class="overline">Where it is going</span>
+      <h2 id="spine-head">One Jacobian, three consumers</h2>
+      <div class="spine">
+        <div class="prose">
+          <p>
+            Most simulation codes write their linearisation three times: once for the nonlinear
+            solver, once for small-signal impedance, once (if ever) for sensitivities. The plan
+            for Voltaire's Python package is to assemble a single residual R(u, p) and
+            differentiate it once, so Newton, the frequency-domain impedance solve and the adjoint
+            all read the same matrix.
+          </p>
+          <p class="spine-status">
+            <StatusBadge status="planned" label="Python package: planned" />
+            None of that package is written. What runs on this site is narrower: TypeScript
+            kernels on fixed configurations, with the PNP Jacobian assembled by hand and no
+            automatic differentiation or adjoint anywhere.
+            {
+              REPO_PUBLIC
+                ? ' The source is on GitHub under the MIT licence.'
+                : ' The repository is private for now and opens when the solver core is further along.'
+            }
+          </p>
+          <p>
+            The <a href={withBase('/numerics/')}>numerics page</a> walks through the design, the
+            <a href={withBase('/roadmap/')}>roadmap</a> says what is built and what is not, and the
+            <a href={withBase('/docs/python/')}>Python design notes</a> show the interface it is
+            being built to.
+          </p>
+        </div>
+        <JacobianDiagram />
+      </div>
     </section>
   </div>
 </BaseLayout>
@@ -310,12 +350,11 @@ drt.plot()                        # peaks separate CT from diffusion`;
 <style>
   .hero {
     position: relative;
-    min-height: min(82vh, 44rem);
+    min-height: min(78vh, 42rem);
     display: flex;
     align-items: center;
     overflow: hidden;
-    /* the sim's low end is viridis purple: hero is dark in both themes */
-    background: #2d0f42;
+    background: var(--hero-bg);
   }
 
   .hero :global(canvas.hero-canvas),
@@ -336,8 +375,8 @@ drt.plot()                        # peaks separate CT from diffusion`;
     position: absolute;
     inset: 0;
     background:
-      linear-gradient(105deg, rgba(10, 4, 18, 0.78) 0%, rgba(10, 4, 18, 0.45) 45%, rgba(10, 4, 18, 0.08) 75%),
-      linear-gradient(to top, rgba(10, 4, 18, 0.25), transparent 30%);
+      linear-gradient(100deg, rgb(var(--hero-veil) / 0.86) 0%, rgb(var(--hero-veil) / 0.6) 42%, rgb(var(--hero-veil) / 0.1) 78%),
+      linear-gradient(to top, rgb(var(--hero-veil) / 0.3), transparent 30%);
   }
 
   .hero-inner {
@@ -348,45 +387,48 @@ drt.plot()                        # peaks separate CT from diffusion`;
     padding: var(--s8) var(--s4);
   }
 
-  .hero h1 {
-    color: #f2f5f8;
-    font-size: clamp(2.6rem, 7vw, 4.4rem);
-    letter-spacing: 0.08em;
+  .hero-kicker {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--viridis-lime);
   }
 
-  .hero-tagline {
-    color: #dfe5ec;
-    max-width: 34rem;
-    margin-top: var(--s4);
-    font-size: var(--text-md);
-    line-height: 1.5;
+  .hero h1 {
+    color: var(--hero-fg);
+    font-size: clamp(2.3rem, 5.6vw, 4rem);
+    letter-spacing: 0.005em;
+    line-height: 1.05;
+    max-width: 16ch;
+    margin-top: var(--s3);
     text-wrap: balance;
   }
 
-  .hero-note {
-    color: #a9b4c0;
-    font-family: var(--font-mono);
-    font-size: var(--text-sm);
-    margin-top: var(--s4);
-    max-width: 34rem;
-  }
-
-  /* Sits directly under the call-to-action row, so it needs less air above. */
-  .hero-source {
-    margin-top: var(--s3);
+  .hero-tagline {
+    color: var(--hero-fg-soft);
+    max-width: 36rem;
+    margin-top: var(--s5);
+    font-size: var(--text-md);
+    line-height: 1.5;
   }
 
   .hero-actions {
     display: flex;
     gap: var(--s3);
-    margin-top: var(--s5);
+    margin-top: var(--s6);
     flex-wrap: wrap;
+  }
+
+  .hero .btn {
+    padding: var(--s3) var(--s5);
   }
 
   .hero .btn-primary {
     background: var(--viridis-green);
     border-color: var(--viridis-green);
-    color: #0a0412;
+    color: var(--hero-ink);
   }
 
   .hero .btn-primary:hover {
@@ -395,19 +437,134 @@ drt.plot()                        # peaks separate CT from diffusion`;
   }
 
   .hero-btn-ghost {
-    color: #e4e9ef;
-    border-color: rgba(228, 233, 239, 0.45);
+    color: var(--hero-fg-soft);
+    border-color: rgb(228 233 239 / 0.45);
+    background: rgb(var(--hero-veil) / 0.35);
   }
 
   .hero-btn-ghost:hover {
-    color: #fff;
-    border-color: #fff;
+    color: var(--hero-fg);
+    border-color: var(--hero-fg);
   }
 
-  .pitch p {
+  /* instrument readout, bottom right of the hero */
+  .hero-readout {
+    position: absolute;
+    right: max(var(--s4), calc((100% - var(--page-max)) / 2 + var(--s4)));
+    bottom: var(--s5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    min-width: 13.5rem;
+    padding: var(--s3) var(--s4);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--hero-fg-soft);
+    background: rgb(var(--hero-veil) / 0.72);
+    border: 1px solid rgb(228 233 239 / 0.3);
+    border-radius: var(--radius-panel);
+    backdrop-filter: blur(6px);
+  }
+
+  .hero-readout[hidden] {
+    display: none;
+  }
+
+  .hero-readout-title {
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hero-fg-muted);
+  }
+
+  .hero-live {
+    color: var(--viridis-lime);
+  }
+
+  .hero-readout[data-still] .hero-live,
+  .hero-readout[data-still] dl > div:not(:last-child) {
+    display: none;
+  }
+
+  .hero-readout dl {
+    margin: 0;
+    display: grid;
+    gap: 0.15rem;
+  }
+
+  .hero-readout dl > div {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s4);
+  }
+
+  .hero-readout dt {
+    color: var(--hero-fg-muted);
+  }
+
+  .hero-readout dd {
+    margin: 0;
+    color: var(--hero-fg);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hero-pause {
+    align-self: flex-start;
+    font: inherit;
+    color: var(--hero-fg-soft);
+    background: none;
+    border: 1px solid rgb(228 233 239 / 0.4);
+    border-radius: var(--radius);
+    padding: 0.15rem var(--s2);
+    cursor: pointer;
+  }
+
+  .hero-pause:hover {
+    color: var(--hero-fg);
+    border-color: var(--hero-fg);
+  }
+
+  .hero-pause[hidden] {
+    display: none;
+  }
+
+  /* ---------- status line ---------- */
+  .status-line {
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+  }
+
+  .status-inner {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    padding: var(--s3) var(--s4);
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s6);
+  }
+
+  .status-inner strong {
+    color: var(--accent);
     font-size: var(--text-md);
-    line-height: 1.6;
-    max-width: 46rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    margin-right: 0.2em;
+  }
+
+  .status-inner > span {
+    display: inline-flex;
+    align-items: baseline;
+  }
+
+  .status-planned {
+    margin-left: auto;
+  }
+
+  /* ---------- sections ---------- */
+  .first-section {
+    margin-top: var(--s5);
   }
 
   section > .overline {
@@ -415,8 +572,73 @@ drt.plot()                        # peaks separate CT from diffusion`;
     margin-bottom: var(--s2);
   }
 
-  section h2 {
+  section > h2 {
+    margin-bottom: var(--s4);
+  }
+
+  .section-lede {
     margin-bottom: var(--s5);
+  }
+
+  .tool-card h3 {
+    font-size: var(--text-lg);
+  }
+
+  .first-section .tool-grid {
+    margin-top: var(--s5);
+  }
+
+  .index-head {
+    margin: var(--s7) 0 var(--s4);
+  }
+
+  .group-head {
+    margin: var(--s5) 0 var(--s3);
+    line-height: 1;
+  }
+
+  .group-head + .card-grid + .group-head {
+    margin-top: var(--s6);
+  }
+
+  .card h4 {
+    font-size: var(--text-base);
+  }
+
+  /* six live modules sit three across, five planned ones five across, so
+     neither grid ends in an orphan row at desktop width */
+  @media (min-width: 900px) {
+    .cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1100px) {
+    .cols-5 {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+
+  .card-demo {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--accent);
+  }
+
+  .spine {
+    display: grid;
+    gap: var(--s6);
+    align-items: center;
+  }
+
+  @media (min-width: 1000px) {
+    .spine {
+      grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    }
+  }
+
+  .spine-status :global(.badge) {
+    margin-right: var(--s2);
   }
 
   .val-grid {
@@ -433,6 +655,11 @@ drt.plot()                        # peaks separate CT from diffusion`;
     overflow: hidden;
     display: flex;
     flex-direction: column;
+  }
+
+  .val-card-pending {
+    background: transparent;
+    border-style: dashed;
   }
 
   .val-stage {
@@ -467,9 +694,23 @@ drt.plot()                        # peaks separate CT from diffusion`;
     border-top: 1px solid var(--line);
   }
 
-  .expected-output {
-    color: var(--fg-muted);
-    font-size: var(--text-sm);
+  @media (max-width: 700px) {
+    .hero-readout {
+      position: relative;
+      right: auto;
+      bottom: auto;
+      margin: 0 var(--s4) var(--s5);
+      align-self: flex-end;
+    }
+
+    .hero {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .status-planned {
+      margin-left: 0;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

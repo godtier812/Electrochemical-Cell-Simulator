@@ -1,5 +1,6 @@
 ---
-layout: ../layouts/BaseLayout.astro
+layout: ../layouts/DocsLayout.astro
+nav: project
 title: Roadmap
 description: What Voltaire ships today, the staged build order for the Python package, and the longer research arc — with honest status labels.
 ogImage: posters/og-roadmap.png
@@ -12,16 +13,16 @@ import StatusBadge from '../components/StatusBadge.astro';
 
 Shipped today: this website and its demos, which together are an **in-browser solver** — TypeScript implementations of the governing equations, computed client-side with no server behind them, at demo scale in one or two dimensions on fixed configurations rather than as a general-purpose package. It covers Scharfetter–Gummel fluxes with damped Newton for Poisson–Nernst–Planck, Tikhonov-regularised NNLS for DRT, RSA microstructure generation with Laplace tortuosity, an explicit phase-field dendrite model, Butler–Volmer kinetics, and a single-particle discharge, and is covered by unit tests in `tests/`. Planned: the Python solver package, which would port the same equations onto an autodiff core so that one Jacobian $J = \partial R/\partial u$ serves time stepping, impedance, and design sensitivities. None of that Python code exists in this repository yet.
 
-Every item below carries a status badge. "Shipped" means you can run it in your browser right now. "In progress" means code exists and is being ported or extended. "Planned" and "research" mean exactly what they say: not built yet.
+Every item below carries a status badge. "Shipped" means you can run it in your browser right now. "Planned" and "research" mean exactly what they say: not built yet.
 
 ## The MVP build order
 
 The Python MVP is scoped as five stages. The order is not decoration — each stage consumes the residuals and Jacobian structure the one before it built, which is why they cannot sensibly be done in parallel. No stage carries a date: this is a side project, and a promised date I miss is worth less than a status badge that stays accurate.
 
-1. **Stage 1 — 1D transport core.** The Poisson–Nernst–Planck system in one dimension: Scharfetter–Gummel exponential-fitting fluxes on a finite-volume grid, solved implicitly with a damped Newton iteration. These numerics already run in the [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer); the Python port onto the autodiff core is in progress.
+1. **Stage 1 — 1D transport core.** The Poisson–Nernst–Planck system in one dimension: Scharfetter–Gummel exponential-fitting fluxes on a finite-volume grid, solved implicitly with a damped Newton iteration. These numerics already run in the [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer); the Python port onto the autodiff core is planned and not started.
    <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Python port: planned" />
 
-2. **Stage 2 — Butler–Volmer coupling and thermal block.** Butler–Volmer kinetics as the boundary condition linking electrode potential to interfacial flux, plus an energy balance so overpotential heat feeds back into temperature-dependent parameters. The kinetics are live in the [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer); the thermal block is in progress.
+2. **Stage 2 — Butler–Volmer coupling and thermal block.** Butler–Volmer kinetics as the boundary condition linking electrode potential to interfacial flux, plus an energy balance so overpotential heat feeds back into temperature-dependent parameters. The kinetics are live in the [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer); the thermal block is planned and has no code yet.
    <StatusBadge status="shipped" label="kinetics in browser" /> <StatusBadge status="planned" label="thermal block: planned" />
 
 3. **Stage 3 — frequency-domain EIS and DRT.** Impedance spectra and their inversion to a distribution of relaxation times by Tikhonov-regularised NNLS run in the [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance). The full Jacobian-based path — solving $(i\omega M - J)\hat{u} = \hat{b}$ around a Newton-converged operating point — needs the autodiff core and ships with the Python package.

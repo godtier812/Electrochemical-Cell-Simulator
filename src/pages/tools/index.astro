@@ -1,0 +1,56 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { withBase } from '../../lib/url';
+import { DEMO_COUNT } from '../../lib/demos';
+---
+
+<BaseLayout
+  title="Tools"
+  description="Electrochemistry tools that run in your browser: an EIS/DRT analyser for your own impedance data, and a set of bench calculators."
+  section="/tools/"
+  ogImage="posters/og-tools.png"
+>
+  <div class="page">
+    <article class="prose">
+      <span class="overline">Tools</span>
+      <h1>Tools</h1>
+      <p>
+        The <a href={withBase('/demos/')}>demos</a> show how a model behaves. These take your
+        numbers and give you something back. Both run entirely in your browser, on the same tested
+        code as the demos.
+      </p>
+    </article>
+
+    <div class="tool-grid">
+      <a class="tool-card" href={withBase('/tools/eis/')}>
+        <span class="overline">Bring your own data</span>
+        <h2>EIS / DRT analyser</h2>
+        <p>
+          Paste or drop an impedance spectrum. Get Nyquist and Bode plots, the distribution of
+          relaxation times, and a table of peaks with each one's resistance, time constant and
+          capacitance. Includes a λ sweep so the regularisation choice is something you can see.
+        </p>
+        <span class="tool-go">open the analyser →</span>
+      </a>
+      <a class="tool-card" href={withBase('/tools/calculators/')}>
+        <span class="overline">Quick numbers</span>
+        <h2>Bench calculators</h2>
+        <p>
+          Debye length, thermal voltage and Nernst slope, Tafel slope, charge-transfer resistance,
+          RC time constant, diffusion time, Sand's time, Cottrell current, C-rate, and the
+          Bruggeman correction, each with its formula shown.
+        </p>
+        <span class="tool-go">open the calculators →</span>
+      </a>
+      <a class="tool-card" href={withBase('/demos/')}>
+        <span class="overline">Explore a model</span>
+        <h2>{DEMO_COUNT} live demos</h2>
+        <p>
+          Every demo can export what it plots as CSV or PNG, hold a curve to compare against, and
+          copy a link that reopens it with the same settings.
+        </p>
+        <span class="tool-go">open the demos →</span>
+      </a>
+    </div>
+  </div>
+</BaseLayout>

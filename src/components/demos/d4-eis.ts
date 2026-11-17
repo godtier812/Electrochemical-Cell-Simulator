@@ -1,14 +1,22 @@
 import { Plot } from '../../lib/plot';
 import { css } from '../../lib/colormaps';
-import { impedance, omegaGrid, type CircuitParams } from '../../lib/eis';
+import { columnsToCsv } from '../../lib/csv';
+import { addNoise, impedance, omegaGrid, type CircuitParams } from '../../lib/eis';
 import { computeDRT } from '../../lib/drt';
+import { EIS_HANDOFF_KEY } from '../../lib/eisdata';
+import { mulberry32 } from '../../lib/microstructure';
+import { withBase } from '../../lib/url';
 import {
   bindParam,
   enablePanel,
   rafDebounce,
+  setupShell,
   siFormat,
   type Shell,
 } from './runtime';
+
+/** Fixed, so a given set of controls always shows the same noisy spectrum. */
+const NOISE_SEED = 0x5eed1e55;
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
@@ -16,9 +24,10 @@ export function init(shell: Shell): void {
   const outs = {
     age: $<HTMLOutputElement>('#d4-age-out'),
     misfit: $<HTMLOutputElement>('#d4-misfit'),
+    rsum: $<HTMLOutputElement>('#d4-rsum'),
     hover: $<HTMLOutputElement>('#d4-hover'),
   };
-  const reset = $<HTMLButtonElement>('#d4-reset');
+  const analyse = $<HTMLButtonElement>('#d4-analyse');
 
   // build the four linked panels inside the stage
   const grid = document.createElement('div');
@@ -31,7 +40,7 @@ export function init(shell: Shell): void {
   shell.stage.insertBefore(grid, shell.stage.firstChild);
   const [cvNyq, cvMag, cvPhase, cvDrt] = [...grid.querySelectorAll('canvas')];
 
-  const pNyq = new Plot(cvNyq, { equalAspect: true, xLabel: "Z' / Ω cm²", yLabel: "−Z'' / Ω cm²" });
+  const pNyq = new Plot(cvNyq, { equalAspect: true, hover: 'nearest', xLabel: "Z′ / Ω cm²", yLabel: "−Z″ / Ω cm²" });
   const pMag = new Plot(cvMag, { xScale: 'log', yScale: 'log', xLabel: 'f / Hz', yLabel: '|Z| / Ω cm²' });
   const pPhase = new Plot(cvPhase, { xScale: 'log', xLabel: 'f / Hz', yLabel: '−φ / °' });
   const pDrt = new Plot(cvDrt, { xScale: 'log', xLabel: 'τ / s', yLabel: 'γ(τ) / Ω cm²' });
@@ -45,6 +54,8 @@ export function init(shell: Shell): void {
     re: new Float64Array(N_FREQ),
     im: new Float64Array(N_FREQ),
   };
+  /** The noise-free model curve, drawn under the points once noise is on. */
+  let cleanZ: { re: Float64Array; negIm: Float64Array } | null = null;
   let lastDrt: ReturnType<typeof computeDRT> | null = null;
   let hoverTau: number | null = null;
 
@@ -54,6 +65,7 @@ export function init(shell: Shell): void {
   const pCdl = bindParam(shell, 'd4-cdl', rerun);
   const pRd = bindParam(shell, 'd4-rd', rerun);
   const pTauD = bindParam(shell, 'd4-taud', rerun);
+  const pNoise = bindParam(shell, 'd4-noise', rerun);
   const pLambda = bindParam(shell, 'd4-lambda', rerun);
 
   const readParams = (): CircuitParams => ({
@@ -77,13 +89,23 @@ export function init(shell: Shell): void {
 
     outs.age.value = params.age === 0 ? 'fresh' : `${params.age.toFixed(2)}×`;
 
-    const Z = Array.from(omega, (w) => impedance(w, params));
+    const clean = Array.from(omega, (w) => impedance(w, params));
+    const noise = pNoise.value / 100;
+    const Z = addNoise(clean, noise, mulberry32(NOISE_SEED));
     lastZ = {
       re: Float64Array.from(Z, (z) => z.re),
       im: Float64Array.from(Z, (z) => z.im),
     };
+    cleanZ =
+      noise > 0
+        ? { re: Float64Array.from(clean, (z) => z.re), negIm: Float64Array.from(clean, (z) => -z.im) }
+        : null;
     lastDrt = computeDRT(omega, Z, { nTau: 60, lambda });
     outs.misfit.value = `${(lastDrt.misfit * 100).toFixed(2)}%`;
+    // area under γ in ln τ: the polarisation resistance the inversion accounts for
+    let area = 0;
+    for (const g of lastDrt.gamma) area += g * lastDrt.dlnTau;
+    outs.rsum.value = `${area.toFixed(1)} Ω cm²`;
 
     drawAll();
   });
@@ -126,10 +148,17 @@ export function init(shell: Shell): void {
     }
 
     pNyq.draw(
-      [
-        { x: lastZ.re, y: negIm, color: cData, marker: 2.5, width: 1.25, label: 'Z(ω)' },
-        { x: fitRe, y: fitIm, color: cFit, dash: [4, 3], width: 1.25, label: 'DRT fit' },
-      ],
+      cleanZ
+        ? [
+            // with noise on, the points are the "measurement" and the line is the truth behind it
+            { x: lastZ.re, y: negIm, color: cData, marker: 2.5, width: 0, label: 'Z(ω) with noise' },
+            { x: cleanZ.re, y: cleanZ.negIm, color: cData, width: 1.25, alpha: 0.5, label: 'noise-free' },
+            { x: fitRe, y: fitIm, color: cFit, dash: [4, 3], width: 1.25, label: 'DRT fit' },
+          ]
+        : [
+            { x: lastZ.re, y: negIm, color: cData, marker: 2.5, width: 1.25, label: 'Z(ω)' },
+            { x: fitRe, y: fitIm, color: cFit, dash: [4, 3], width: 1.25, label: 'DRT fit' },
+          ],
       nyqAnnotations
     );
     const mag = Float64Array.from(lastZ.re, (re, i) => Math.hypot(re, lastZ.im[i]));
@@ -166,12 +195,42 @@ export function init(shell: Shell): void {
   });
 
   ageSlider.addEventListener('input', recompute);
-  reset.addEventListener('click', () => {
-    for (const p of [pRohm, pRct, pCdl, pRd, pTauD, pLambda]) p.reset();
-    ageSlider.value = '0';
-    recompute();
-  });
   addEventListener('resize', recompute);
+
+  const spectrumColumns = () => [
+    { name: 'f / Hz', values: freq },
+    { name: 'Zre / ohm cm2', values: lastZ.re },
+    { name: 'Zim / ohm cm2', values: lastZ.im },
+  ];
+
+  // Hand the spectrum on screen to the analyser, which treats it exactly like
+  // a pasted file. sessionStorage rather than the URL: 60 rows of doubles do
+  // not belong in a query string, and nothing leaves the browser either way.
+  analyse.addEventListener('click', () => {
+    try {
+      sessionStorage.setItem(EIS_HANDOFF_KEY, columnsToCsv(spectrumColumns()));
+    } catch {
+      // storage unavailable: the analyser opens on its built-in example instead
+    }
+    location.href = withBase('/tools/eis/');
+  });
+
+  setupShell(shell, {
+    refresh: recompute,
+    hold: () => {
+      const label = `R_ct = ${pRct.format()}, age ${outs.age.value}`;
+      for (const p of [pNyq, pMag, pPhase, pDrt]) p.hold(label);
+    },
+    clearHold: () => {
+      for (const p of [pNyq, pMag, pPhase, pDrt]) p.clearHeld();
+    },
+    csv: () =>
+      columnsToCsv([
+        ...spectrumColumns(),
+        { name: 'tau / s', values: lastDrt?.tau ?? [] },
+        { name: 'gamma (density in ln tau) / ohm cm2', values: lastDrt?.gamma ?? [] },
+      ]),
+  });
 
   shell.stage.querySelector('img.poster')?.remove();
   enablePanel(shell);

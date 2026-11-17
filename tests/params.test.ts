@@ -61,6 +61,7 @@ const PARAMS: Array<{
   { id: 'd4-rd', min: 0, max: 100, scale: 'linear', step: 0.5 },
   { id: 'd4-taud', min: 0.01, max: 100, scale: 'log', step: null },
   { id: 'd4-lambda', min: 1e-4, max: 1, scale: 'log', step: null },
+  { id: 'd4-noise', min: 0, max: 5, scale: 'linear', step: 0.1 },
   { id: 'd5-eps', min: 0.35, max: 0.9, scale: 'linear', step: 0.01 },
   { id: 'd5-r', min: 4, max: 14, scale: 'linear', step: 1 },
   { id: 'd5-s', min: 0, max: 50, scale: 'linear', step: 5 },
@@ -77,7 +78,7 @@ function positionsFor(p: { min: number; max: number; step: number | null }): num
 
 describe('demo parameter mapping', () => {
   it('covers every Control-backed parameter in the demos', () => {
-    expect(PARAMS).toHaveLength(25);
+    expect(PARAMS).toHaveLength(26);
   });
 
   it('one arrow-key press moves a stepped parameter by exactly one step', () => {

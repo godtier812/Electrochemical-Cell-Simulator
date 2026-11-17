@@ -10,7 +10,11 @@ import rehypeKatex from 'rehype-katex';
 export default defineConfig({
   site: 'https://godtier812.github.io',
   base: '/Electrochemical-Cell-Simulator/',
-  integrations: [mdx(), sitemap()],
+  integrations: [
+    mdx(),
+    // the old docs URLs are redirect stubs (src/pages/docs/*.astro), not pages
+    sitemap({ filter: (page) => !/\/docs\/(quickstart|configuration|examples|api)\/$/.test(page) }),
+  ],
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [[rehypeKatex, { strict: false }]],

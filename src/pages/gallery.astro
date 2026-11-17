@@ -8,76 +8,151 @@ interface Figure {
   alt: string;
   title: string;
   caption: string;
+  /** A live counterpart, and whether it reproduces this exact figure. */
+  live?: { href: string; text: string };
 }
 
-const figures: Figure[] = [
+interface Series {
+  id: string;
+  title: string;
+  intro: string;
+  /** Columns at full width; every image in a series shares an aspect ratio. */
+  cols: 1 | 2 | 3 | 4;
+  aspect: string;
+  figures: Figure[];
+}
+
+const series: Series[] = [
   {
-    src: 'gallery/dendrite-t1.png',
-    title: 'Electrodeposition, t₁',
-    alt: 'Early stage of phase-field electrodeposition: small metal bumps forming on a flat electrode',
-    caption: 'Phase-field ξ at 1 500 steps: five nuclei on a flat electrode, aη = −6, δ = 0.06, ω = 4.',
+    id: 'deposition',
+    title: 'One electrodeposition run',
+    intro:
+      'Four frames of a single phase-field run, from five nuclei on a flat electrode to a forest that spans the cell. Same seed, same parameters throughout.',
+    cols: 2,
+    aspect: '2 / 1',
+    figures: [
+      {
+        src: 'gallery/dendrite-t1.png',
+        title: '1 500 steps',
+        alt: 'Early stage of phase-field electrodeposition: small metal bumps forming on a flat electrode',
+        caption: 'Phase field ξ: five nuclei on a flat electrode, aη = −6, δ = 0.06, ω = 4.',
+      },
+      {
+        src: 'gallery/dendrite-t2.png',
+        title: '2 500 steps',
+        alt: 'Needles beginning to race ahead of the deposit front',
+        caption: 'Needles emerge where the depletion field lets them.',
+      },
+      {
+        src: 'gallery/dendrite-t3.png',
+        title: '3 500 steps',
+        alt: 'A forest of competing needles at mid growth',
+        caption: 'Tip competition: needles that fall behind sit in their neighbours’ depletion zones and stall.',
+      },
+      {
+        src: 'gallery/dendrite-t4.png',
+        title: '5 000 steps',
+        alt: 'Mature dendrite forest spanning most of the domain',
+        caption: 'The surviving arms span the cell — the short-circuit failure mode in metal batteries.',
+      },
+    ],
   },
   {
-    src: 'gallery/dendrite-t2.png',
-    title: 'Electrodeposition, t₂',
-    alt: 'Needles beginning to race ahead of the deposit front',
-    caption: 'The same run at 2 500 steps: needles emerge where the depletion field lets them.',
+    id: 'instant',
+    title: 'Metal and electrolyte at one instant',
+    intro:
+      'The same run at 4 400 steps, drawn twice: the deposit, and the ion concentration around it. Growth is diffusion-limited, so the front lives at the edge of its own depletion zone.',
+    cols: 2,
+    aspect: '2 / 1',
+    figures: [
+      {
+        src: 'posters/hero.png',
+        title: 'Deposit, 4 400 steps',
+        alt: 'A mature forest of metal dendrites, the frame the landing page opens on',
+        caption: 'Phase field ξ: metal in yellow and green, electrolyte in purple. This is also the landing page’s opening frame.',
+      },
+      {
+        src: 'gallery/dendrite-concentration.png',
+        title: 'Ion depletion, 4 400 steps',
+        alt: 'Concentration field around the dendrites: dark depleted zones hug the metal front',
+        caption: 'C/C₀ on the inferno ramp. The dark pockets between branches are electrolyte the growth has already spent.',
+        live: { href: '/demos/?d3-showc=1#demo-dendrite', text: 'concentration view, live' },
+      },
+    ],
   },
   {
-    src: 'gallery/dendrite-t3.png',
-    title: 'Electrodeposition, t₃',
-    alt: 'A forest of competing needles at mid growth',
-    caption: '3 500 steps: tip competition. Needles that fall behind sit in their neighbours’ depletion zones and stall.',
+    id: 'morphology',
+    title: 'Morphology',
+    intro: 'The same model with one setting changed, to show what each one controls.',
+    cols: 2,
+    aspect: '9 / 5',
+    figures: [
+      {
+        src: 'gallery/dendrite-6fold.png',
+        title: 'Six-fold anisotropy',
+        alt: 'Deposit grown with six-fold crystalline anisotropy showing different branch angles',
+        caption: 'ω = 6, δ = 0.025: the anisotropy mode alone changes the branch geometry.',
+        live: { href: '/demos/?d3-omega=6&d3-delta=0.025#demo-dendrite', text: 'six-fold, live' },
+      },
+      {
+        src: 'gallery/needles.png',
+        title: 'Needle regime',
+        alt: 'Three smooth needles growing in parallel with no side branching',
+        caption: 'Low drive (L_η = 0.05, gentler noise): smooth stable needles, the midpoint of the mossy-to-dendritic transition.',
+      },
+    ],
   },
   {
-    src: 'gallery/dendrite-t4.png',
-    title: 'Electrodeposition, t₄',
-    alt: 'Mature dendrite forest spanning most of the domain',
-    caption: '5 000 steps: the surviving arms span the cell — the short-circuit failure mode in metal batteries.',
+    id: 'porous',
+    title: 'Porous electrodes',
+    intro:
+      'Random particle packings at three porosities, with the steady diffusion field solved through the pores. Each one reopens in the microstructure demo as exactly this packing, with its measured D_eff/D₀ computed live.',
+    cols: 3,
+    aspect: '8 / 5',
+    figures: [
+      {
+        src: 'gallery/microstructure-eps45.png',
+        title: 'ε ≈ 0.45',
+        alt: 'Dense particle packing with the transport field squeezing through narrow pores',
+        caption: 'Low porosity: the field funnels through the few percolating channels.',
+        live: { href: '/demos/?d5-eps=0.45&d5-seed=31#demo-microstructure', text: 'this packing, live' },
+      },
+      {
+        src: 'gallery/microstructure-eps60.png',
+        title: 'ε ≈ 0.60',
+        alt: 'Medium-density particle packing with more open transport paths',
+        caption: 'Shorter, straighter paths; the measured tortuosity falls.',
+        live: { href: '/demos/?d5-eps=0.6&d5-seed=32#demo-microstructure', text: 'this packing, live' },
+      },
+      {
+        src: 'gallery/microstructure-eps75.png',
+        title: 'ε ≈ 0.75',
+        alt: 'Sparse particle packing with nearly uniform transport field',
+        caption: 'Open structure: the field is nearly uniform and D_eff/D₀ approaches the porosity itself.',
+        live: { href: '/demos/?d5-eps=0.75&d5-seed=33#demo-microstructure', text: 'this packing, live' },
+      },
+    ],
   },
   {
-    src: 'gallery/dendrite-concentration.png',
-    title: 'Ion depletion field',
-    alt: 'Concentration field around the dendrites: dark depleted zones hug the metal front',
-    caption: 'C/C₀ (inferno ramp) for the frame above: growth is diffusion-limited — the front lives at the edge of its own depletion zone.',
-  },
-  {
-    src: 'gallery/dendrite-6fold.png',
-    title: 'Six-fold anisotropy',
-    alt: 'Deposit grown with six-fold crystalline anisotropy showing different branch angles',
-    caption: 'Same model, ω = 6, δ = 0.025: the anisotropy mode alone changes the branch geometry.',
-  },
-  {
-    src: 'gallery/needles.png',
-    title: 'Needle regime',
-    alt: 'Three smooth needles growing in parallel with no side branching',
-    caption: 'Low drive (L_η = 0.05, gentler noise): smooth stable needles — the mossy-to-dendritic transition’s midpoint.',
-  },
-  {
-    src: 'gallery/microstructure-eps45.png',
-    title: 'Porous electrode, ε ≈ 0.45',
-    alt: 'Dense particle packing with the transport field squeezing through narrow pores',
-    caption: 'RSA packing at low porosity; the Laplace field (viridis) funnels through the few percolating channels.',
-  },
-  {
-    src: 'gallery/microstructure-eps60.png',
-    title: 'Porous electrode, ε ≈ 0.60',
-    alt: 'Medium-density particle packing with more open transport paths',
-    caption: 'Moderate porosity: shorter, straighter paths; measured tortuosity approaches Bruggeman.',
-  },
-  {
-    src: 'gallery/microstructure-eps75.png',
-    title: 'Porous electrode, ε ≈ 0.75',
-    alt: 'Sparse particle packing with nearly uniform transport field',
-    caption: 'Open structure: the field is nearly uniform and D_eff/D₀ approaches the porosity itself.',
-  },
-  {
-    src: 'gallery/drt-ageing.svg',
-    title: 'DRT vs SEI age',
-    alt: 'Distribution of relaxation times for three cell ages, with a growing second peak',
-    caption: 'Tikhonov-NNLS DRT of the demo circuit at three SEI ages: the film peak grows and separates from charge transfer.',
+    id: 'impedance',
+    title: 'Impedance',
+    intro: 'The impedance demo’s circuit, inverted to a distribution of relaxation times at three ages of its SEI film.',
+    cols: 1,
+    aspect: '9 / 5',
+    figures: [
+      {
+        src: 'gallery/drt-ageing.svg',
+        title: 'DRT against SEI age',
+        alt: 'Distribution of relaxation times for three cell ages, with a growing second peak',
+        caption:
+          'Tikhonov-NNLS DRT for a fresh cell, and at 1× and 2.5× film resistance: the film peak grows and separates from charge transfer.',
+        live: { href: '/demos/?d4-age=250#demo-impedance', text: 'the same circuit at 2.5×, live' },
+      },
+    ],
   },
 ];
+
+const figures = series.flatMap((s) => s.figures);
 ---
 
 <BaseLayout
@@ -93,7 +168,10 @@ const figures: Figure[] = [
       <p>
         Every image below was generated at build time by the same TypeScript code that runs the
         live demos, by a seeded generator script so the output is reproducible. Nothing here is
-        an artist’s impression; captions state the model and parameters.
+        an artist’s impression; captions state the model and parameters. The porous-electrode
+        figures reopen in their demo as exactly the packing shown. The dendrite runs were made
+        with settings the demo's controls do not reach, so their links open the nearest live
+        view rather than claiming to reproduce them.
       </p>
       <p class="figure-licence">
         These figures are output of the MIT-licensed generator and carry the same terms: use,
@@ -103,28 +181,35 @@ const figures: Figure[] = [
       </p>
     </article>
 
-    <div class="gallery-grid">
-      {
-        figures.map((fig, i) => (
-          <figure class="gallery-card">
-            <button
-              class="gallery-open"
-              type="button"
-              data-index={i}
-              aria-label={`Enlarge: ${fig.title}`}
-            >
-              <img src={withBase(fig.src)} alt={fig.alt} loading="lazy" decoding="async" />
-            </button>
-            <figcaption>
-              <strong>{fig.title}</strong> — {fig.caption}
-              <a class="gallery-download" href={withBase(fig.src)} download>
-                download full size
-              </a>
-            </figcaption>
-          </figure>
-        ))
-      }
-    </div>
+    {
+      series.map((ser) => (
+        <section class="gallery-series" id={ser.id} aria-labelledby={`${ser.id}-h`}>
+          <h2 id={`${ser.id}-h`}>{ser.title}</h2>
+          <p class="gallery-intro">{ser.intro}</p>
+          <div class={`gallery-grid cols-${ser.cols}`} style={`--fig-aspect: ${ser.aspect}`}>
+            {ser.figures.map((fig) => {
+              const i = figures.indexOf(fig);
+              return (
+                <figure class="gallery-card">
+                  <button class="gallery-open" type="button" data-index={i} aria-label={`Enlarge: ${fig.title}`}>
+                    <img src={withBase(fig.src)} alt={fig.alt} loading="lazy" decoding="async" />
+                  </button>
+                  <figcaption>
+                    <strong>{fig.title}</strong> — {fig.caption}
+                    <span class="gallery-links">
+                      {fig.live && <a href={withBase(fig.live.href)}>{fig.live.text} →</a>}
+                      <a class="gallery-download" href={withBase(fig.src)} download>
+                        download
+                      </a>
+                    </span>
+                  </figcaption>
+                </figure>
+              );
+            })}
+          </div>
+        </section>
+      ))
+    }
 
     <dialog class="lightbox" aria-label="Figure viewer">
       <div class="lightbox-bar">
@@ -196,19 +281,59 @@ const figures: Figure[] = [
     padding-left: var(--s3);
   }
 
+  .gallery-series {
+    margin-top: var(--s7);
+    scroll-margin-top: 5rem;
+  }
+
+  .gallery-series h2 {
+    margin-bottom: var(--s2);
+  }
+
+  .gallery-intro {
+    max-width: var(--measure);
+    color: var(--fg-muted);
+    margin-bottom: var(--s4);
+  }
+
+  /* Every image in a series has the same shape, so each grid shows them
+     whole instead of cropping them all to one ratio. */
   .gallery-grid {
     display: grid;
-    gap: var(--s5);
-    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
-    margin-top: var(--s6);
+    gap: var(--s4);
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 640px) {
+    .gallery-grid.cols-2,
+    .gallery-grid.cols-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .gallery-grid.cols-1 {
+      max-width: 52rem;
+    }
+  }
+
+  @media (min-width: 1000px) {
+    .gallery-grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
   }
 
   .gallery-card {
     margin: 0;
+    display: flex;
+    flex-direction: column;
     border: 1px solid var(--line);
     border-radius: var(--radius-panel);
     overflow: hidden;
     background: var(--surface);
+    transition: border-color 0.15s ease;
+  }
+
+  .gallery-card:hover {
+    border-color: var(--line-strong);
   }
 
   .gallery-open {
@@ -221,29 +346,47 @@ const figures: Figure[] = [
   }
 
   .gallery-open:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: -2px;
+    outline: 3px solid var(--focus);
+    outline-offset: -3px;
   }
 
   .gallery-card img {
     width: 100%;
-    aspect-ratio: 2/1;
-    object-fit: cover;
-    image-rendering: auto;
+    aspect-ratio: var(--fig-aspect);
+    object-fit: contain;
     display: block;
+    transition: transform 0.3s ease;
+  }
+
+  .gallery-open:hover img {
+    transform: scale(1.015);
   }
 
   .gallery-card figcaption {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
     font-family: var(--font-mono);
     font-size: var(--text-xs);
     color: var(--fg-muted);
     padding: var(--s3);
     line-height: 1.5;
+    border-top: 1px solid var(--line);
   }
 
-  .gallery-download {
-    display: block;
-    margin-top: var(--s2);
+  .gallery-card figcaption strong {
+    color: var(--fg);
+  }
+
+  .gallery-links {
+    margin-top: auto;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s1) var(--s4);
+  }
+
+  .gallery-links a {
     color: var(--accent);
   }
 

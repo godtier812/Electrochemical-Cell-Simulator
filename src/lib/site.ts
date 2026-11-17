@@ -61,14 +61,17 @@ export interface NavEntry {
   href: string;
 }
 
+/**
+ * Top navigation. Numerics sits in the physics sidebar and the roadmap in the
+ * project sidebar and the footer, so neither needs a slot of its own up here.
+ */
 export const NAV: NavEntry[] = [
   { label: 'physics', href: '/physics/' },
-  { label: 'numerics', href: '/numerics/' },
   { label: 'demos', href: '/demos/' },
+  { label: 'tools', href: '/tools/' },
   { label: 'validation', href: '/validation/' },
   { label: 'docs', href: '/docs/' },
   { label: 'gallery', href: '/gallery/' },
-  { label: 'roadmap', href: '/roadmap/' },
   { label: 'about', href: '/about/' },
 ];
 
@@ -85,9 +88,16 @@ export const PHYSICS_PAGES = [
 ];
 
 export const DOCS_PAGES = [
-  { label: 'Install', href: '/docs/' },
-  { label: 'Quickstart', href: '/docs/quickstart/' },
-  { label: 'Configuration', href: '/docs/configuration/' },
-  { label: 'Examples', href: '/docs/examples/' },
-  { label: 'API reference', href: '/docs/api/' },
+  { label: 'Overview', href: '/docs/' },
+  { label: 'Using the demos and tools', href: '/docs/using/' },
+  { label: 'Kernel reference', href: '/docs/kernels/' },
+  { label: 'Run it locally', href: '/docs/local/' },
+  { label: 'Python package: design', href: '/docs/python/' },
+];
+
+/** Pages about the project rather than the physics. */
+export const PROJECT_PAGES = [
+  { label: 'About', href: '/about/' },
+  { label: 'Roadmap', href: '/roadmap/' },
+  { label: 'Cite', href: '/cite/' },
 ];

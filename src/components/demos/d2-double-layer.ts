@@ -1,41 +1,32 @@
 import { Plot } from '../../lib/plot';
 import { css } from '../../lib/colormaps';
+import { columnsToCsv } from '../../lib/csv';
 import { gcCapacitance, gouyChapman, solvePNP } from '../../lib/pnp';
 import { thermalVoltage } from '../../lib/constants';
-import {
-  bindParam,
-  enablePanel,
-  rafDebounce,
-  siFormat,
-  type Shell,
-} from './runtime';
+import { bindParam, enablePanel, rafDebounce, setupShell, type Shell } from './runtime';
+
+/** How much of the gap the default view shows, in Debye lengths. */
+const VIEW_DEBYE = 10;
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
-  const reset = $<HTMLButtonElement>('#d2-reset');
+  const fullGap = $<HTMLInputElement>('#d2-full');
   const outs = {
     lam: $<HTMLOutputElement>('#d2-lambda'),
     cap: $<HTMLOutputElement>('#d2-cap'),
+    ratio: $<HTMLOutputElement>('#d2-ratio'),
     newton: $<HTMLOutputElement>('#d2-newton'),
   };
 
   const grid = document.createElement('div');
-  grid.className = 'd2-grid';
+  grid.className = 'split-stage';
   grid.innerHTML = `
-    <div class="d2-cell">
-      <canvas role="img" aria-label="Electrostatic potential profile across the gap, numerical solution and Gouy-Chapman overlay"></canvas>
-      <div class="d2-inset"><canvas role="img" aria-label="Zoom of the potential over the first five Debye lengths"></canvas></div>
-    </div>
-    <div class="d2-cell">
-      <canvas role="img" aria-label="Cation and anion concentration profiles on a log scale, with Gouy-Chapman overlays"></canvas>
-      <div class="d2-inset"><canvas role="img" aria-label="Zoom of the concentrations over the first five Debye lengths"></canvas></div>
-    </div>`;
+    <div><canvas role="img" aria-label="Electrostatic potential against distance from the electrode, numerical solution and Gouy-Chapman overlay"></canvas></div>
+    <div><canvas role="img" aria-label="Cation and anion concentration against distance from the electrode on a log scale, with Gouy-Chapman overlays"></canvas></div>`;
   shell.stage.insertBefore(grid, shell.stage.firstChild);
   const cells = grid.querySelectorAll('canvas');
-  const pPhi = new Plot(cells[0], { xLabel: 'x / nm', yLabel: 'φ / mV', legend: 'tr' });
-  const pPhiZoom = new Plot(cells[1], { pad: 0.02 });
-  const pC = new Plot(cells[2], { xLabel: 'x / nm', yLabel: 'C / c₀', yScale: 'log', legend: 'tr' });
-  const pCZoom = new Plot(cells[3], { yScale: 'log', pad: 0.02 });
+  const pPhi = new Plot(cells[0], { xLabel: 'x / nm', yLabel: 'φ / mV' });
+  const pC = new Plot(cells[1], { xLabel: 'x / nm', yLabel: 'C / c₀', yScale: 'log' });
 
   const cNum = css('viridis', 0.45);
   const cNum2 = css('viridis', 0.75);
@@ -46,6 +37,8 @@ export function init(shell: Shell): void {
   const pC0 = bindParam(shell, 'd2-c0', rerun);
   const pL = bindParam(shell, 'd2-L', rerun);
   const pT = bindParam(shell, 'd2-T', rerun);
+
+  let last: Record<string, ArrayLike<number>> | null = null;
 
   const recompute = rafDebounce(() => {
     const Vapp = pV.value / 1000;
@@ -59,49 +52,72 @@ export function init(shell: Shell): void {
     const lamHat = sol.lambdaD / L;
     const gc = gouyChapman(sol.xHat, psi0, lamHat);
 
-    outs.lam.value = siFormat(sol.lambdaD, 'm');
+    // nanometres whatever the size: it is the unit the literature quotes λ_D in
+    outs.lam.value = `${(sol.lambdaD * 1e9).toPrecision(3)} nm`;
     outs.cap.value = `${(gcCapacitance(78.5, T, c0, psi0) * 100).toPrecision(3)} µF/cm²`;
+    outs.ratio.value = (1 / lamHat).toPrecision(3);
     outs.newton.value = sol.converged
-      ? `${sol.newtonIterations} its, ‖R‖=${sol.residualNorm.toExponential(1)}`
+      ? `${sol.newtonIterations} its, ‖R‖ = ${sol.residualNorm.toExponential(1)}`
       : 'did not converge';
 
-    const n = sol.xHat.length;
     const xnm = Float64Array.from(sol.xHat, (v) => v * L * 1e9);
-    const mV = (1000 * thermalVoltage(T));
+    const mV = 1000 * thermalVoltage(T);
     const phiNum = Float64Array.from(sol.psi, (v) => v * mV);
     const phiGC = Float64Array.from(gc.psi, (v) => v * mV);
 
-    const phiSeries = [
-      { x: xnm, y: phiNum, color: cNum, width: 2, label: 'PNP numeric' },
-      { x: xnm, y: phiGC, color: cGC, dash: [5, 4], label: 'Gouy–Chapman' },
-    ];
-    const cSeries = [
-      { x: xnm, y: sol.cPlus, color: cNum, width: 2, label: 'C₊' },
-      { x: xnm, y: sol.cMinus, color: cNum2, width: 2, label: 'C₋' },
-      { x: xnm, y: gc.cPlus, color: cGC, dash: [5, 4], label: 'GC' },
-      { x: xnm, y: gc.cMinus, color: cGC, dash: [5, 4] },
-    ];
-    void n;
-    pPhi.draw(phiSeries);
-    pC.draw(cSeries);
+    // The layer is a few Debye lengths of a gap that may be hundreds wide.
+    // Plotting the whole gap put all the structure in the first 5% of the axis
+    // and needed insets to be legible; the default view is the layer itself.
+    const lamNm = sol.lambdaD * 1e9;
+    const gapNm = xnm[xnm.length - 1];
+    const xMax = fullGap.checked ? gapNm : Math.min(gapNm, VIEW_DEBYE * lamNm);
+    const marks = [{ type: 'vline' as const, x: lamNm, dash: [2, 3], label: 'λ_D' }];
 
-    // insets: first 5 Debye lengths
-    const zoomEnd = Math.min(5 * sol.lambdaD * 1e9, xnm[xnm.length - 1]);
-    pPhiZoom.setOptions({ xRange: [0, zoomEnd] });
-    pPhiZoom.draw(phiSeries.map((s) => ({ ...s, label: undefined })), [
-      { type: 'vline', x: sol.lambdaD * 1e9, dash: [2, 3], label: 'λ_D' },
-    ]);
-    pCZoom.setOptions({ xRange: [0, zoomEnd] });
-    pCZoom.draw(cSeries.map((s) => ({ ...s, label: undefined })), [
-      { type: 'vline', x: sol.lambdaD * 1e9, dash: [2, 3], label: 'λ_D' },
-    ]);
+    pPhi.setOptions({ xRange: [0, xMax] });
+    pPhi.draw(
+      [
+        { x: xnm, y: phiNum, color: cNum, width: 2, label: 'PNP numeric' },
+        { x: xnm, y: phiGC, color: cGC, dash: [5, 4], label: 'Gouy–Chapman' },
+      ],
+      marks
+    );
+    pC.setOptions({ xRange: [0, xMax] });
+    pC.draw(
+      [
+        { x: xnm, y: sol.cPlus, color: cNum, width: 2, label: 'C₊ numeric' },
+        { x: xnm, y: sol.cMinus, color: cNum2, width: 2, label: 'C₋ numeric' },
+        { x: xnm, y: gc.cPlus, color: cGC, dash: [5, 4], label: 'Gouy–Chapman' },
+        { x: xnm, y: gc.cMinus, color: cGC, dash: [5, 4] },
+      ],
+      marks
+    );
+    last = {
+      'x / nm': xnm,
+      'phi numeric / mV': phiNum,
+      'phi Gouy-Chapman / mV': phiGC,
+      'C+ numeric / c0': sol.cPlus,
+      'C- numeric / c0': sol.cMinus,
+      'C+ Gouy-Chapman / c0': gc.cPlus,
+      'C- Gouy-Chapman / c0': gc.cMinus,
+    };
   });
 
-  reset.addEventListener('click', () => {
-    for (const p of [pV, pC0, pL, pT]) p.reset();
-    recompute();
-  });
+  fullGap.addEventListener('change', recompute);
   addEventListener('resize', recompute);
+
+  setupShell(shell, {
+    refresh: recompute,
+    hold: () => {
+      const label = `${pV.format()} mV, ${pC0.format()} M`;
+      pPhi.hold(label);
+      pC.hold(label);
+    },
+    clearHold: () => {
+      pPhi.clearHeld();
+      pC.clearHeld();
+    },
+    csv: () => columnsToCsv(Object.entries(last ?? {}).map(([name, values]) => ({ name, values }))),
+  });
 
   shell.stage.querySelector('img.poster')?.remove();
   enablePanel(shell);
