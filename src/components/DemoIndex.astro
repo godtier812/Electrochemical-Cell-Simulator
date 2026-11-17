@@ -1,0 +1,140 @@
+---
+/**
+ * The six demos as a row of cards, each wearing its ramp stop. Used on the
+ * landing page (with thumbnails) and at the top of the demos page (compact,
+ * sticky), so the same colour means the same demo everywhere.
+ */
+import { DEMOS, demoAccent } from '../lib/demos';
+import { withBase } from '../lib/url';
+
+interface Props {
+  /** 'cards' shows a thumbnail and blurb; 'chips' is the one-line index. */
+  variant?: 'cards' | 'chips';
+  /** Link target prefix: '' for same-page anchors, '/demos/' from elsewhere. */
+  base?: string;
+}
+
+const { variant = 'cards', base = '/demos/' } = Astro.props;
+const href = (id: string) => (base === '' ? `#${id}` : `${withBase(base)}#${id}`);
+---
+
+{
+  variant === 'cards' ? (
+    <ul class="demo-index">
+      {DEMOS.map((d) => {
+        const a = demoAccent(d.code);
+        return (
+          <li style={`--demo-accent:${a.bg};--demo-accent-fg:${a.fg}`}>
+            <a href={href(d.id)}>
+              <img src={withBase(`posters/${d.poster}`)} alt="" loading="lazy" decoding="async" />
+              <span class="demo-index-text">
+                <span class="demo-index-name">
+                  <span class="demo-code">{d.code}</span>
+                  {d.name}
+                </span>
+                <span class="demo-index-blurb">{d.blurb}</span>
+              </span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  ) : (
+    <nav class="demo-chips" aria-label="Demos on this page">
+      {DEMOS.map((d) => {
+        const a = demoAccent(d.code);
+        return (
+          <a href={href(d.id)} style={`--demo-accent:${a.bg};--demo-accent-fg:${a.fg}`}>
+            <span class="demo-code">{d.code}</span>
+            {d.name}
+          </a>
+        );
+      })}
+    </nav>
+  )
+}
+
+<style>
+  .demo-index {
+    list-style: none;
+    padding: 0;
+    display: grid;
+    gap: var(--s4);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  }
+
+  .demo-index a {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-panel);
+    background: var(--surface);
+    color: var(--fg);
+    text-decoration: none;
+    overflow: hidden;
+    transition:
+      border-color 0.15s ease,
+      transform 0.15s ease;
+  }
+
+  .demo-index a:hover {
+    border-color: var(--demo-accent);
+    transform: translateY(-2px);
+  }
+
+  .demo-index img {
+    width: 100%;
+    aspect-ratio: 16/9;
+    object-fit: cover;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+
+  .demo-index-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+    padding: var(--s3) var(--s4) var(--s4);
+  }
+
+  .demo-index-name {
+    display: flex;
+    align-items: center;
+    gap: var(--s2);
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: var(--text-base);
+  }
+
+  .demo-index-blurb {
+    font-size: var(--text-sm);
+    line-height: 1.5;
+    color: var(--fg-muted);
+  }
+
+  .demo-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2);
+  }
+
+  .demo-chips a {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    color: var(--fg);
+    text-decoration: none;
+    padding: var(--s1) var(--s3) var(--s1) var(--s1);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--surface);
+    white-space: nowrap;
+  }
+
+  .demo-chips a:hover {
+    border-color: var(--demo-accent);
+  }
+</style>

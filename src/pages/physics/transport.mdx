@@ -9,6 +9,7 @@ import RepoNote from '../../components/RepoNote.astro';
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import D2DoubleLayer from '../../components/demos/D2DoubleLayer.astro';
 
 ## What these equations model
 
@@ -137,4 +138,6 @@ Two checks are live today. The equilibrium PNP solution for a 1:1 electrolyte ag
 
 ## Try it in the browser
 
-The [double-layer demo](/Electrochemical-Cell-Simulator/demos/#demo-double-layer) solves the full PNP system with the Scharfetter–Gummel flux and damped Newton, in TypeScript, in your browser — the same numerics described on this page, not an animation of them. Adjust $c_0$ and watch $\lambda_D$ move; the readout reports it in nanometres. <RepoNote kind="source" /> — but the scheme it runs is the one written out above, and the [validation page](/Electrochemical-Cell-Simulator/validation/) checks it against the analytic Gouy–Chapman profile while you watch.
+This is the full PNP system with the Scharfetter–Gummel flux and damped Newton, in TypeScript, running in this tab — the same numerics described on this page, not an animation of them. Adjust $c_0$ and watch $\lambda_D$ move; the readout reports it in nanometres, and the first preset takes it to the 0.30 nm of a molar solution. <RepoNote kind="source" /> — but the scheme it runs is the one written out above, and the [validation page](/Electrochemical-Cell-Simulator/validation/) checks it against the analytic Gouy–Chapman profile while you watch.
+
+<D2DoubleLayer />

@@ -8,6 +8,7 @@ import D5Microstructure from '../components/demos/D5Microstructure.astro';
 import D6Discharge from '../components/demos/D6Discharge.astro';
 import { withBase } from '../lib/url';
 import { DEMO_COUNT } from '../lib/demos';
+import DemoIndex from '../components/DemoIndex.astro';
 ---
 
 <BaseLayout
@@ -21,20 +22,22 @@ import { DEMO_COUNT } from '../lib/demos';
       <span class="overline">Live</span>
       <h1>Demos</h1>
       <p>
-        {DEMO_COUNT} models, all computed client-side while you drag the sliders — a Newton
-        solver, a regularised least-squares inversion, a conjugate-gradient Laplace solve, a
-        WebGL2 phase-field, and an implicit single-particle discharge, in TypeScript. This is
-        an in-browser solver, not a front end over a backend: no server is involved, and
-        nothing here is a prerendered frame. Every demo states its model and its assumptions
-        in the caption, and every control carries units. If JavaScript is off, each demo shows
-        a frame precomputed by the same code at build time.
+        {DEMO_COUNT} models, computed in this tab while you drag the sliders. No server is
+        involved and nothing is a prerendered frame. Each one has presets worth trying under the
+        plot, a write-up of its model and assumptions, and a toolbar to hold a curve for
+        comparison, export what is plotted, or copy a link that reopens it exactly as it is.
       </p>
       <p>
-        The physics behind each demo is written up in the
-        <a href={withBase('/physics/')}>physics section</a>, and the checks against analytic
-        solutions live on the <a href={withBase('/validation/')}>validation page</a>.
+        The physics is written up in the <a href={withBase('/physics/')}>physics section</a>, and
+        the checks against analytic solutions are on the
+        <a href={withBase('/validation/')}>validation page</a>. If JavaScript is off, each demo
+        shows a frame precomputed by the same code.
       </p>
     </article>
+
+    <div class="demo-jump">
+      <DemoIndex variant="chips" base="" />
+    </div>
 
     <div class="demo-list">
       <D1ButlerVolmer />
@@ -56,6 +59,28 @@ import { DEMO_COUNT } from '../lib/demos';
   }
 
   .demo-list > :global(.demo) {
-    scroll-margin-top: 5rem;
+    scroll-margin-top: 8rem;
+    margin: 0;
+  }
+
+  /* The page is six tall figures; the index stays in reach under the header. */
+  .demo-jump {
+    position: sticky;
+    top: 3.3rem;
+    z-index: 20;
+    margin: var(--s5) calc(-1 * var(--s4)) 0;
+    padding: var(--s2) var(--s4);
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .demo-jump::-webkit-scrollbar {
+    display: none;
+  }
+
+  .demo-jump :global(.demo-chips) {
+    flex-wrap: nowrap;
   }
 </style>

@@ -7,7 +7,8 @@ import {
   type Microstructure,
   type TransportResult,
 } from '../../lib/microstructure';
-import { bindParam, createCanvas, enablePanel, rafDebounce, revealCanvas, type Shell } from './runtime';
+import { columnsToCsv } from '../../lib/csv';
+import { bindParam, createCanvas, enablePanel, pageState, rafDebounce, revealCanvas, setupShell, type Shell } from './runtime';
 
 const NX = 192;
 const NY = 120;
@@ -23,6 +24,7 @@ export function init(shell: Shell): void {
     maxwell: $<HTMLOutputElement>('#d5-maxwell'),
     tort: $<HTMLOutputElement>('#d5-tort'),
     tortB: $<HTMLOutputElement>('#d5-tort-brugg'),
+    tortM: $<HTMLOutputElement>('#d5-tort-maxwell'),
     sat: $<HTMLOutputElement>('#d5-sat'),
   };
   const satNote = $<HTMLSpanElement>('#d5-sat-note');
@@ -100,7 +102,12 @@ export function init(shell: Shell): void {
    * which makes the comparison the demo exists for impossible to read. A new
    * draw is what the "new packing" button is for.
    */
-  let seed = (Math.random() * 0x100000000) >>> 0;
+  const DEFAULT_SEED = 0x51ed270b;
+  // A shared link carries the seed, so it reopens on the same packing. Without
+  // one the first packing is fixed too: two visitors comparing notes should be
+  // looking at the same structure until one of them asks for another.
+  const linkedSeed = Number(pageState()['d5-seed']);
+  let seed = Number.isFinite(linkedSeed) && linkedSeed > 0 ? linkedSeed >>> 0 : DEFAULT_SEED;
 
   const rerun = () => regenerate();
   const pEps = bindParam(shell, 'd5-eps', rerun);
@@ -126,6 +133,7 @@ export function init(shell: Shell): void {
     outs.brugg.value = tr.bruggemanRatio.toFixed(3);
     outs.maxwell.value = tr.maxwell2dRatio.toFixed(3);
     outs.tortB.value = Math.pow(ms.porosity, -0.5).toFixed(2);
+    outs.tortM.value = (2 - ms.porosity).toFixed(2);
 
     // The slider asks for a target porosity; RSA cannot always reach it. Say so
     // with the value actually attained rather than letting the control look dead.
@@ -141,6 +149,45 @@ export function init(shell: Shell): void {
   });
   addEventListener('resize', () => render());
   addEventListener('voltaire-theme', () => render());
+
+  setupShell(shell, {
+    refresh: regenerate,
+    onReset: () => {
+      seed = DEFAULT_SEED;
+    },
+    extraState: () => ({ 'd5-seed': String(seed) }),
+    csv: () =>
+      columnsToCsv([
+        {
+          name: 'quantity',
+          values: [
+            'porosity (achieved)',
+            'D_eff/D0 measured',
+            'tortuosity measured',
+            'D_eff/D0 2D bound eps/(2-eps)',
+            'D_eff/D0 Bruggeman eps^1.5',
+            'particle radius / px',
+            'polydispersity / %',
+            'grid',
+            'seed',
+          ],
+        },
+        {
+          name: 'value',
+          values: [
+            ms.porosity,
+            tr.blocked ? 0 : tr.deffRatio,
+            tr.blocked ? Infinity : tr.tortuosity,
+            tr.maxwell2dRatio,
+            tr.bruggemanRatio,
+            pR.value,
+            pS.value,
+            `${NX}x${NY}`,
+            seed,
+          ],
+        },
+      ]),
+  });
 
   enablePanel(shell);
   regenerate();

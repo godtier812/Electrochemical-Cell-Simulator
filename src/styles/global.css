@@ -612,12 +612,31 @@ fieldset.panel {
   opacity: 0.6;
 }
 
+/* Label and value share the top line; the slider takes the whole width under
+   them. The old single-row layout left the slider about 50px of travel in a
+   side panel, which is not enough to set anything by hand. */
 .control-row {
   display: grid;
-  grid-template-columns: minmax(6rem, 10rem) 1fr minmax(7rem, auto);
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'label value'
+    'slider slider';
   align-items: center;
-  gap: var(--s3);
+  gap: var(--s1) var(--s3);
   padding: var(--s2) 0;
+}
+
+.control-row > label {
+  grid-area: label;
+}
+
+.control-row > input[type='range'] {
+  grid-area: slider;
+}
+
+.control-row > .readout,
+.control-row > .readout-input {
+  grid-area: value;
 }
 
 .control-row label {
@@ -648,9 +667,9 @@ fieldset.panel {
   width: 7rem;
   min-width: 0;
   padding: var(--s1) var(--s2);
-  background: var(--surface);
+  background: var(--bg);
   border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: var(--radius);
 }
 
 .control-row .readout-input:hover {
@@ -729,12 +748,71 @@ fieldset.panel {
   text-transform: uppercase;
 }
 
+/* Two controls per row where the panel is wide enough (the stacked demos). */
+.control-cols {
+  display: grid;
+  grid-template-columns: 1fr;
+  column-gap: var(--s6);
+}
+
+@container demo (min-width: 540px) {
+  .control-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container demo (min-width: 900px) {
+  .control-cols {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Readouts that compare like with like across rows, set as a table rather
+   than a wrapping line of label–value pairs. */
+.readout-table {
+  width: 100%;
+  margin-top: var(--s3);
+  border-top: 1px dashed var(--line);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.readout-table th,
+.readout-table td {
+  padding: var(--s1) 0 var(--s1) var(--s2);
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.readout-table th:first-child {
+  padding-left: 0;
+}
+
+.readout-table tbody th {
+  font-size: var(--text-sm);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg-muted);
+}
+
+.readout-table tr.is-measured th,
+.readout-table tr.is-measured td {
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.readout-table + .panel-readouts {
+  border-top: 0;
+  margin-top: 0;
+}
+
 /* sliders: instrument styling */
 input[type='range'] {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  height: 1.4rem;
+  height: 1.75rem;
   background: transparent;
   cursor: pointer;
   min-width: 4rem;
@@ -754,20 +832,34 @@ input[type='range']::-moz-range-track {
 
 input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
-  margin-top: -6px;
-  width: 8px;
-  height: 16px;
-  border-radius: 2px;
+  margin-top: -8px;
+  width: 12px;
+  height: 20px;
+  border-radius: 3px;
   background: var(--accent);
-  border: none;
+  border: 2px solid var(--surface);
 }
 
 input[type='range']::-moz-range-thumb {
   width: 8px;
   height: 16px;
-  border-radius: 2px;
+  box-sizing: content-box;
+  border-radius: 3px;
   background: var(--accent);
-  border: none;
+  border: 2px solid var(--surface);
+}
+
+input[type='range']:hover::-webkit-slider-thumb {
+  background: var(--accent-strong);
+}
+
+input[type='range']:hover::-moz-range-thumb {
+  background: var(--accent-strong);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--accent);
 }
 
 input[type='range']:focus-visible {
@@ -786,8 +878,150 @@ select {
 }
 
 /* ---------- demo shell ---------- */
+/* A demo lays itself out by its own width, not the window's, so the same
+   component works full-width on /demos/ and inside a physics page's column. */
 .demo {
   margin: var(--s6) 0;
+  container: demo / inline-size;
+}
+
+.demo-head > .demo-title {
+  margin: 0;
+}
+
+.demo-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2) var(--s4);
+  margin-bottom: var(--s3);
+}
+
+.demo-title {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+/* The demo's stop on the ramp: the same chip marks it in the index, on its
+   toolbar, and wherever a physics page embeds it. */
+.demo-code {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 0.35em 0.55em;
+  border-radius: var(--radius);
+  background: var(--demo-accent, var(--accent));
+  color: var(--demo-accent-fg, var(--bg));
+}
+
+.demo-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+.demo-tools[hidden] {
+  display: none;
+}
+
+.tool-btn,
+.preset-btn {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--s1) var(--s2);
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background-color 0.12s ease;
+}
+
+.tool-btn:hover,
+.preset-btn:hover:not(:disabled) {
+  color: var(--fg);
+  border-color: var(--line-strong);
+}
+
+.tool-btn[hidden] {
+  display: none;
+}
+
+.tool-btn[data-copied] {
+  color: var(--badge-shipped-fg);
+  border-color: var(--badge-shipped-fg);
+}
+
+.tool-btn[aria-pressed='true'] {
+  color: var(--bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.demo-presets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+.preset-btn {
+  color: var(--fg);
+  text-align: left;
+  border-left: 2px solid var(--demo-accent, var(--accent));
+  padding: var(--s1) var(--s3);
+}
+
+.preset-btn:disabled {
+  color: var(--fg-muted);
+  cursor: default;
+}
+
+/* The long write-up: body face at reading measure. Mono is for data and for
+   captions short enough to read as a label (DESIGN.md §2). */
+.demo-notes {
+  margin-top: var(--s3);
+  max-width: var(--measure);
+  border-top: 1px dashed var(--line);
+}
+
+.demo-notes > summary {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--fg-muted);
+  cursor: pointer;
+  padding: var(--s2) 0;
+  width: fit-content;
+}
+
+.demo-notes > summary:hover {
+  color: var(--fg);
+}
+
+.demo-notes-body {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  padding-bottom: var(--s3);
+}
+
+.demo-notes-body > * + * {
+  margin-top: var(--s3);
+}
+
+.demo-notes-body ul {
+  padding-left: 1.3em;
+}
+
+.demo-notes-body li + li {
+  margin-top: var(--s1);
 }
 
 .demo-stage {
@@ -806,6 +1040,71 @@ select {
   inset: 0;
 }
 
+/* A plot poster keeps its own proportions inside a stage of another shape; a
+   field poster (the PNGs) fills the stage the way the live canvas will. */
+.demo-stage img.poster {
+  object-fit: cover;
+}
+
+.demo-stage img.poster[src$='.svg'] {
+  object-fit: contain;
+}
+
+/* Stage layouts shared by several demos and the analyser: two plots side by
+   side, and the impedance quartet (Nyquist tall on the left, three stacked). */
+.split-stage,
+.d4-grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  gap: 2px;
+  background: var(--surface);
+}
+
+.split-stage {
+  grid-template-columns: 1fr 1fr;
+}
+
+.d4-grid {
+  grid-template-columns: 1.25fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+}
+
+.split-stage > div,
+.d4-grid .d4-cell {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.d4-grid .d4-nyquist {
+  grid-row: 1 / 4;
+}
+
+.split-stage canvas,
+.d4-grid canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+@media (max-width: 700px) {
+  .split-stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+
+  .d4-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1.4fr 1fr 1fr 1fr;
+  }
+
+  .d4-grid .d4-nyquist {
+    grid-row: auto;
+  }
+}
+
 /* No touch-action override on demo canvases, deliberately. These are read, not
    dragged: the only pointer handler on any of them is D4's pointermove for
    hover-linking, which needs nothing. Suppressing touch gestures here meant a
@@ -818,7 +1117,17 @@ select {
   gap: var(--s4);
   grid-template-columns: 2fr 1fr;
   align-items: start;
-  margin-top: var(--s4);
+}
+
+/* The panel needs about 15rem; below that it goes under the stage. */
+@container demo (max-width: 720px) {
+  .demo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.demo-stack > .panel {
+  margin-top: var(--s3);
 }
 
 .demo-caption {
@@ -864,17 +1173,57 @@ select {
   gap: var(--s3);
 }
 
+.card {
+  position: relative;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
 .card h3 {
   font-size: var(--text-base);
 }
 
-.card h3 a {
+.card h3 a,
+.card h4 a {
   color: var(--fg);
   text-decoration: none;
 }
 
-.card h3 a:hover {
+.card h3 a:hover,
+.card h4 a:hover {
   color: var(--accent);
+}
+
+/* the title link covers the whole card, so the card is one target */
+.card-link::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.card-live {
+  border-top: 3px solid var(--accent);
+}
+
+/* not built yet: outlined rather than filled, and quieter */
+.card-planned {
+  background: transparent;
+  border-style: dashed;
+}
+
+.card-planned .glyph {
+  color: var(--fg-muted);
+}
+
+.card-planned:hover {
+  border-color: var(--line-strong);
 }
 
 .card p {
@@ -884,6 +1233,58 @@ select {
 }
 
 .card .glyph {
+  color: var(--accent);
+}
+
+/* .card is a flex column, whose default stretches every child to full width. */
+.card .badge {
+  align-self: flex-start;
+}
+
+/* ---------- entry cards (tools index, landing page) ---------- */
+.tool-grid {
+  display: grid;
+  gap: var(--s4);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+  margin-top: var(--s6);
+}
+
+.tool-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s3);
+  padding: var(--s5);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--accent);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  color: var(--fg);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.tool-card:hover {
+  color: var(--fg);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.tool-card h2 {
+  font-size: var(--text-lg);
+}
+
+.tool-card p {
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  flex: 1;
+}
+
+.tool-go {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
   color: var(--accent);
 }
 
@@ -919,6 +1320,31 @@ select {
     font-size: var(--text-sm);
     align-self: start;
   }
+}
+
+.docs-title .overline {
+  display: block;
+  margin-bottom: var(--s2);
+}
+
+.docs-lede {
+  margin-top: var(--s3);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--fg-muted);
+}
+
+/* the title block is followed by the page's first h2, which brings its own space */
+.prose > .docs-title + h2 {
+  margin-top: var(--s6);
+}
+
+.docs-prose {
+  max-width: none;
+}
+
+.docs-prose > :not(.demo) {
+  max-width: var(--measure);
 }
 
 .side-nav .group {
@@ -1004,15 +1430,6 @@ select {
   white-space: nowrap;
 }
 
-/* A control row needs label + slider + numeric entry side by side, which does
-   not fit in the 1fr side column much below a 1000px page. Drop the panel under
-   the stage first; the row itself only stacks at 700px. */
-@media (max-width: 1000px) {
-  .demo-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 700px) {
   /* The horizontal-scrolling nav strip hid items with no affordance at all;
      below the breakpoint it becomes a real menu behind the toggle button. */
@@ -1054,20 +1471,6 @@ select {
 
   .wordmark {
     flex: 1;
-  }
-
-  .control-row {
-    grid-template-columns: 1fr;
-    gap: var(--s1);
-  }
-
-  .control-row .readout {
-    text-align: left;
-  }
-
-  .control-row .readout-input {
-    text-align: left;
-    width: 100%;
   }
 
   h1 {

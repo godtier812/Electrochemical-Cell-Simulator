@@ -2,7 +2,7 @@
 import 'katex/dist/katex.min.css';
 import BaseLayout from './BaseLayout.astro';
 import { withBase } from '../lib/url';
-import { SITE, PHYSICS_PAGES, DOCS_PAGES, REPO_PUBLIC } from '../lib/site';
+import { SITE, PHYSICS_PAGES, DOCS_PAGES, PROJECT_PAGES, REPO_PUBLIC } from '../lib/site';
 
 interface Heading {
   depth: number;
@@ -14,7 +14,7 @@ interface Props {
   /** Direct use from .astro pages. */
   title?: string;
   description?: string;
-  nav?: 'physics' | 'docs';
+  nav?: NavKind;
   section?: string;
   /** Path of the social-card image under the site base. */
   ogImage?: string;
@@ -23,22 +23,38 @@ interface Props {
   frontmatter?: {
     title: string;
     description?: string;
-    nav?: 'physics' | 'docs';
+    nav?: NavKind;
     section?: string;
     ogImage?: string;
     file?: string;
   };
 }
 
+type NavKind = 'physics' | 'docs' | 'project';
+
+const NAVS: Record<NavKind, { label: string; section: string; pages: { label: string; href: string }[] }> = {
+  physics: { label: 'Physics & numerics', section: '/physics/', pages: PHYSICS_PAGES },
+  docs: { label: 'Documentation', section: '/docs/', pages: DOCS_PAGES },
+  project: { label: 'Project', section: '/about/', pages: PROJECT_PAGES },
+};
+
 const fm = Astro.props.frontmatter;
 const title = fm?.title ?? Astro.props.title ?? SITE.name;
 const description = fm?.description ?? Astro.props.description;
 const ogImage = fm?.ogImage ?? Astro.props.ogImage;
 const navKind = fm?.nav ?? Astro.props.nav ?? 'physics';
-const section = fm?.section ?? Astro.props.section ?? (navKind === 'docs' ? '/docs/' : '/physics/');
-const headings = (Astro.props.headings ?? []).filter((h) => h.depth === 2 || h.depth === 3);
+const nav = NAVS[navKind];
+const section = fm?.section ?? Astro.props.section ?? nav.section;
+const allHeadings = Astro.props.headings ?? [];
+const headings = allHeadings.filter((h) => h.depth === 2 || h.depth === 3);
+/**
+ * Most pages in these sections open straight into an h2, which left them with
+ * no h1 and no visible title at all. A page that writes its own `# Title`
+ * keeps it; every other page gets its frontmatter title here.
+ */
+const needsTitle = !allHeadings.some((h) => h.depth === 1);
 
-const pages = navKind === 'docs' ? DOCS_PAGES : PHYSICS_PAGES;
+const pages = nav.pages;
 const current = Astro.url.pathname.replace(/\/$/, '');
 const index = pages.findIndex((p) => withBase(p.href).replace(/\/$/, '') === current);
 const prev = index > 0 ? pages[index - 1] : undefined;
@@ -52,7 +68,7 @@ const repoPath = file.includes('/src/') ? `src/${file.split('/src/')[1]}` : unde
   <div class="docs-grid">
     <nav class="side-nav" aria-label="Section">
       <div class="group">
-        <span class="overline">{navKind === 'docs' ? 'Documentation' : 'Physics & numerics'}</span>
+        <span class="overline">{nav.label}</span>
         {
           pages.map((p) => (
             <a
@@ -67,6 +83,15 @@ const repoPath = file.includes('/src/') ? `src/${file.split('/src/')[1]}` : unde
     </nav>
 
     <article class="prose docs-prose">
+      {
+        needsTitle && (
+          <header class="docs-title">
+            <span class="overline">{nav.label}</span>
+            <h1>{title}</h1>
+            {description && <p class="docs-lede">{description}</p>}
+          </header>
+        )
+      }
       <slot />
 
       <div class="prev-next">

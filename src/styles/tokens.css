@@ -28,6 +28,15 @@
     var(--viridis-yellow)
   );
 
+  /* The hero sits on the phase-field render, whose low end is viridis purple,
+     so it is dark in both themes and carries its own fixed text colours. */
+  --hero-bg: #2d0f42;
+  --hero-ink: #0a0412;
+  --hero-fg: #f2f5f8;
+  --hero-fg-soft: #dfe5ec;
+  --hero-fg-muted: #b4bec9;
+  --hero-veil: 10 4 18;
+
   /* ---- type (DESIGN.md §2) ---- */
   --font-display: 'IBM Plex Sans Condensed', 'Arial Narrow', sans-serif;
   --font-body: 'STIX Two Text', 'Times New Roman', serif;
@@ -86,7 +95,6 @@ html[data-theme='light'] {
   --plot-grid: #dde3e9;
   --plot-axis: #46525e;
   --kbd-bg: #e9edf1;
-  --hero-veil: rgba(245, 247, 249, 0);
 }
 
 /* ---- dark theme (designed, not inverted) ---- */
@@ -111,5 +119,4 @@ html[data-theme='dark'] {
   --plot-grid: #232b35;
   --plot-axis: #9aa7b4;
   --kbd-bg: #1d242e;
-  --hero-veil: rgba(14, 17, 22, 0);
 }

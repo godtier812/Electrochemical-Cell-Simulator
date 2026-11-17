@@ -1,0 +1,134 @@
+---
+layout: ../../layouts/DocsLayout.astro
+title: Using the demos and tools
+description: How the controls behave, how to share a setting as a link, what the CSV and PNG exports contain, and the data format the EIS / DRT analyser reads.
+nav: docs
+ogImage: posters/og-docs.png
+---
+import ParamTable from '../../components/ParamTable.astro';
+
+## A demo, part by part
+
+Every demo has the same parts. The **stage** shows the computed result and is redrawn each time
+a control moves. The **panel** holds the controls, framed like an instrument's front panel, with
+live readouts along its bottom edge. Under the stage are a one-line **caption**, a row of
+**Try this** presets, and a collapsed **Model and assumptions** note that says what the model
+is, what it leaves out, and where it stops being trustworthy. Read that before drawing a
+conclusion from a demo.
+
+### Controls
+
+Each parameter has a slider for sweeping and a number field for typing an exact value. The
+unit is in the label; the field holds a bare number.
+
+- Type a value and it applies as soon as it is a sensible number; press Enter or move away to
+  commit it. A value outside the range is clamped to the nearest end.
+- Quantities that span decades — exchange current density, concentration, capacitance, the
+  regularisation strength — move on a log scale, so each decade gets the same slider travel.
+- With a slider focused, the arrow keys move one step. Every parameter increases to the right.
+- **Reset** returns every control to where the page started.
+
+### Reading values off a plot
+
+Hover over a plot, or touch it, to read values. Most plots drop a vertical cursor and report
+every curve at that point; the Nyquist plots report the nearest measured point instead, since
+the curve doubles back on itself.
+
+### Comparing settings
+
+**Hold** keeps the curves on screen as faint traces, labelled with the setting that made them,
+so the next change can be compared against them. Up to three are kept; the oldest is dropped
+first. Reset clears them, and so does switching an axis between linear and log, because a held
+curve drawn against the old axis would be a curve of something else.
+
+## Sharing a setting
+
+**Copy link** puts the current settings in the page address and on your clipboard. Opening
+that link puts every control back where it was, so a link in a message, a lab notebook or a
+slide reproduces the exact picture:
+
+```text
+/Electrochemical-Cell-Simulator/demos/?d4-age=200&d4-noise=2#demo-impedance
+```
+
+The keys are the controls' ids, listed below. Only the keys a demo recognises are read, values
+outside a control's range are clamped into it, and anything else is ignored, so a link made
+before a range changed still opens. A link records the settings at the moment it was copied; it
+does not follow later changes. The microstructure demo also carries `d5-seed`, the random seed
+of its packing, so a link reopens the same particles and not merely the same porosity.
+
+<ParamTable />
+
+## Exporting
+
+**CSV** downloads the numbers behind the picture: every plotted curve at full double precision,
+with the axis labels, units included, as column headers. Curves that share an x axis are written
+as one table; curves that do not keep their own x column rather than being interpolated onto a
+common one. The microstructure demo, which shows a field rather than curves, writes its measured
+and reference values and the settings, seed included, that produced them.
+
+**PNG** saves the stage as it is drawn, in the current colour theme, at up to twice screen
+resolution.
+
+## The EIS / DRT analyser
+
+The [analyser](/Electrochemical-Cell-Simulator/tools/eis/) reads a spectrum as text: paste it,
+drop a file on the box, or choose a file. Nothing is uploaded; there is no server to upload it
+to.
+
+### Input format
+
+One row per frequency with at least three columns: frequency, the real part Z′, and the
+imaginary part. Beyond that it is forgiving, because instrument exports are not consistent:
+
+- columns separated by commas, tabs, semicolons or spaces;
+- an optional header row, used to find the columns by name when they are not in the order f, Z′, Z″;
+- decimal commas, when the separator is not itself a comma;
+- comment lines starting with `#`, `%`, `!` or `//`, and blank lines, which are skipped;
+- rows in any frequency order, sorted on the way in.
+
+Two things are guessed, and the status line under the box says when a guess was made. The first
+is the **sign of the imaginary column**: a cell is capacitive over almost all of a spectrum, so a
+column that is mostly positive is taken to hold −Z″. The second is the **column assignment**,
+when there is no header to go by. If either guess is wrong, open *Columns were read wrong?* and
+set them by hand.
+
+Frequencies are read as hertz. Impedance units pass straight through: give it Ω·cm² and the
+resistances come back in Ω·cm² and the capacitances in F/cm².
+
+### What comes back
+
+The Nyquist and Bode plots with the spectrum rebuilt from the DRT drawn over the data; the
+distribution of relaxation times with each peak numbered; and a table giving each peak's time
+constant, frequency, resistance (the area under it), and the capacitance τ/R of an RC element
+with that τ and R. The table, the curves and the λ sweep export as CSV and PNG.
+
+### Choosing λ, and what not to read into the result
+
+The regularisation strength λ trades fidelity to the data against smoothness, and no value of it
+is neutral. The sweep under the table repeats the inversion over four decades of λ; a peak that
+is genuinely in the data survives across a decade or more. The analyser page lists what the
+method cannot do — inductive points, diffusion tails, peaks outside the measured window, drift —
+and the [impedance page](/Electrochemical-Cell-Simulator/physics/impedance/) explains why.
+
+The [impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) can hand its current
+spectrum straight to the analyser, noise and all, which is a quick way to see what the analyser
+does with data whose answer you already know.
+
+## The calculators
+
+Each [calculator](/Electrochemical-Cell-Simulator/tools/calculators/) shows its formula and takes
+its inputs in the units printed beside them. Fields accept scientific notation such as `3e-10`.
+Results update as you type, and a dash means an input is missing or outside the range where the
+formula makes sense.
+
+## Browsers, motion and accessibility
+
+- Any current browser runs the site. The dendrite demo and the landing-page animation use WebGL2
+  where it is available and fall back to a slower, coarser CPU path where it is not.
+- If your system asks for reduced motion, the landing page shows a still frame and the dendrite
+  demo starts paused. Both animations also stop on their own when scrolled out of view, and the
+  landing animation has a pause button.
+- Without JavaScript, every demo shows a frame precomputed by the same code.
+- Every control is reachable by keyboard. In the gallery viewer, the arrow keys step through
+  figures and Escape closes it.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Post-build link checker: verifies every internal href/src resolves inside
 dist/, including #fragment targets. Run after `npm run build`."""
-import os, re, sys
+import html as htmllib, os, re, sys
 from urllib.parse import urlparse, unquote
 
 DIST = 'dist'
@@ -24,7 +24,10 @@ def page_for(path):
 
 broken = []
 for page, html in pages.items():
-    for attr, url in re.findall(r'(href|src)="([^"]+)"', html):
+    for attr, raw in re.findall(r'(href|src)="([^"]+)"', html):
+        # Attribute values are HTML-escaped (a query's & arrives as &#38;);
+        # decode them the way a browser does before reading the URL.
+        url = htmllib.unescape(raw)
         if url.startswith(('http', 'mailto:', 'data:')):
             continue
         parsed = urlparse(url)

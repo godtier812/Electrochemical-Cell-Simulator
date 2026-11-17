@@ -1,0 +1,35 @@
+---
+/**
+ * A page that has moved. A bare document with a meta refresh, because GitHub
+ * Pages serves static files and cannot answer with a real redirect. Kept out
+ * of search engines and the sitemap; the canonical link names the new home.
+ */
+import { withBase } from '../lib/url';
+
+interface Props {
+  /** Site-relative destination, fragment allowed, e.g. "/docs/python/#quickstart". */
+  to: string;
+  /** Name of the destination, for the fallback link. */
+  title: string;
+}
+
+const { to, title } = Astro.props;
+const href = withBase(to);
+// a canonical URL names a document, so it drops the fragment
+const canonical = new URL(withBase(to.split('#')[0]), Astro.site);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Moved: {title} · Voltaire</title>
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={canonical.href} />
+    <meta http-equiv="refresh" content={`0; url=${href}`} />
+  </head>
+  <body>
+    <p>This page has moved to <a href={href}>{title}</a>.</p>
+  </body>
+</html>

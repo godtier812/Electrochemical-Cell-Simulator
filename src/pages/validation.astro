@@ -50,7 +50,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
 <BaseLayout title="Validation" description="Every check on this page runs live in your browser against an analytic solution, with the error metric printed next to the plot." section="/validation/"
   ogImage="posters/og-validation.png">
   <div class="page" id="validation-root">
-    <article class="prose">
+    <article class="prose vp-intro">
       <span class="overline">Evidence</span>
       <h1>Validation</h1>
       {/* Filled in by validation-page.ts once every check below has run. The
@@ -63,6 +63,20 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
             to report.</noscript
           ></span
         >
+      </div>
+      <div class="table-wrap vp-score">
+        <table>
+          <thead>
+            <tr><th>check</th><th>measured on this page load</th><th>held to</th><th>result</th></tr>
+          </thead>
+          <tbody id="vp-score">
+            <tr><td colspan="4">Running<noscript> needs JavaScript; nothing has been computed</noscript>…</td></tr>
+          </tbody>
+          <tbody class="vp-score-pending">
+            <tr><td><a href="#check-sand">Sand's time</a></td><td>—</td><td>—</td><td>not yet run</td></tr>
+            <tr><td><a href="#check-pybamm">Newman P2D vs PyBaMM</a></td><td>—</td><td>—</td><td>not yet run</td></tr>
+          </tbody>
+        </table>
       </div>
       <p>
         A solver you cannot check is a random number generator with good typography. This page
@@ -77,125 +91,155 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
       </p>
     </article>
 
-    <section class="vp-entry">
+    <section class="vp-entry" id="check-gc">
       <h2>1 · Gouy–Chapman double layer</h2>
-      <p class="prose">
-        At equilibrium against a blocking electrode, steady PNP reduces exactly to
-        Poisson–Boltzmann, whose single-wall solution is the Gouy–Chapman profile. The
-        numerical solver knows nothing about that closed form — it just runs
-        Scharfetter–Gummel fluxes and damped Newton — so landing on the analytic curve is a
-        genuine end-to-end check of fluxes, Jacobian, and boundary conditions.
-      </p>
-      <Equation
-        id="eq-gc"
-        latex={eqGC}
-        caption="Gouy–Chapman: the exact Poisson–Boltzmann profile at a single charged wall, 1:1 electrolyte."
-      />
-      <div class="vp-stage"><canvas id="vp-gc" role="img" aria-label="Potential profile across the double layer: the numerical PNP solution overlaying the analytic Gouy-Chapman curve"></canvas></div>
-      <p class="vp-metric" id="vp-gc-err">computing…</p>
-      <CodeBlock code={gcSnippet} lang="ts" label="reproduce (TypeScript, this site's solver)" />
-    </section>
-
-    <section class="vp-entry">
-      <h2>2 · Cottrell potential step</h2>
-      <p class="prose">
-        Step the surface concentration of a diffusing species to zero and the current must
-        decay as 1/√t while the depletion layer stays far from the cell wall. The simulation
-        uses implicit Euler on 600 nodes; the reference is exact.
-      </p>
-      <Equation
-        id="eq-cottrell"
-        latex={eqCottrell}
-        caption="Cottrell equation: diffusion-limited current after a potential step."
-      />
-      <div class="vp-stage"><canvas id="vp-cottrell" role="img" aria-label="Current versus time on log axes: the simulated potential-step current tracking the analytic Cottrell decay"></canvas></div>
-      <p class="vp-metric" id="vp-cottrell-err">computing…</p>
-      <CodeBlock code={cottrellSnippet} lang="ts" label="reproduce" />
-    </section>
-
-    <section class="vp-entry">
-      <h2>3 · Manufactured solutions — measured order of accuracy</h2>
-      <p class="prose">
-        The method of manufactured solutions plants a known smooth field in the full coupled
-        PNP operator, derives the source terms analytically, and measures how fast the
-        discrete solution converges to it as the mesh refines. Second-order convergence is the
-        design claim for the Scharfetter–Gummel scheme on smooth solutions; the observed order
-        is measured below, live, on five meshes.
-      </p>
-      <p class="prose">
-        Two configurations are reported. A uniform mesh is the clean case, but it is not what
-        the demos run: they use a mesh graded towards the electrode, and at a screening
-        parameter four orders of magnitude smaller. The second row uses the growth ratio and
-        ε̂ that the double-layer demo actually produces, so the number characterises the
-        scheme where it lives rather than only where it is easiest to measure.
-      </p>
-      <p class="prose">
-        Both rows measure against <em>h</em><sub>max</sub>, the largest cell in the mesh, in a
-        mesh-weighted L₂ norm. That matters more than it sounds: an earlier reading of this
-        study on graded meshes appeared to show the order collapsing to 0.5–0.85, and that was
-        an artefact of two choices, not a property of the scheme. Reporting <em>h</em> as
-        1/(N−1) assumes refinement halves the cells, which on a graded mesh it does not — at
-        ratio 1.0233, raising N from 41 to 321 stretches the coarse-to-fine ratio from 2 to
-        1552 while the largest cell barely moves — and an unweighted RMS over nodes reports
-        mostly on the near-wall layer, where a graded mesh has deliberately put most of its
-        nodes. Corrected on both counts, the scheme holds second order in both configurations.
-      </p>
-      <p class="prose">
-        One limitation, stated rather than implied: a manufactured solution prescribes the
-        exact fields at the boundary nodes, so both configurations here impose Dirichlet
-        conditions on all three unknowns. The blocking, zero-flux electrode the demos run is
-        <strong>not</strong> exercised by this study, and nothing below should be read as
-        covering it.
-      </p>
-      <div class="vp-stage"><canvas id="vp-mms" role="img" aria-label="Convergence plot on log axes: L2 error falling with mesh spacing parallel to a slope-2 reference line"></canvas></div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>mesh</th><th class="num">N</th><th class="num">h<sub>max</sub></th><th class="num">weighted L₂ error (ψ)</th><th class="num">observed order</th></tr>
-          </thead>
-          <tbody id="vp-mms-table"><tr><td colspan="5">computing…</td></tr></tbody>
-        </table>
+      <div class="vp-cols">
+        <div class="vp-text">
+          <p class="prose">
+            At equilibrium against a blocking electrode, steady PNP reduces exactly to
+            Poisson–Boltzmann, whose single-wall solution is the Gouy–Chapman profile. The
+            numerical solver knows nothing about that closed form — it just runs
+            Scharfetter–Gummel fluxes and damped Newton — so landing on the analytic curve is a
+            genuine end-to-end check of fluxes, Jacobian, and boundary conditions.
+          </p>
+          <Equation
+            id="eq-gc"
+            latex={eqGC}
+            caption="Gouy–Chapman: the exact Poisson–Boltzmann profile at a single charged wall, 1:1 electrolyte."
+          />
+          <CodeBlock code={gcSnippet} lang="ts" label="reproduce (TypeScript, this site's solver)" />
+        </div>
+        <div class="vp-figure">
+          <div class="vp-stage"><canvas id="vp-gc" role="img" aria-label="Potential profile across the double layer: the numerical PNP solution overlaying the analytic Gouy-Chapman curve"></canvas></div>
+          <p class="vp-metric" id="vp-gc-err">computing…</p>
+        </div>
       </div>
-      <p class="vp-metric" id="vp-mms-order">computing…</p>
-      <CodeBlock code={mmsSnippet} lang="ts" label="reproduce" />
     </section>
 
-    <section class="vp-entry">
+    <section class="vp-entry" id="check-cottrell">
+      <h2>2 · Cottrell potential step</h2>
+      <div class="vp-cols">
+        <div class="vp-text">
+          <p class="prose">
+            Step the surface concentration of a diffusing species to zero and the current must
+            decay as 1/√t while the depletion layer stays far from the cell wall. The simulation
+            uses implicit Euler on 600 nodes; the reference is exact.
+          </p>
+          <Equation
+            id="eq-cottrell"
+            latex={eqCottrell}
+            caption="Cottrell equation: diffusion-limited current after a potential step."
+          />
+          <CodeBlock code={cottrellSnippet} lang="ts" label="reproduce" />
+        </div>
+        <div class="vp-figure">
+          <div class="vp-stage"><canvas id="vp-cottrell" role="img" aria-label="Current versus time on log axes: the simulated potential-step current tracking the analytic Cottrell decay"></canvas></div>
+          <p class="vp-metric" id="vp-cottrell-err">computing…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="vp-entry" id="check-mms">
+      <h2>3 · Manufactured solutions — measured order of accuracy</h2>
+      <div class="vp-cols">
+        <div class="vp-text">
+          <p class="prose">
+            The method of manufactured solutions plants a known smooth field in the full coupled
+            PNP operator, derives the source terms analytically, and measures how fast the
+            discrete solution converges to it as the mesh refines. Second-order convergence is the
+            design claim for the Scharfetter–Gummel scheme on smooth solutions; the observed order
+            is measured below, live, on five meshes.
+          </p>
+          <p class="prose">
+            Two configurations are reported. A uniform mesh is the clean case, but it is not what
+            the demos run: they use a mesh graded towards the electrode, and at a screening
+            parameter four orders of magnitude smaller. The second row uses the growth ratio and
+            ε̂ that the double-layer demo actually produces, so the number characterises the
+            scheme where it lives rather than only where it is easiest to measure.
+          </p>
+          <p class="prose">
+            Both rows measure against <em>h</em><sub>max</sub>, the largest cell in the mesh, in a
+            mesh-weighted L₂ norm. That matters more than it sounds: an earlier reading of this
+            study on graded meshes appeared to show the order collapsing to 0.5–0.85, and that was
+            an artefact of two choices, not a property of the scheme. Reporting <em>h</em> as
+            1/(N−1) assumes refinement halves the cells, which on a graded mesh it does not — at
+            ratio 1.0233, raising N from 41 to 321 stretches the coarse-to-fine ratio from 2 to
+            1552 while the largest cell barely moves — and an unweighted RMS over nodes reports
+            mostly on the near-wall layer, where a graded mesh has deliberately put most of its
+            nodes. Corrected on both counts, the scheme holds second order in both configurations.
+          </p>
+          <p class="prose">
+            One limitation, stated rather than implied: a manufactured solution prescribes the
+            exact fields at the boundary nodes, so both configurations here impose Dirichlet
+            conditions on all three unknowns. The blocking, zero-flux electrode the demos run is
+            <strong>not</strong> exercised by this study, and nothing below should be read as
+            covering it.
+          </p>
+          <CodeBlock code={mmsSnippet} lang="ts" label="reproduce" />
+        </div>
+        <div class="vp-figure">
+          <div class="vp-stage"><canvas id="vp-mms" role="img" aria-label="Convergence plot on log axes: L2 error falling with mesh spacing parallel to a slope-2 reference line"></canvas></div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>mesh</th><th class="num">N</th><th class="num">h<sub>max</sub></th><th class="num">weighted L₂ error (ψ)</th><th class="num">observed order</th></tr>
+              </thead>
+              <tbody id="vp-mms-table"><tr><td colspan="5">computing…</td></tr></tbody>
+            </table>
+          </div>
+          <p class="vp-metric" id="vp-mms-order">computing…</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="vp-entry" id="check-warburg">
       <h2>4 · Warburg 45° asymptote</h2>
-      <p class="prose">
-        A finite-length diffusion element must approach the semi-infinite Warburg line —
-        constant 45° phase — at frequencies well above 1/τ_d. The plot keeps equal axis
-        scaling, as every Nyquist plot should; the measured high-frequency phase is printed
-        below it.
-      </p>
-      <Equation
-        id="eq-warburg"
-        latex={eqWarburg}
-        caption="Finite-length Warburg and its semi-infinite 45° limit."
-      />
-      <div class="vp-stage vp-square"><canvas id="vp-warburg" role="img" aria-label="Nyquist plot with equal axes: the finite-length Warburg locus approaching the 45-degree reference line"></canvas></div>
-      <p class="vp-metric" id="vp-warburg-err">computing…</p>
-      <CodeBlock code={warburgSnippet} lang="ts" label="reproduce" />
+      <div class="vp-cols">
+        <div class="vp-text">
+          <p class="prose">
+            A finite-length diffusion element must approach the semi-infinite Warburg line —
+            constant 45° phase — at frequencies well above 1/τ_d. The plot keeps equal axis
+            scaling, as every Nyquist plot should; the measured high-frequency phase is printed
+            below it.
+          </p>
+          <Equation
+            id="eq-warburg"
+            latex={eqWarburg}
+            caption="Finite-length Warburg and its semi-infinite 45° limit."
+          />
+          <CodeBlock code={warburgSnippet} lang="ts" label="reproduce" />
+        </div>
+        <div class="vp-figure">
+          <div class="vp-stage vp-square"><canvas id="vp-warburg" role="img" aria-label="Nyquist plot with equal axes: the finite-length Warburg locus approaching the 45-degree reference line"></canvas></div>
+          <p class="vp-metric" id="vp-warburg-err">computing…</p>
+        </div>
+      </div>
     </section>
 
-    <section class="vp-entry">
+    <section class="vp-entry" id="check-drt">
       <h2>5 · DRT recovery of a known circuit</h2>
-      <p class="prose">
-        Feed the Tikhonov-NNLS inversion a spectrum whose answer is known — a single RC arc —
-        and it must return one peak at τ = R<sub>ct</sub>C<sub>dl</sub>. γ is reported as a
-        density in ln τ, so the area under the curve is R<sub>ct</sub> however finely the τ
-        axis is sampled — refining from 30 bins to 240 moves it from 25.14 Ω to 25.02 Ω. The
-        <em>height</em> of the peak is not a grid-independent quantity and should not be read
-        as one: the true distribution for a single RC arc is a spike of zero width, so a finer
-        grid resolves it taller and narrower while the area holds. This exercises the
-        regularised least-squares machinery end to end.
-      </p>
-      <div class="vp-stage"><canvas id="vp-drt" role="img" aria-label="Distribution of relaxation times: a single recovered peak aligned with the true RC time constant marker"></canvas></div>
-      <p class="vp-metric" id="vp-drt-err">computing…</p>
-      <CodeBlock code={drtSnippet} lang="ts" label="reproduce" />
+      <div class="vp-cols">
+        <div class="vp-text">
+          <p class="prose">
+            Feed the Tikhonov-NNLS inversion a spectrum whose answer is known — a single RC arc —
+            and it must return one peak at τ = R<sub>ct</sub>C<sub>dl</sub>. γ is reported as a
+            density in ln τ, so the area under the curve is R<sub>ct</sub> however finely the τ
+            axis is sampled — refining from 30 bins to 240 moves it from 25.14 Ω to 25.02 Ω. The
+            <em>height</em> of the peak is not a grid-independent quantity and should not be read
+            as one: the true distribution for a single RC arc is a spike of zero width, so a finer
+            grid resolves it taller and narrower while the area holds. This exercises the
+            regularised least-squares machinery end to end.
+          </p>
+          <CodeBlock code={drtSnippet} lang="ts" label="reproduce" />
+        </div>
+        <div class="vp-figure">
+          <div class="vp-stage"><canvas id="vp-drt" role="img" aria-label="Distribution of relaxation times: a single recovered peak aligned with the true RC time constant marker"></canvas></div>
+          <p class="vp-metric" id="vp-drt-err">computing…</p>
+        </div>
+      </div>
     </section>
 
-    <section class="vp-entry">
+    <section class="vp-entry" id="check-sand">
       <h2>6 · Sand's time — dendrite onset <StatusBadge status="planned" /></h2>
       <p class="prose">
         Sand's time predicts when the electrolyte at the electrode runs dry under
@@ -211,7 +255,7 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
       />
     </section>
 
-    <section class="vp-entry">
+    <section class="vp-entry" id="check-pybamm">
       <h2>7 · Newman P2D vs PyBaMM <StatusBadge status="planned" label="not yet run" /></h2>
       <p class="prose">
         The porous-electrode benchmark: a full P2D discharge compared against PyBaMM's
@@ -228,6 +272,74 @@ const eqSand = String.raw`\tau_{\mathrm{Sand}} = \pi D \left(\frac{c_0 n F}{2 J 
   .vp-entry {
     max-width: 46rem;
     margin-top: var(--s7);
+    scroll-margin-top: 5rem;
+  }
+
+  /* Wide screens: the argument on the left, the evidence on the right and
+     held in view while the argument is read. The single 46rem column left
+     half the page empty. */
+  @media (min-width: 1100px) {
+    .vp-entry:has(.vp-cols) {
+      max-width: none;
+    }
+
+    .vp-cols {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--s6);
+      align-items: start;
+    }
+
+    .vp-figure {
+      position: sticky;
+      top: 4.5rem;
+    }
+  }
+
+  .vp-intro {
+    max-width: none;
+  }
+
+  .vp-intro > p,
+  .vp-intro > h1 {
+    max-width: var(--measure);
+  }
+
+  .vp-score {
+    max-width: 60rem;
+    margin: var(--s5) 0 var(--s6);
+  }
+
+  /* headers here carry symbols; the site's small caps would mangle them */
+  .vp-score th,
+  .vp-entry th {
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+
+  /* The rows are built by validation-page.ts, so they never receive Astro's
+     scoped attribute; every rule that should reach them goes through :global. */
+  .vp-score :global(td) {
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .vp-score :global(td:last-child) {
+    white-space: nowrap;
+  }
+
+  .vp-score :global(tr[data-state='pass'] .vp-verdict) {
+    color: var(--check-pass-fg);
+    font-weight: 500;
+  }
+
+  .vp-score :global(tr[data-state='fail'] td) {
+    color: var(--check-fail-fg);
+    font-weight: 500;
+  }
+
+  .vp-score-pending td {
+    color: var(--fg-muted);
   }
 
   .vp-entry h2 {

@@ -8,6 +8,7 @@ ogImage: posters/og-physics-kinetics.png
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import D1ButlerVolmer from '../../components/demos/D1ButlerVolmer.astro';
 
 [Transport](/Electrochemical-Cell-Simulator/physics/transport/) moves ions up to the
 electrode surface; kinetics decides how fast they react once they arrive. In Voltaire the
@@ -145,16 +146,17 @@ sensitivities through the kinetics for free.
 
 <StatusBadge status="shipped" label="browser demo" />
 
-The [Butler–Volmer demo](/Electrochemical-Cell-Simulator/demos/#demo-butler-volmer)
-evaluates the exact expression above in TypeScript, live, with sliders for $j_0$,
-$\alpha_a$, $\alpha_c$, and $T$. In its Tafel view it overlays dashed asymptotes whose
+The demo below evaluates the exact expression above in TypeScript, live, with sliders
+for $j_0$, $\alpha_a$, $\alpha_c$, and $T$. Its Tafel panel overlays dashed asymptotes whose
 labels report $b$ in mV per decade, computed from $b = 2.303RT/(\alpha F)$ at the
 current slider values; the annotation therefore matches the formula by construction, and
 the check is that the simulated curve converges onto those asymptotes at large
 overpotential and peels away below roughly 100 mV where the reverse branch still
-contributes. The linear view overlays the micro-polarisation line and marks the ±5%
+contributes. The linear panel overlays the micro-polarisation line and marks the ±5%
 deviation boundary of the linear window, computed by bisection against the full
 expression. These are consistency checks of the implementation against exact analytic
 limits, not comparisons with experimental data — see the
 [validation page](/Electrochemical-Cell-Simulator/validation/) for the full list of what
 has and has not been checked.
+
+<D1ButlerVolmer />

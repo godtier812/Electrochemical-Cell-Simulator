@@ -1,86 +1,62 @@
 ---
 layout: ../../layouts/DocsLayout.astro
-title: Install
-description: How to get Voltaire — the browser demos that run today, and the from-source install route for the planned Python package.
+title: Documentation
+description: What runs on this site, how to get the most out of it, and what the code underneath it does.
 nav: docs
 ogImage: posters/og-docs.png
 ---
 import RepoNote from '../../components/RepoNote.astro';
-import { REPO_PUBLIC } from '../../lib/site';
 import StatusBadge from '../../components/StatusBadge.astro';
 import { DEMOS } from '../../lib/demos';
 
-## Status
+## What runs today
 
-<StatusBadge status="planned" label="Python package: planned" /> <StatusBadge status="planned" label="voltaire-echem on PyPI" />
-
-The Voltaire Python package is planned and is not on PyPI. There is nothing to `pip install` today, and any package you find under a similar name is not this project. The planned distribution name is `voltaire-echem`; when it ships, this page becomes a one-line install.
-
-What is real and running right now is this site and its demos. They are not videos or mock-ups, and they are not a front end over a backend: they are a self-contained **in-browser solver** — TypeScript implementations of the governing equations, computed on your own machine, at demo scale in one or two dimensions on fixed configurations rather than as a general-purpose package.
-
-## Run the numerics today, nothing to install
-
-The [demos page](/Electrochemical-Cell-Simulator/demos/) runs these models entirely in your browser. The planned Python package is being built around the same equations, but nothing on that side exists yet:
+Everything on this site that computes does so in your browser: TypeScript implementations of
+the governing equations, on fixed configurations at demo scale, with no server behind them.
+They are covered by unit tests, and the [validation page](/Electrochemical-Cell-Simulator/validation/)
+reruns the analytic checks every time it loads. There is nothing to install.
 
 <ul>
   {DEMOS.map((d) => (
     <li>
-      <a href={`/Electrochemical-Cell-Simulator/demos/#${d.id}`}>{d.name}</a> — {d.blurb}
+      <a href={`/Electrochemical-Cell-Simulator/demos/#${d.id}`}>{d.code} · {d.name}</a> — {d.blurb}
     </li>
   ))}
+  <li>
+    <a href="/Electrochemical-Cell-Simulator/tools/eis/">EIS / DRT analyser</a> — the impedance
+    demo's inversion, run on a spectrum you paste or upload.
+  </li>
+  <li>
+    <a href="/Electrochemical-Cell-Simulator/tools/calculators/">Bench calculators</a> — Debye
+    length, Tafel slope, Sand's time and the other back-of-the-notebook numbers, formula shown.
+  </li>
 </ul>
 
-If you are deciding whether the methods hold up before the package exists, start there, then read the [validation page](/Electrochemical-Cell-Simulator/validation/) for what has been checked against analytic results — and what has not been run yet.
+## In these docs
 
-## Install from source
+- **[Using the demos and tools](/Electrochemical-Cell-Simulator/docs/using/)** — how the
+  controls behave, how to share a setting as a link, what the exports contain, and the data
+  format the analyser reads.
+- **[Kernel reference](/Electrochemical-Cell-Simulator/docs/kernels/)** — every numerical
+  module the demos run, its functions and units, and which tests cover it.
+- **[Run it locally](/Electrochemical-Cell-Simulator/docs/local/)** — building the site and
+  running the tests.
+- **[Python package: design](/Electrochemical-Cell-Simulator/docs/python/)** — the interface
+  the planned package is being built to.
 
-{!REPO_PUBLIC && <StatusBadge status="in-progress" label="repository not yet public" />}
+For the science rather than the software, start at [physics](/Electrochemical-Cell-Simulator/physics/)
+and [numerics](/Electrochemical-Cell-Simulator/numerics/).
 
-<RepoNote kind="installIntro" />
+## The Python package
 
-### Requirements
+<StatusBadge status="planned" label="voltaire-echem: planned" />
 
-- Python 3.11 or newer
-- git
-
-### Steps
-
-```bash
-git clone https://github.com/godtier812/Electrochemical-Cell-Simulator
-cd Electrochemical-Cell-Simulator
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
-
-The editable flag (`-e`) makes edits to the source take effect without reinstalling, which matters while the API is still moving. On Windows, activate with `.venv\Scripts\activate` instead of the `source` line.
-
-### Dependencies
-
-The core install pulls in three packages:
-
-- `numpy` — arrays and linear algebra
-- `scipy` — sparse matrices and solvers
-- `matplotlib` — the `.plot()` methods on results
-
-### Optional: JAX
-
-JAX is optional. It is what makes the architecture's central object — the Jacobian $J = \partial R / \partial u$ of the full residual — come from automatic differentiation rather than hand-written derivatives, and it backs the ML layer. The same Jacobian is consumed three ways: damped Newton time stepping, frequency-domain impedance via $(i\omega M - J)\hat{u} = \hat{b}$, and adjoint design sensitivities via $J^{\top}\lambda = -\partial Q / \partial u$. Without JAX the core solver still installs and runs on NumPy and SciPy.
-
-```bash
-pip install jax
-```
-
-That installs the CPU build; for GPU builds, follow the install matrix in the JAX documentation, since the right wheel depends on your hardware.
-
-## PyPI release
-
-<StatusBadge status="planned" label="pip install voltaire-echem" />
-
-The planned release command is `pip install voltaire-echem`. It does not work yet. Progress toward the release is tracked on the [roadmap](/Electrochemical-Cell-Simulator/roadmap/).
+The Python solver is planned and not written, and it is not on PyPI. There is nothing to
+`pip install`, and any package you find under a similar name is not this project. Its intended
+interface is published on the [design page](/Electrochemical-Cell-Simulator/docs/python/) so
+that it can be criticised before it hardens, and its progress is tracked on the
+[roadmap](/Electrochemical-Cell-Simulator/roadmap/).
 
 ## Licence and contact
 
-Voltaire is MIT-licensed. <RepoNote kind="contact" />
-
-Next: the [quickstart](/Electrochemical-Cell-Simulator/docs/quickstart/) shows the API the package is being built to.
+Voltaire is MIT-licensed, code and figures alike. <RepoNote kind="contact" />

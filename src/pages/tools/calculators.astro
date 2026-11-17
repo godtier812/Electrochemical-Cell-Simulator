@@ -1,0 +1,485 @@
+---
+import 'katex/dist/katex.min.css';
+import katex from 'katex';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { withBase } from '../../lib/url';
+
+interface Field {
+  key: string;
+  label: string;
+  unit: string;
+  value: number;
+}
+
+interface Calc {
+  id: string;
+  title: string;
+  /** LaTeX, via String.raw so the backslashes survive the .astro compiler. */
+  latex: string;
+  note: string;
+  fields: Field[];
+  outputs: { key: string; label: string }[];
+  link: { href: string; text: string };
+}
+
+const calcs: Calc[] = [
+  {
+    id: 'debye',
+    title: 'Debye length',
+    latex: String.raw`\lambda_D = \sqrt{\frac{\varepsilon_r \varepsilon_0 R T}{2 z^2 F^2 c}}`,
+    note: 'Thickness of the diffuse double layer for a symmetric z:z electrolyte, and the capacitance it gives at low potential.',
+    fields: [
+      { key: 'c', label: 'concentration c', unit: 'mol/L', value: 0.1 },
+      { key: 'z', label: 'charge number z', unit: '', value: 1 },
+      { key: 'eps', label: 'permittivity ε_r', unit: '', value: 78.5 },
+      { key: 'T', label: 'temperature T', unit: 'K', value: 298.15 },
+    ],
+    outputs: [
+      { key: 'lambda', label: 'λ_D' },
+      { key: 'cap', label: 'C = ε/λ_D' },
+    ],
+    link: { href: '/physics/transport/', text: 'transport: the double layer' },
+  },
+  {
+    id: 'thermal',
+    title: 'Thermal voltage and Nernst slope',
+    latex: String.raw`\frac{RT}{F}, \qquad \frac{RT}{nF}\ln 10`,
+    note: 'The voltage scale of every exponential in electrochemistry, and the potential shift per decade of activity ratio.',
+    fields: [
+      { key: 'T', label: 'temperature T', unit: 'K', value: 298.15 },
+      { key: 'n', label: 'electrons n', unit: '', value: 1 },
+    ],
+    outputs: [
+      { key: 'vt', label: 'RT/F' },
+      { key: 'slope', label: 'Nernst slope' },
+    ],
+    link: { href: '/physics/kinetics/', text: 'kinetics' },
+  },
+  {
+    id: 'tafel',
+    title: 'Tafel slope',
+    latex: String.raw`b = \frac{2.303\,RT}{\alpha F}`,
+    note: 'Overpotential needed for a tenfold increase in current, far from equilibrium.',
+    fields: [
+      { key: 'alpha', label: 'transfer coefficient α', unit: '', value: 0.5 },
+      { key: 'T', label: 'temperature T', unit: 'K', value: 298.15 },
+    ],
+    outputs: [{ key: 'b', label: 'b' }],
+    link: { href: '/demos/#demo-butler-volmer', text: 'Butler–Volmer demo' },
+  },
+  {
+    id: 'rct',
+    title: 'Charge-transfer resistance',
+    latex: String.raw`R_{ct} = \frac{RT}{(\alpha_a + \alpha_c)\,F\,j_0}`,
+    note: 'Small-signal resistance of an interface from its exchange current density: the diameter of the kinetic arc on a Nyquist plot.',
+    fields: [
+      { key: 'j0', label: 'exchange current j₀', unit: 'A/cm²', value: 1e-3 },
+      { key: 'asum', label: 'α_a + α_c', unit: '', value: 1 },
+      { key: 'T', label: 'temperature T', unit: 'K', value: 298.15 },
+    ],
+    outputs: [{ key: 'rct', label: 'R_ct' }],
+    link: { href: '/physics/kinetics/', text: 'kinetics' },
+  },
+  {
+    id: 'rc',
+    title: 'RC time constant',
+    latex: String.raw`\tau = RC, \qquad f_{\text{apex}} = \frac{1}{2\pi RC}`,
+    note: 'Where an RC arc peaks on a Nyquist plot. Read a frequency off a spectrum and a resistance off the arc, and this gives the capacitance behind it.',
+    fields: [
+      { key: 'R', label: 'resistance R', unit: 'Ω', value: 25 },
+      { key: 'C', label: 'capacitance C', unit: 'µF', value: 20 },
+    ],
+    outputs: [
+      { key: 'tau', label: 'τ' },
+      { key: 'f', label: 'f at the apex' },
+    ],
+    link: { href: '/tools/eis/', text: 'EIS / DRT analyser' },
+  },
+  {
+    id: 'diffusion',
+    title: 'Diffusion time',
+    latex: String.raw`t = \frac{L^2}{D}, \qquad f = \frac{D}{2\pi L^2}`,
+    note: 'How long diffusion takes to cross a length, and the frequency below which an impedance spectrum feels the far boundary.',
+    fields: [
+      { key: 'L', label: 'length L', unit: 'µm', value: 10 },
+      { key: 'D', label: 'diffusivity D', unit: 'm²/s', value: 1e-14 },
+    ],
+    outputs: [
+      { key: 't', label: 't' },
+      { key: 'f', label: 'f' },
+    ],
+    link: { href: '/physics/impedance/', text: 'impedance: finite-length Warburg' },
+  },
+  {
+    id: 'sand',
+    title: "Sand's time",
+    latex: String.raw`\tau_{\text{Sand}} = \pi D \left(\frac{c_0\, n F}{2 J\, t_a}\right)^{2}`,
+    note: 'Time until the electrolyte at the electrode runs dry under constant-current plating: the classical trigger for dendrites. t_a = 1 − t₊ is the anion transference number.',
+    fields: [
+      { key: 'D', label: 'diffusivity D', unit: 'm²/s', value: 3e-10 },
+      { key: 'c', label: 'concentration c₀', unit: 'mol/L', value: 1 },
+      { key: 'n', label: 'electrons n', unit: '', value: 1 },
+      { key: 'J', label: 'current density J', unit: 'mA/cm²', value: 5 },
+      { key: 'tp', label: 'cation transference t₊', unit: '', value: 0.38 },
+    ],
+    outputs: [{ key: 'tau', label: 'τ_Sand' }],
+    link: { href: '/physics/dendrites/', text: 'dendrites' },
+  },
+  {
+    id: 'cottrell',
+    title: 'Cottrell current',
+    latex: String.raw`i(t) = n F A\, c^{*} \sqrt{\frac{D}{\pi t}}`,
+    note: 'Diffusion-limited current a time t after a potential step that drives the surface concentration to zero.',
+    fields: [
+      { key: 'n', label: 'electrons n', unit: '', value: 1 },
+      { key: 'A', label: 'electrode area A', unit: 'cm²', value: 1 },
+      { key: 'c', label: 'bulk concentration c*', unit: 'mmol/L', value: 1 },
+      { key: 'D', label: 'diffusivity D', unit: 'm²/s', value: 1e-9 },
+      { key: 't', label: 'time t', unit: 's', value: 1 },
+    ],
+    outputs: [{ key: 'i', label: 'i(t)' }],
+    link: { href: '/validation/', text: 'validation: Cottrell step' },
+  },
+  {
+    id: 'crate',
+    title: 'C-rate',
+    latex: String.raw`I = C_{\text{rate}} \times Q, \qquad t = \frac{1}{C_{\text{rate}}}`,
+    note: 'Current for a given C-rate, and the nominal time to a full discharge at that rate. Real cells deliver less at high rate.',
+    fields: [
+      { key: 'Q', label: 'capacity Q', unit: 'A·h', value: 5 },
+      { key: 'crate', label: 'C-rate', unit: 'h⁻¹', value: 1 },
+    ],
+    outputs: [
+      { key: 'I', label: 'I' },
+      { key: 't', label: 'nominal time' },
+    ],
+    link: { href: '/demos/#demo-discharge', text: 'discharge demo' },
+  },
+  {
+    id: 'bruggeman',
+    title: 'Bruggeman correction',
+    latex: String.raw`\frac{D_{\text{eff}}}{D_0} = \varepsilon^{\,b}, \qquad \tau = \frac{\varepsilon}{D_{\text{eff}}/D_0}`,
+    note: 'The usual estimate of transport through a porous electrode. b = 1.5 is a correlation for packed spheres, and real electrodes often sit well below it.',
+    fields: [
+      { key: 'eps', label: 'porosity ε', unit: '', value: 0.3 },
+      { key: 'b', label: 'exponent b', unit: '', value: 1.5 },
+    ],
+    outputs: [
+      { key: 'ratio', label: 'D_eff/D₀' },
+      { key: 'tau', label: 'tortuosity τ' },
+    ],
+    link: { href: '/demos/#demo-microstructure', text: 'microstructure demo' },
+  },
+];
+
+const render = (latex: string) => katex.renderToString(latex, { displayMode: true, throwOnError: false, strict: false });
+---
+
+<BaseLayout
+  title="Bench calculators"
+  description="Quick electrochemistry calculators: Debye length, thermal voltage and Nernst slope, Tafel slope, charge-transfer resistance, RC time constant, diffusion time, Sand's time, Cottrell current, C-rate, and the Bruggeman correction."
+  section="/tools/"
+  ogImage="posters/og-tools-calculators.png"
+>
+  <div class="page">
+    <article class="prose">
+      <span class="overline">Tool</span>
+      <h1>Bench calculators</h1>
+      <p>
+        The numbers you end up working out on the back of a lab notebook. Each calculator shows the
+        formula it evaluates and takes its inputs in the units printed next to them. They call the
+        same functions as the <a href={withBase('/demos/')}>demos</a>, and those functions are
+        pinned by unit tests, so a calculator cannot disagree with the model that uses the same
+        quantity.
+      </p>
+    </article>
+
+    <div class="calc-grid">
+      {
+        calcs.map((calc) => (
+          <section class="panel calc" data-calc={calc.id} aria-labelledby={`calc-${calc.id}-h`}>
+            <h2 id={`calc-${calc.id}-h`}>{calc.title}</h2>
+            <div class="calc-eq" set:html={render(calc.latex)} />
+            <p class="calc-note">{calc.note}</p>
+            <div class="calc-fields">
+              {calc.fields.map((f) => (
+                <label class="calc-field" for={`calc-${calc.id}-${f.key}`}>
+                  <span>{f.label}</span>
+                  <span class="calc-input">
+                    <input
+                      type="number"
+                      step="any"
+                      inputmode="decimal"
+                      id={`calc-${calc.id}-${f.key}`}
+                      data-in={f.key}
+                      value={f.value}
+                    />
+                    <span class="calc-unit">{f.unit}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <dl class="calc-out" aria-live="polite">
+              {calc.outputs.map((o) => (
+                <div>
+                  <dt>{o.label}</dt>
+                  <dd data-out={o.key}>—</dd>
+                </div>
+              ))}
+            </dl>
+            <a class="calc-link" href={withBase(calc.link.href)}>
+              {calc.link.text} →
+            </a>
+          </section>
+        ))
+      }
+    </div>
+
+    <p class="calc-foot">
+      Water at 25 °C has ε<sub>r</sub> ≈ 78.5. Number fields accept scientific notation, e.g.
+      <code>3e-10</code>. A dash means an input is missing or outside the range where the formula
+      makes sense.
+    </p>
+  </div>
+</BaseLayout>
+
+<style>
+  .calc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 21rem), 1fr));
+    gap: var(--s4);
+    margin-top: var(--s6);
+    align-items: start;
+  }
+
+  .calc {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+  }
+
+  .calc h2 {
+    font-size: var(--text-md);
+  }
+
+  .calc-eq {
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: var(--s1) 0;
+    border-top: 1px dashed var(--line);
+    border-bottom: 1px dashed var(--line);
+  }
+
+  .calc-eq :global(.katex-display) {
+    margin: var(--s2) 0;
+  }
+
+  .calc-eq :global(.katex) {
+    font-size: 1em;
+  }
+
+  .calc-note {
+    font-size: 0.95rem;
+    line-height: 1.5;
+    color: var(--fg-muted);
+  }
+
+  .calc-fields {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+  }
+
+  .calc-field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--s3);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+  }
+
+  .calc-input {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s2);
+    flex: none;
+  }
+
+  .calc-input input {
+    width: 6.5rem;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    color: var(--accent);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--s1) var(--s2);
+  }
+
+  .calc-input input:hover {
+    border-color: var(--line-strong);
+  }
+
+  .calc-unit {
+    min-width: 3.6rem;
+    color: var(--fg-muted);
+    font-size: var(--text-xs);
+  }
+
+  .calc-out {
+    margin: 0;
+    border-top: 1px dashed var(--line);
+    padding-top: var(--s3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s1);
+    font-family: var(--font-mono);
+  }
+
+  .calc-out > div {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s3);
+  }
+
+  .calc-out dt {
+    font-size: var(--text-sm);
+    color: var(--fg-muted);
+  }
+
+  .calc-out dd {
+    margin: 0;
+    font-size: var(--text-md);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--fg);
+    text-align: right;
+  }
+
+  .calc-link {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    margin-top: auto;
+  }
+
+  .calc-foot {
+    max-width: var(--measure);
+    margin-top: var(--s6);
+    font-size: 0.95rem;
+    color: var(--fg-muted);
+  }
+</style>
+
+<script>
+  import {
+    bruggemanRatio,
+    cRateCurrent,
+    cRateHours,
+    chargeTransferResistance,
+    cottrellCurrent,
+    debyeLengthSymmetric,
+    diffusionTime,
+    nernstSlopeMV,
+    rcApexFrequency,
+    rcTimeConstant,
+    sandsTime,
+    tafelSlopeMV,
+    thermalVoltage,
+    tortuosityFromRatio,
+  } from '../../lib/calc';
+  import { EPS0 } from '../../lib/constants';
+  import { siFormat } from '../../components/demos/runtime';
+
+  type Inputs = Record<string, number>;
+  type Outputs = Record<string, string>;
+
+  const sig = (v: number, digits = 4) => String(+v.toPrecision(digits));
+
+  /** Seconds, with a second reading in the unit a person would actually use. */
+  function duration(s: number): string {
+    if (s < 120) return siFormat(s, 's');
+    if (s < 7200) return `${sig(s / 60, 3)} min`;
+    if (s < 172800) return `${sig(s / 3600, 3)} h`;
+    if (s < 3.156e7 * 2) return `${sig(s / 86400, 3)} days`;
+    return `${sig(s / 3.156e7, 3)} years`;
+  }
+
+  /** Every calculator takes user units in and converts to SI at this boundary. */
+  const compute: Record<string, (v: Inputs) => Outputs | null> = {
+    debye: ({ c, z, eps, T }) => {
+      if (!(c > 0 && z !== 0 && eps > 0 && T > 0)) return null;
+      const lambda = debyeLengthSymmetric(eps, T, c * 1000, z);
+      return {
+        // nanometres whatever the size: it is the unit the literature quotes λ_D in
+        lambda: `${sig(lambda * 1e9, 3)} nm`,
+        // F/m² to µF/cm² is a factor of 100
+        cap: `${sig(((eps * EPS0) / lambda) * 100, 3)} µF/cm²`,
+      };
+    },
+    thermal: ({ T, n }) => {
+      if (!(T > 0 && n > 0)) return null;
+      return { vt: `${sig(thermalVoltage(T) * 1000)} mV`, slope: `${sig(nernstSlopeMV(T, n))} mV/decade` };
+    },
+    tafel: ({ alpha, T }) => {
+      if (!(alpha > 0 && T > 0)) return null;
+      return { b: `${sig(tafelSlopeMV(alpha, T))} mV/decade` };
+    },
+    rct: ({ j0, asum, T }) => {
+      if (!(j0 > 0 && asum > 0 && T > 0)) return null;
+      return { rct: siFormat(chargeTransferResistance(j0, T, asum), 'Ω·cm²') };
+    },
+    rc: ({ R, C }) => {
+      if (!(R > 0 && C > 0)) return null;
+      const farads = C * 1e-6;
+      return { tau: siFormat(rcTimeConstant(R, farads), 's'), f: siFormat(rcApexFrequency(R, farads), 'Hz') };
+    },
+    diffusion: ({ L, D }) => {
+      if (!(L > 0 && D > 0)) return null;
+      const t = diffusionTime(L * 1e-6, D);
+      return { t: duration(t), f: siFormat(1 / (2 * Math.PI * t), 'Hz') };
+    },
+    sand: ({ D, c, n, J, tp }) => {
+      if (!(D > 0 && c > 0 && n > 0 && J > 0 && tp >= 0 && tp < 1)) return null;
+      // mol/L to mol/m³ is ×1000; mA/cm² to A/m² is ×10
+      return { tau: duration(sandsTime(D, c * 1000, n, J * 10, tp)) };
+    },
+    cottrell: ({ n, A, c, D, t }) => {
+      if (!(n > 0 && A > 0 && c > 0 && D > 0 && t > 0)) return null;
+      // cm² to m² is ×1e-4; mmol/L is already mol/m³
+      return { i: siFormat(cottrellCurrent(n, A * 1e-4, c, D, t), 'A') };
+    },
+    crate: ({ Q, crate }) => {
+      if (!(Q > 0 && crate > 0)) return null;
+      return { I: siFormat(cRateCurrent(crate, Q), 'A'), t: duration(cRateHours(crate) * 3600) };
+    },
+    bruggeman: ({ eps, b }) => {
+      if (!(eps > 0 && eps <= 1 && b > 0)) return null;
+      const ratio = bruggemanRatio(eps, b);
+      return { ratio: sig(ratio), tau: sig(tortuosityFromRatio(eps, ratio)) };
+    },
+  };
+
+  document.querySelectorAll<HTMLElement>('[data-calc]').forEach((card) => {
+    const fn = compute[card.dataset.calc ?? ''];
+    if (!fn) return;
+    const inputs = [...card.querySelectorAll<HTMLInputElement>('[data-in]')];
+    const outputs = [...card.querySelectorAll<HTMLElement>('[data-out]')];
+    const update = () => {
+      const values: Inputs = {};
+      let complete = true;
+      for (const el of inputs) {
+        const v = el.value.trim() === '' ? NaN : Number(el.value);
+        if (!isFinite(v)) complete = false;
+        values[el.dataset.in!] = v;
+      }
+      const result = complete ? fn(values) : null;
+      for (const el of outputs) el.textContent = result?.[el.dataset.out!] ?? '—';
+    };
+    inputs.forEach((el) => el.addEventListener('input', update));
+    update();
+  });
+</script>

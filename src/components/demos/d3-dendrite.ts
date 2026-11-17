@@ -13,10 +13,20 @@ import {
   Loop,
   prefersReducedMotion,
   revealCanvas,
+  setupShell,
   showMessage,
   sliderToLog,
   type Shell,
 } from './runtime';
+
+/**
+ * Steps run before the first frame is shown. A freshly seeded field is a flat
+ * electrode with a few specks on it, and at interactive speed it stays that
+ * way for several seconds — long enough to read as a broken demo. The poster
+ * stays up while these run, a few frames' worth at a time.
+ */
+const WARM_STEPS = { webgl2: 3000, cpu: 240 } as const;
+const WARM_CHUNK = { webgl2: 150, cpu: 24 } as const;
 
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
@@ -159,14 +169,16 @@ export function init(shell: Shell): void {
     }
   };
 
-  pauseBtn.addEventListener('click', () => setPaused(loop.active));
-  resetBtn.addEventListener('click', () => {
+  const reseed = () => {
     engine.seed(pNuc.value);
     steps = 0;
     stepsAtStamp = 0;
     stepStamp = performance.now();
     engine.render(showC.checked);
-  });
+  };
+
+  pauseBtn.addEventListener('click', () => setPaused(loop.active));
+  resetBtn.addEventListener('click', reseed);
   morphSlider.addEventListener('input', readControls);
   omegaInputs.forEach((r) => r.addEventListener('change', readControls));
   showC.addEventListener('change', () => engine.render(showC.checked));
@@ -175,11 +187,38 @@ export function init(shell: Shell): void {
     engine.dispose();
   });
 
+  setupShell(shell, {
+    refresh: readControls,
+    onReset: reseed,
+    // a WebGL canvas only holds its pixels until the frame is presented
+    beforeCapture: () => engine.render(showC.checked),
+  });
+
   readControls();
   engine.seed(pNuc.value);
-  engine.render(showC.checked);
-  revealCanvas(shell, canvas);
-  enablePanel(shell);
-  // reduced motion: start paused on a seeded frame; the run button still works
-  setPaused(prefersReducedMotion());
+
+  const backend = engine.info.backend === 'webgl2' ? 'webgl2' : 'cpu';
+  let warmed = 0;
+  let gone = false;
+  addEventListener('pagehide', () => {
+    gone = true;
+  });
+  const warm = () => {
+    if (gone) return;
+    engine.step(params, WARM_CHUNK[backend]);
+    warmed += WARM_CHUNK[backend];
+    if (warmed < WARM_STEPS[backend]) {
+      requestAnimationFrame(warm);
+      return;
+    }
+    steps = warmed;
+    stepsAtStamp = warmed;
+    stepStamp = performance.now();
+    engine.render(showC.checked);
+    revealCanvas(shell, canvas);
+    enablePanel(shell);
+    // reduced motion: start paused on the grown frame; the run button still works
+    setPaused(prefersReducedMotion());
+  };
+  requestAnimationFrame(warm);
 }

@@ -9,6 +9,7 @@ import RepoNote from '../../components/RepoNote.astro';
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import D3Dendrite from '../../components/demos/D3Dendrite.astro';
 
 <StatusBadge status="shipped" label="browser demo" /> <StatusBadge status="planned" label="Python module: planned" />
 
@@ -111,4 +112,6 @@ The sink term $-\lambda\, \partial \xi / \partial t$ consumes cations exactly wh
 
 ## Try it
 
-The [dendrite demo](/Electrochemical-Cell-Simulator/demos/#demo-dendrite) runs this model at interactive rates. Vary the overpotential and the anisotropy strength $\delta$ and watch the morphology respond; the mossy–needle–branched progression appears within seconds of a parameter change. <RepoNote kind="shader" /> The co-evolved concentration field is a reduced form of the full [transport model](/Electrochemical-Cell-Simulator/physics/transport/), and the reaction bracket is the Butler–Volmer expression derived on the [kinetics page](/Electrochemical-Cell-Simulator/physics/kinetics/).
+The demo below runs this model at interactive rates. Vary the overpotential and the anisotropy strength $\delta$ and watch the morphology respond; the mossy–needle–branched progression appears within seconds of a parameter change. <RepoNote kind="shader" /> The co-evolved concentration field is a reduced form of the full [transport model](/Electrochemical-Cell-Simulator/physics/transport/), and the reaction bracket is the Butler–Volmer expression derived on the [kinetics page](/Electrochemical-Cell-Simulator/physics/kinetics/).
+
+<D3Dendrite />

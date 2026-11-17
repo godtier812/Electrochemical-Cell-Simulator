@@ -1,7 +1,8 @@
 import { Plot } from '../../lib/plot';
 import { css } from '../../lib/colormaps';
 import { simulateDischarge } from '../../lib/spm';
-import { bindParam, createCanvas, enablePanel, rafDebounce, revealCanvas, type Shell } from './runtime';
+import { columnsToCsv } from '../../lib/csv';
+import { bindParam, createCanvas, enablePanel, rafDebounce, revealCanvas, setupShell, type Shell } from './runtime';
 
 const CUTOFF_LABEL: Record<string, string> = {
   voltage: '2.5 V cut-off',
@@ -12,7 +13,6 @@ const CUTOFF_LABEL: Record<string, string> = {
 export function init(shell: Shell): void {
   const $ = <T extends HTMLElement>(sel: string) => shell.root.querySelector<T>(sel)!;
   const showOcv = $<HTMLInputElement>('#d6-ocv');
-  const reset = $<HTMLButtonElement>('#d6-reset');
 
   const outCap = $<HTMLOutputElement>('#d6-cap');
   const outVmean = $<HTMLOutputElement>('#d6-vmean');
@@ -25,6 +25,7 @@ export function init(shell: Shell): void {
   );
   const plot = new Plot(canvas);
   let firstFrame = true;
+  let last: Record<string, ArrayLike<number>> | null = null;
 
   const redraw = () => draw();
   const pCrate = bindParam(shell, 'd6-crate', redraw);
@@ -65,7 +66,6 @@ export function init(shell: Shell): void {
       // a little headroom past the nominal-capacity marker for its label
       xRange: [0, Math.max(0.5, run.capacityNominal * 1.1)],
       yRange: [2.4, 4.3],
-      legend: 'bl',
     });
     plot.draw(
       [
@@ -80,6 +80,8 @@ export function init(shell: Shell): void {
       ]
     );
 
+    last = { 'discharged capacity / A h': q, 'terminal voltage / V': v, 'open-circuit voltage / V': ocv };
+
     if (firstFrame) {
       firstFrame = false;
       revealCanvas(shell, canvas);
@@ -87,12 +89,14 @@ export function init(shell: Shell): void {
   });
 
   showOcv.addEventListener('input', draw);
-  reset.addEventListener('click', () => {
-    for (const p of [pCrate, pRadius, pR0, pT]) p.reset();
-    showOcv.checked = true;
-    draw();
-  });
   addEventListener('resize', draw);
+
+  setupShell(shell, {
+    refresh: draw,
+    hold: () => plot.hold(`${pCrate.format()}C, ${pRadius.format()} µm, ${pT.format()} K`),
+    clearHold: () => plot.clearHeld(),
+    csv: () => columnsToCsv(Object.entries(last ?? {}).map(([name, values]) => ({ name, values }))),
+  });
 
   enablePanel(shell);
   draw();

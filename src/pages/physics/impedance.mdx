@@ -8,6 +8,7 @@ ogImage: posters/og-physics-impedance.png
 import Equation from '../../components/Equation.astro';
 import SymbolTable from '../../components/SymbolTable.astro';
 import StatusBadge from '../../components/StatusBadge.astro';
+import D4Impedance from '../../components/demos/D4Impedance.astro';
 
 Electrochemical impedance spectroscopy is usually simulated the way it is measured: apply a
 small sinusoidal current, time-step the full nonlinear model until the transient dies, fit the
@@ -115,7 +116,7 @@ and the inversion amplifies measurement noise into spurious sharp spikes that lo
 are not — physical processes. Too large, and genuinely distinct peaks merge into one broad
 hump, so you under-count the processes in the cell. Non-negativity suppresses the ringing
 that plagues unconstrained Tikhonov inversion, but it cannot rescue a bad $\lambda$. The
-[browser demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) puts $\lambda$ on a
+[demo at the end of this page](#demo-impedance) puts $\lambda$ on a
 slider precisely so you can watch both failure modes happen: drag it down until spikes
 appear, drag it up until peaks fuse, and settle where the recovered peaks are stable over a
 range of $\lambda$. That stability check, not any single magic value, is the defensible
@@ -166,11 +167,15 @@ to show.
 
 ## Try it in the browser
 
-<StatusBadge status="shipped" label="browser demo" /> The
-[impedance demo](/Electrochemical-Cell-Simulator/demos/#demo-impedance) runs the
+<StatusBadge status="shipped" label="browser demo" /> The demo below runs the
 Tikhonov-NNLS DRT inversion in TypeScript, in your browser. Build a spectrum from known
-relaxations, add noise, and invert it: the $\lambda$ slider shows the spike and merge failure
-modes live, and the Nyquist panel keeps the equal-axis convention so the Warburg checks above
-read at true 45°. Details of the shared-Jacobian architecture are on the
+relaxations, add noise, and invert it: the presets walk through the spike and merge failure
+modes, and the Nyquist panel keeps the equal-axis convention so the Warburg checks above
+read at true 45°. To invert a spectrum of your own, use the
+[EIS / DRT analyser](/Electrochemical-Cell-Simulator/tools/eis/).
+
+<D4Impedance />
+
+Details of the shared-Jacobian architecture are on the
 [numerics page](/Electrochemical-Cell-Simulator/numerics/), and analytic comparisons are
 collected under [validation](/Electrochemical-Cell-Simulator/validation/).

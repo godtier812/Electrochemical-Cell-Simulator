@@ -132,3 +132,136 @@ export function computeDRT(
 
   return { tau, gamma, dlnTau, Rinf, misfit: Math.sqrt(err / (ref || 1)) };
 }
+
+/* ---------------- reading a DRT: peaks, and the choice of λ ---------------- */
+
+export interface DRTPeak {
+  /** Relaxation time at the maximum, s. */
+  tau: number;
+  /** Characteristic frequency 1/(2πτ), Hz. */
+  freq: number;
+  /**
+   * Resistance of the process: the area under the peak in ln τ, between the
+   * minima on either side. Same units as Z. This is the grid-independent
+   * quantity; the height is not.
+   */
+  resistance: number;
+  /** Effective capacitance τ/R of an RC element with this τ and R, in F (or F/cm² if Z is area-specific). */
+  capacitance: number;
+  /**
+   * True when the maximum lies outside the measured window (τ < 1/ω_max or
+   * τ > 1/ω_min). The τ grid extends a decade past the data at each end, and a
+   * peak out there is extrapolation, not measurement.
+   */
+  outsideWindow: boolean;
+}
+
+/**
+ * Split a DRT into its peaks. A peak is a local maximum of γ that reaches at
+ * least `minFraction` of the tallest one; each takes the area between the
+ * minima that bound it, so the resistances add up to the area under the whole
+ * curve and nothing is counted twice.
+ */
+export function drtPeaks(drt: DRTResult, omega: ArrayLike<number>, minFraction = 0.03): DRTPeak[] {
+  const { tau, gamma, dlnTau } = drt;
+  const n = gamma.length;
+  let gMax = 0;
+  for (let k = 0; k < n; k++) gMax = Math.max(gMax, gamma[k]);
+  if (!(gMax > 0)) return [];
+
+  const maxima: number[] = [];
+  for (let k = 0; k < n; k++) {
+    const left = k > 0 ? gamma[k - 1] : -Infinity;
+    const right = k < n - 1 ? gamma[k + 1] : -Infinity;
+    if (gamma[k] >= minFraction * gMax && gamma[k] > left && gamma[k] >= right) maxima.push(k);
+  }
+  if (maxima.length === 0) return [];
+
+  // boundaries: the lowest bin between each pair of neighbouring maxima
+  const cuts: number[] = [0];
+  for (let m = 0; m < maxima.length - 1; m++) {
+    let lo = maxima[m];
+    for (let k = maxima[m]; k <= maxima[m + 1]; k++) if (gamma[k] < gamma[lo]) lo = k;
+    cuts.push(lo);
+  }
+  cuts.push(n - 1);
+
+  let wMin = Infinity;
+  let wMax = 0;
+  for (let i = 0; i < omega.length; i++) {
+    wMin = Math.min(wMin, omega[i]);
+    wMax = Math.max(wMax, omega[i]);
+  }
+
+  return maxima.map((k, m) => {
+    const a = cuts[m];
+    const b = cuts[m + 1];
+    let area = 0;
+    for (let i = a; i <= b; i++) {
+      // a bin on an interior boundary is shared between the two peaks it separates
+      const shared = (i === a && m > 0) || (i === b && m < maxima.length - 1);
+      area += gamma[i] * dlnTau * (shared ? 0.5 : 1);
+    }
+    return {
+      tau: tau[k],
+      freq: 1 / (2 * Math.PI * tau[k]),
+      resistance: area,
+      capacitance: area > 0 ? tau[k] / area : Infinity,
+      outsideWindow: tau[k] < 1 / wMax || tau[k] > 1 / wMin,
+    };
+  });
+}
+
+export interface LambdaSweepRow {
+  lambda: number;
+  /** Relative rms misfit of the reconstruction at this λ. */
+  misfit: number;
+  /** Number of peaks the inversion reports at this λ. */
+  peaks: number;
+}
+
+/**
+ * The inversion repeated over a range of regularisation strengths. There is no
+ * neutral λ: too small and noise turns into spikes that look like processes,
+ * too large and distinct processes fuse. What can be checked is stability —
+ * the same peaks over a decade or more of λ — and this is the data for that
+ * check.
+ */
+export function lambdaSweep(
+  omega: Float64Array,
+  Z: C[],
+  lambdas: number[],
+  opts: { nTau?: number } = {}
+): LambdaSweepRow[] {
+  return lambdas.map((lambda) => {
+    const drt = computeDRT(omega, Z, { nTau: opts.nTau, lambda });
+    return { lambda, misfit: drt.misfit, peaks: drtPeaks(drt, omega).length };
+  });
+}
+
+/**
+ * A starting value for λ, by the stability criterion: the middle of the
+ * longest run of consecutive λ values that all give the same number of peaks.
+ * Ties go to the run with the smaller misfit. It is a heuristic for where to
+ * start looking, not a claim that this λ is correct.
+ */
+export function suggestLambda(sweep: LambdaSweepRow[]): number | null {
+  if (sweep.length === 0) return null;
+  let best: { start: number; len: number; misfit: number } | null = null;
+  let start = 0;
+  for (let i = 1; i <= sweep.length; i++) {
+    if (i === sweep.length || sweep[i].peaks !== sweep[start].peaks) {
+      const len = i - start;
+      let misfit = 0;
+      for (let k = start; k < i; k++) misfit += sweep[k].misfit / len;
+      if (sweep[start].peaks > 0 && (!best || len > best.len || (len === best.len && misfit < best.misfit))) {
+        best = { start, len, misfit };
+      }
+      start = i;
+    }
+  }
+  if (!best) return null;
+  const a = sweep[best.start].lambda;
+  const b = sweep[best.start + best.len - 1].lambda;
+  return Math.sqrt(a * b);
+}

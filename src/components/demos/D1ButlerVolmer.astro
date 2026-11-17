@@ -5,33 +5,63 @@ import Control from './Control.astro';
 
 <DemoShell
   id="demo-butler-volmer"
-  title="D1 · Butler–Volmer explorer"
+  code="D1"
+  title="Butler–Volmer explorer"
   poster="d1-butler-volmer.svg"
   alt="Plot of current density against overpotential from the Butler–Volmer equation, with the linear response region marked around zero overpotential"
-  aspect="16/10"
-  caption="Interfacial current density j(η) from the Butler–Volmer equation, computed live. The dashed curves are the linearised response and, in Tafel view, the two Tafel asymptotes with slope 2.303RT/αF. Model assumptions: single-step reaction, no mass-transport limitation, film-free interface."
+  aspect="5/2"
+  stack={true}
+  caption="Interfacial current density j(η), computed live. Left: linear axes with the small-signal line. Right: the same curve on Tafel axes with its two asymptotes."
+  presets={[
+    { label: 'Sluggish electrode: j₀ = 10⁻⁶ A cm⁻²', state: { 'd1-j0': 1e-6 } },
+    { label: 'Asymmetric barrier: α_a = 0.3', state: { 'd1-lock': 1, 'd1-aa': 0.3, 'd1-ac': 0.7 } },
+    { label: 'Cold cell: 250 K steepens both branches', state: { 'd1-T': 250 } },
+  ]}
 >
   <fieldset class="panel" slot="panel" disabled>
     <legend>kinetics</legend>
-    <Control id="d1-j0" label="j₀ / A cm⁻²" min={1e-6} max={1e-1} value={1e-3} scale="log" />
-    <Control id="d1-aa" label="α_a" min={0.1} max={0.9} value={0.5} step={0.01} />
-    <Control id="d1-ac" label="α_c" min={0.1} max={0.9} value={0.5} step={0.01} />
-    <Control id="d1-T" label="T / K" min={250} max={350} value={298} step={1} />
+    <div class="control-cols">
+      <Control id="d1-j0" label="j₀ / A cm⁻²" min={1e-6} max={1e-1} value={1e-3} scale="log" />
+      <Control id="d1-T" label="T / K" min={250} max={350} value={298} step={1} />
+      <Control id="d1-aa" label="α_a" min={0.1} max={0.9} value={0.5} step={0.01} />
+      <Control id="d1-ac" label="α_c" min={0.1} max={0.9} value={0.5} step={0.01} />
+    </div>
     <div class="switch-row">
       <label><input type="checkbox" id="d1-lock" checked /> lock α_a + α_c = 1</label>
-    </div>
-    <div class="switch-row" role="radiogroup" aria-label="Plot mode">
-      <label><input type="radio" name="d1-mode" value="linear" checked /> j vs η</label>
-      <label><input type="radio" name="d1-mode" value="tafel" /> Tafel log|j|</label>
-      <button class="copy-btn" type="button" id="d1-reset">reset</button>
     </div>
     <div class="panel-readouts">
       <span>b_a <output id="d1-slope-a">—</output></span>
       <span>b_c <output id="d1-slope-c">—</output></span>
       <span>linear region <output id="d1-linear">—</output></span>
+      <span>R_ct <output id="d1-rct">—</output></span>
     </div>
   </fieldset>
+  <Fragment slot="notes">
+    <p>
+      The Butler–Volmer equation for a single-step reaction: an anodic and a cathodic exponential
+      whose difference is the net current. Three things are assumed, and each fails somewhere real:
+    </p>
+    <ul>
+      <li>one rate-determining step, so a single pair of transfer coefficients describes the whole curve;</li>
+      <li>no mass-transport limit, so the current keeps rising with overpotential instead of saturating;</li>
+      <li>a film-free interface, with no SEI or oxide in series.</li>
+    </ul>
+    <p>
+      The dashed line on the left is the linearised response, good to 5% inside the marked band.
+      The dashed lines on the right are the Tafel asymptotes, with slope 2.303 RT/αF per decade.
+      R<sub>ct</sub> is the small-signal charge-transfer resistance RT/((α<sub>a</sub>+α<sub>c</sub>)F j₀),
+      the same quantity the impedance demo calls R<sub>ct</sub>.
+    </p>
+  </Fragment>
 </DemoShell>
+
+<style is:global>
+  @media (max-width: 700px) {
+    #demo-butler-volmer .demo-stage {
+      aspect-ratio: 3/4 !important;
+    }
+  }
+</style>
 
 <script>
   import { initWhenVisible } from './runtime';

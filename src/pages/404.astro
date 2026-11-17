@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import { withBase } from '../lib/url';
 ---
 
 <BaseLayout title="Not found" description="This page does not exist." noIndex>
@@ -11,10 +12,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         move is to go back to a good iterate.
       </p>
       <ul>
-        <li><a href="/Electrochemical-Cell-Simulator/">Home</a></li>
-        <li><a href="/Electrochemical-Cell-Simulator/physics/">Physics</a></li>
-        <li><a href="/Electrochemical-Cell-Simulator/demos/">Demos</a></li>
-        <li><a href="/Electrochemical-Cell-Simulator/validation/">Validation</a></li>
+        <li><a href={withBase('/')}>Home</a></li>
+        <li><a href={withBase('/physics/')}>Physics</a></li>
+        <li><a href={withBase('/demos/')}>Demos</a></li>
+        <li><a href={withBase('/validation/')}>Validation</a></li>
       </ul>
     </div>
   </div>

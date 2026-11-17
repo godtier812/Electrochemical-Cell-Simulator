@@ -5,77 +5,59 @@ import Control from './Control.astro';
 
 <DemoShell
   id="demo-double-layer"
-  title="D2 · Electric double layer — PNP"
+  code="D2"
+  title="Electric double layer — PNP"
   poster="d2-double-layer.svg"
   alt="Potential and ion concentration profiles across a nanometre-scale gap: the potential decays over the Debye length while counter-ions accumulate at the electrode, matching the dashed Gouy-Chapman curves"
-  aspect="16/9"
+  aspect="5/2"
   stack={true}
-  caption="Steady Poisson–Nernst–Planck for a 1:1 electrolyte between a blocking electrode (left) and a bulk reservoir (right), solved on ~220 nodes with Scharfetter–Gummel fluxes and a fully coupled damped Newton, nondimensionalised before assembly. Dashed curves: the analytic Gouy–Chapman solution, exact for a semi-infinite gap — watch the numerics land on it while L ≫ λ_D. Insets zoom the first five Debye lengths."
+  caption="Potential (left) and ion concentrations (right) next to a charged electrode, solved by Newton iteration on the full Poisson–Nernst–Planck system. Dashed: the analytic Gouy–Chapman profile. The view covers the first ten Debye lengths, where the structure is."
+  presets={[
+    { label: '1 M: the layer collapses to 0.30 nm', state: { 'd2-c0': 1 } },
+    { label: '1 mM in a 20 nm gap: the layers start to fill it', state: { 'd2-c0': 0.001, 'd2-L': 20, 'd2-full': 1 } },
+    { label: 'Reverse the electrode: −200 mV', state: { 'd2-v': -200 } },
+  ]}
 >
   <fieldset class="panel" slot="panel" disabled>
     <legend>cell · potentiostat</legend>
-    <div class="d4-controls">
+    <div class="control-cols">
       <Control id="d2-v" label="φ applied / mV" min={-300} max={300} value={100} step={5} />
       <Control id="d2-c0" label="c₀ bulk / M" min={0.001} max={1} value={0.1} scale="log" />
       <Control id="d2-L" label="gap L / nm" min={20} max={200} value={50} step={5} />
       <Control id="d2-T" label="T / K" min={273} max={350} value={298} step={1} />
     </div>
     <div class="switch-row">
-      <button class="copy-btn" type="button" id="d2-reset">reset</button>
+      <label><input type="checkbox" id="d2-full" /> show the whole gap</label>
     </div>
     <div class="panel-readouts">
       <span>λ_D <output id="d2-lambda">—</output></span>
       <span>C_GC <output id="d2-cap">—</output></span>
+      <span>L / λ_D <output id="d2-ratio">—</output></span>
       <span>Newton <output id="d2-newton">—</output></span>
     </div>
   </fieldset>
+  <Fragment slot="notes">
+    <p>
+      Steady Poisson–Nernst–Planck for a 1:1 electrolyte between a blocking electrode (x = 0) and a
+      bulk reservoir (x = L). The three unknowns — potential and both ion concentrations — are
+      solved together on about 220 nodes graded towards the electrode, with Scharfetter–Gummel
+      fluxes and a fully coupled damped Newton iteration, nondimensionalised before assembly.
+    </p>
+    <p>
+      The dashed curves are the Gouy–Chapman solution, which is exact for a semi-infinite gap. The
+      numerics land on it while L ≫ λ<sub>D</sub>; shrink the gap or dilute the electrolyte until
+      L/λ<sub>D</sub> falls below about ten and the two separate, because the far wall is no longer
+      far.
+    </p>
+    <ul>
+      <li>Water at ε<sub>r</sub> = 78.5, point ions, no Stern layer: at high potential the predicted surface concentration exceeds what finite-sized ions allow.</li>
+      <li>Blocking electrode: no faradaic current, so this is an equilibrium profile.</li>
+    </ul>
+  </Fragment>
 </DemoShell>
 
 <style is:global>
-  .d2-grid {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-    background: var(--surface);
-  }
-
-  .d2-cell {
-    position: relative;
-    min-width: 0;
-  }
-
-  .d2-cell > canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  .d2-inset {
-    position: absolute;
-    top: 8%;
-    right: 5%;
-    width: 44%;
-    height: 42%;
-    border: 1px solid var(--line-strong);
-    background: var(--surface);
-  }
-
-  .d2-inset canvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
   @media (max-width: 700px) {
-    .d2-grid {
-      grid-template-columns: 1fr;
-      grid-template-rows: 1fr 1fr;
-    }
-
     #demo-double-layer .demo-stage {
       aspect-ratio: 3/4 !important;
     }

@@ -19,10 +19,12 @@ update rule at build time.
 
 | Piece | Status |
 | --- | --- |
-| Website with interactive demos — Butler–Volmer, PNP double layer, phase-field dendrites, EIS + live DRT inversion, microstructure tortuosity, single-particle discharge | **Shipped** — an in-browser solver, in TypeScript, computed client-side |
+| Website with interactive demos — Butler–Volmer, PNP double layer, phase-field dendrites, EIS + live DRT inversion, microstructure tortuosity, single-particle discharge. Every demo has presets, CSV/PNG export, held comparison traces, and links that reopen it with the same settings | **Shipped** — an in-browser solver, in TypeScript, computed client-side |
+| Tools: an EIS / DRT analyser for your own impedance data (paste or upload; peak table; λ sweep) and bench calculators (Debye length, Tafel slope, Sand's time, …) | **Shipped** — same kernels as the demos, nothing uploaded |
 | In-browser solver kernels — Scharfetter–Gummel + damped Newton PNP, Lawson–Hanson NNLS, Tikhonov DRT, block-tridiagonal solves, RSA + CG tortuosity, single-particle discharge — covered by unit tests in `tests/` | **Shipped** (`src/lib/`, `tests/`) |
-| Explicit phase field (`src/lib/phasefield.ts`) — the kernel behind the hero animation and the dendrite demo | **Shipped, untested** — no unit tests cover it, nor `complex.ts` or `colormaps.ts` |
-| Live validation page: Gouy–Chapman, Cottrell, MMS convergence order, Warburg 45°, DRT recovery — each with its error metric computed in-browser | **Shipped** |
+| Explicit phase field (`src/lib/phasefield.ts`) — the kernel behind the hero animation and the dendrite demo | **Shipped** — bounds, interface width and the stability limit are covered in `tests/phasefield.test.ts`; `complex.ts` and `colormaps.ts` have no tests of their own |
+| Live validation page: Gouy–Chapman, Cottrell, MMS convergence order, Warburg 45°, DRT recovery — each with its error metric computed in-browser, and a scoreboard of measured value against tolerance | **Shipped** |
+| Documentation: using the demos and tools, a kernel reference checked against the code by a unit test, and the Python package's design | **Shipped** |
 | Python solver package (`voltaire-echem`) | **Planned** — no Python code in this repository yet |
 | PyBaMM P2D comparison | **Not yet run** |
 
@@ -30,6 +32,10 @@ See the [roadmap](https://godtier812.github.io/Electrochemical-Cell-Simulator/ro
 for the full status board.
 
 ## Quickstart (target API, not yet implemented)
+
+The design for the Python package lives at
+[docs/python](https://godtier812.github.io/Electrochemical-Cell-Simulator/docs/python/). None of it
+is written; this is the interface it is being built to:
 
 ```python
 import voltaire as vt
@@ -45,7 +51,9 @@ drt.plot()
 ```
 
 Until the package ships, the same physics is runnable right now in the
-[browser demos](https://godtier812.github.io/Electrochemical-Cell-Simulator/demos/).
+[browser demos](https://godtier812.github.io/Electrochemical-Cell-Simulator/demos/), and the DRT
+inversion runs on your own data in the
+[EIS / DRT analyser](https://godtier812.github.io/Electrochemical-Cell-Simulator/tools/eis/).
 
 ## The architectural idea
 
@@ -63,21 +71,28 @@ Details: [numerics](https://godtier812.github.io/Electrochemical-Cell-Simulator/
 ## Repository layout
 
 ```
-src/lib/          numerical kernels (TypeScript) — PNP, DRT, EIS, phase field, linalg
-src/components/   site components and demo modules
-src/pages/        site content (MDX + Astro)
-scripts/          build-time generators: posters, OG image, gallery figures
-tests/            vitest unit tests for the numerics
+src/lib/                numerical kernels (TypeScript) — PNP, DRT, EIS, phase field, linalg —
+                        plus the data parser, calculator formulas, CSV and link-state helpers
+src/components/demos/   one component + module per demo, and the shared runtime (toolbar, links, export)
+src/components/tools/   the EIS / DRT analyser
+src/pages/              site content (MDX + Astro)
+scripts/                build-time generators (posters, OG cards, gallery) and checks
+tests/                  vitest unit tests for the numerics, the tools and the docs
 ```
+
+The [kernel reference](https://godtier812.github.io/Electrochemical-Cell-Simulator/docs/kernels/)
+documents `src/lib/` module by module.
 
 ## Develop the site locally
 
 ```bash
 npm install
-npm test          # numerics, parameter-mapping and registry tests
+npm test          # numerics, tools, docs, parameter-mapping and registry tests
 npm run dev       # http://localhost:4321/Electrochemical-Cell-Simulator/
+npm run check     # type-check pages and components
 npm run build     # static site in dist/, then the Pagefind search index
 npm run posters   # regenerate posters/gallery/OG cards from the physics (seeded)
+python3 scripts/check-links.py   # after a build: every internal link and #fragment resolves
 ```
 
 The generated images are committed to `public/posters/` and `public/gallery/`.
@@ -98,9 +113,10 @@ Images are compared by **decoded pixels**, not file bytes. `scripts/png.ts`
 deflates its IDAT through `node:zlib`, a native library whose compressed output
 differs between Node builds even when every pixel is identical — generating
 under Node 22 and Node 26 on one machine yields 27 files that differ byte for
-byte and none that differ by a pixel. `scripts/artifact-digest.mjs` hashes the
-inflated scanlines instead, which asks the question actually worth asking and
-is stable across Node versions.
+byte and none that differ by a pixel. `scripts/artifact-digest.mjs` inflates
+the scanlines and undoes each row's PNG filter before hashing, so it compares
+pixels whatever filter the encoder chose, which asks the question actually
+worth asking and is stable across Node versions.
 
 Deployment is GitHub Actions → GitHub Pages on push to `main`
 (`.github/workflows/deploy.yml`).
